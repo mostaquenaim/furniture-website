@@ -1,0 +1,11 @@
+1. create .env file first 
+2. then store the value of these keys, removing "testdata":
+
+DB_HOST=testdata
+DB_PORT=1234
+DB_USERNAME=testdata
+DB_PASSWORD=testdata
+DB_NAME=testdata
+
+ENABLE_NEW_PAYMENT=trueorfalse
+PAYMENT_PROVIDER=your_payment_provider_name
