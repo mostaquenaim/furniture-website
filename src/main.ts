@@ -23,8 +23,10 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
+  // prefix is set to "api"
+app.setGlobalPrefix('api');
   // Listen AFTER all config
   await app.listen(process.env.PORT ?? 3000);
 }
+
 bootstrap();

@@ -40,7 +40,8 @@ async function main() {
     where: { id: furniture.subcategories[0].id }, // Sofas
     data: {
       rooms: {
-        connect: [{ id: livingRoom.id }],
+        connect: [{ id: livingRoom.id },
+        ],
       },
     },
   });

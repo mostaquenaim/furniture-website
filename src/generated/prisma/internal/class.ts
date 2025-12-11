@@ -23,7 +23,7 @@ const config: runtime.GetPrismaClientConfig = {
       "value": "prisma-client"
     },
     "output": {
-      "value": "E:\\Sammtech\\furniture bideshi\\furniture-backend\\sakigai-furniture-website\\src\\generated\\prisma",
+      "value": "E:\\Sammtech\\furniture-bideshi\\furniture-backend\\sakigai-furniture-website\\src\\generated\\prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -38,7 +38,7 @@ const config: runtime.GetPrismaClientConfig = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "E:\\Sammtech\\furniture bideshi\\furniture-backend\\sakigai-furniture-website\\prisma\\schema.prisma",
+    "sourceFilePath": "E:\\Sammtech\\furniture-bideshi\\furniture-backend\\sakigai-furniture-website\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativePath": "../../../prisma",
@@ -48,6 +48,7 @@ const config: runtime.GetPrismaClientConfig = {
     "db"
   ],
   "activeProvider": "postgresql",
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {

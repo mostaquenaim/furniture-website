@@ -8,16 +8,58 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CategoryModule } from './category/category.module';
 import { SubcategoryModule } from './subcategory/subcategory.module';
 import { ProductModule } from './product/product.module';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
+import { OrderModule } from './order/order.module';
+import { PaymentModule } from './payment/payment.module';
+import { WishlistModule } from './wishlist/wishlist.module';
+import { ReviewModule } from './review/review.module';
+import { CouponModule } from './coupon/coupon.module';
+import { FlashSalesModule } from './flash-sales/flash-sales.module';
+import { CmsModule } from './cms/cms.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { ShippingModule } from './shipping/shipping.module';
+import { FaqModule } from './faq/faq.module';
+import { ContactModule } from './contact/contact.module';
+import { SeoModule } from './seo/seo.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { LogsModule } from './logdetails/logs.module';
+import { BlogsModule } from './blog/blog.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { RecommendationsModule } from './recommendations/recommendations.module';
+import { SettingsModule } from './settings/settings.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PrismaModule,
+    AuthModule,
     CategoryModule,
-    SubcategoryModule,
+    PrismaModule,
     ProductModule,
+    SubcategoryModule,
+    UserModule,
+    OrderModule,
+    PaymentModule,
+    WishlistModule,
+    ReviewModule,
+    CouponModule,
+    FlashSalesModule,
+    BlogsModule,
+    CmsModule,
+    InventoryModule,
+    ShippingModule,
+    FaqModule,
+    ContactModule,
+    SeoModule,
+    AnalyticsModule,
+    LogsModule,
+    NotificationsModule,
+    RecommendationsModule,
+    SettingsModule,
+    RolesModule
   ],
   controllers: [AppController],
   providers: [AppService],
