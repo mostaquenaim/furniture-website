@@ -48,6 +48,16 @@ path.join(process.cwd(), "src/generated/prisma/query_engine-windows.dll.node")
  */
 export type User = Prisma.UserModel
 /**
+ * Model Permission
+ * 
+ */
+export type Permission = Prisma.PermissionModel
+/**
+ * Model OTP
+ * 
+ */
+export type OTP = Prisma.OTPModel
+/**
  * Model Category
  * 
  */
@@ -112,6 +122,16 @@ export type BlogPost = Prisma.BlogPostModel
  * 
  */
 export type Banner = Prisma.BannerModel
+/**
+ * Model PromoBanner
+ * 
+ */
+export type PromoBanner = Prisma.PromoBannerModel
+/**
+ * Model PromoBannerLink
+ * 
+ */
+export type PromoBannerLink = Prisma.PromoBannerLinkModel
 /**
  * Model ActivityLog
  * 

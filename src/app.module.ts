@@ -29,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { SettingsModule } from './settings/settings.module';
 import { RolesModule } from './roles/roles.module';
+import { PermissionModule } from './permission/permission.module';
 
 @Module({
   imports: [
@@ -59,7 +60,8 @@ import { RolesModule } from './roles/roles.module';
     NotificationsModule,
     RecommendationsModule,
     SettingsModule,
-    RolesModule
+    RolesModule,
+    PermissionModule
   ],
   controllers: [AppController],
   providers: [AppService],

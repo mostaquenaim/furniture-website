@@ -1,7 +1,11 @@
 import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { CreateOrderDto, UpdateOrderDto, CancelOrderDto, ReturnOrderDto, RefundDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderDto } from './dto/update-order.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
+import { ReturnOrderDto } from './dto/return-order.dto';
+import { RefundDto } from './dto/refund.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('orders')

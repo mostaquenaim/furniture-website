@@ -26,6 +26,7 @@ model User {
   email     String?   @unique
   password  String?
   role      UserRole  @default(CUSTOMER)
+  isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -33,6 +34,14 @@ model User {
   carts     Cart[]
   orders    Order[]
   reviews   Review[]
+  otps      OTP[]
+}
+
+model Permission {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  route     String   @unique
+  roles     UserRole[]
 }
 
 enum UserRole {
@@ -43,6 +52,17 @@ enum UserRole {
   CUSTOMER
 }
 
+model OTP {
+  id         Int      @id @default(autoincrement())
+  code       String
+  type       String   // 'email' | 'phone'
+  expiresAt  DateTime
+  verified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user       User @relation(fields: [userId], references: [id])
+  userId     Int
+}
 
 // =====================
 // Category & Subcategory & Room
@@ -219,6 +239,28 @@ model Banner {
   link      String?
   active    Boolean  @default(true)
 }
+
+model PromoBanner {
+  id          Int              @id @default(autoincrement())
+  text        String
+  bgColor     String           // e.g. "#0f172a"
+  isActive    Boolean          @default(true)
+  order       Int              @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  links       PromoBannerLink[]
+}
+
+model PromoBannerLink {
+  id        Int         @id @default(autoincrement())
+  text     String
+  url       String
+
+  bannerId  Int
+  banner    PromoBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+}
+
 
 model ActivityLog {
   id        Int      @id @default(autoincrement())

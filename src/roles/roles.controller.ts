@@ -1,46 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { RolesService } from './roles.service';
 
-@Injectable()
-export class RolesService {
-  private roles = [
-    { id: 1, name: 'SUPERADMIN', permissions: ['all'] },
-    { id: 2, name: 'PRODUCTMANAGER', permissions: ['products', 'categories'] },
-    { id: 3, name: 'ORDERMANAGER', permissions: ['orders'] },
-  ];
+@Controller('roles')
+export class RolesController {
+  constructor(private readonly service: RolesService) {}
 
-  getAll() {
-    return this.roles;
+  @Get() getAll() { return this.service.getAll(); }
+
+  @Post()
+  createRole(@Body('name') name: string) {
+    return this.service.createRole(name);
   }
 
-  createRole(name: string) {
-    const newRole = { id: Date.now(), name, permissions: [] };
-    this.roles.push(newRole);
-    return newRole;
+  @Put(':id')
+  updateRole(@Param('id') id: string, @Body('name') name: string) {
+    return this.service.updateRole(id, name);
   }
 
-  updateRole(id: string, name: string) {
-    const role = this.roles.find(r => r.id == +id);
-    if (!role) return null;
-    role.name = name;
-    return role;
+  @Delete(':id')
+  deleteRole(@Param('id') id: string) {
+    return this.service.deleteRole(id);
   }
 
-  deleteRole(id: string) {
-    const idx = this.roles.findIndex(r => r.id == +id);
-    if (idx === -1) return null;
-    const removed = this.roles.splice(idx, 1);
-    return removed[0];
+  @Get(':id/permissions')
+  getPermissions(@Param('id') id: string) {
+    return this.service.getPermissions(id);
   }
 
-  getPermissions(id: string) {
-    const role = this.roles.find(r => r.id == +id);
-    return role ? role.permissions : null;
-  }
-
-  assignPermissions(id: string, permissions: string[]) {
-    const role = this.roles.find(r => r.id == +id);
-    if (!role) return null;
-    role.permissions = permissions;
-    return role;
+  @Post(':id/permissions')
+  assignPermissions(@Param('id') id: string, @Body('permissions') permissions: string[]) {
+    return this.service.assignPermissions(id, permissions);
   }
 }

@@ -391,6 +391,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
+  Permission: 'Permission',
+  OTP: 'OTP',
   Category: 'Category',
   Subcategory: 'Subcategory',
   Room: 'Room',
@@ -404,6 +406,8 @@ export const ModelName = {
   Wishlist: 'Wishlist',
   BlogPost: 'BlogPost',
   Banner: 'Banner',
+  PromoBanner: 'PromoBanner',
+  PromoBannerLink: 'PromoBannerLink',
   ActivityLog: 'ActivityLog'
 } as const
 
@@ -420,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "category" | "subcategory" | "room" | "product" | "productVariant" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "activityLog"
+    modelProps: "user" | "permission" | "oTP" | "category" | "subcategory" | "room" | "product" | "productVariant" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -495,6 +499,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    Permission: {
+      payload: Prisma.$PermissionPayload<ExtArgs>
+      fields: Prisma.PermissionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PermissionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PermissionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+        }
+        findFirst: {
+          args: Prisma.PermissionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PermissionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+        }
+        findMany: {
+          args: Prisma.PermissionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>[]
+        }
+        create: {
+          args: Prisma.PermissionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+        }
+        createMany: {
+          args: Prisma.PermissionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PermissionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>[]
+        }
+        delete: {
+          args: Prisma.PermissionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+        }
+        update: {
+          args: Prisma.PermissionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+        }
+        deleteMany: {
+          args: Prisma.PermissionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PermissionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PermissionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>[]
+        }
+        upsert: {
+          args: Prisma.PermissionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+        }
+        aggregate: {
+          args: Prisma.PermissionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePermission>
+        }
+        groupBy: {
+          args: Prisma.PermissionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PermissionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PermissionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PermissionCountAggregateOutputType> | number
+        }
+      }
+    }
+    OTP: {
+      payload: Prisma.$OTPPayload<ExtArgs>
+      fields: Prisma.OTPFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.OTPFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.OTPFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>
+        }
+        findFirst: {
+          args: Prisma.OTPFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.OTPFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>
+        }
+        findMany: {
+          args: Prisma.OTPFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>[]
+        }
+        create: {
+          args: Prisma.OTPCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>
+        }
+        createMany: {
+          args: Prisma.OTPCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.OTPCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>[]
+        }
+        delete: {
+          args: Prisma.OTPDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>
+        }
+        update: {
+          args: Prisma.OTPUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>
+        }
+        deleteMany: {
+          args: Prisma.OTPDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.OTPUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.OTPUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>[]
+        }
+        upsert: {
+          args: Prisma.OTPUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OTPPayload>
+        }
+        aggregate: {
+          args: Prisma.OTPAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOTP>
+        }
+        groupBy: {
+          args: Prisma.OTPGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OTPGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.OTPCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OTPCountAggregateOutputType> | number
         }
       }
     }
@@ -1460,6 +1612,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PromoBanner: {
+      payload: Prisma.$PromoBannerPayload<ExtArgs>
+      fields: Prisma.PromoBannerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PromoBannerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PromoBannerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>
+        }
+        findFirst: {
+          args: Prisma.PromoBannerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PromoBannerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>
+        }
+        findMany: {
+          args: Prisma.PromoBannerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>[]
+        }
+        create: {
+          args: Prisma.PromoBannerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>
+        }
+        createMany: {
+          args: Prisma.PromoBannerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PromoBannerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>[]
+        }
+        delete: {
+          args: Prisma.PromoBannerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>
+        }
+        update: {
+          args: Prisma.PromoBannerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>
+        }
+        deleteMany: {
+          args: Prisma.PromoBannerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PromoBannerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PromoBannerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>[]
+        }
+        upsert: {
+          args: Prisma.PromoBannerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerPayload>
+        }
+        aggregate: {
+          args: Prisma.PromoBannerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePromoBanner>
+        }
+        groupBy: {
+          args: Prisma.PromoBannerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromoBannerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PromoBannerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromoBannerCountAggregateOutputType> | number
+        }
+      }
+    }
+    PromoBannerLink: {
+      payload: Prisma.$PromoBannerLinkPayload<ExtArgs>
+      fields: Prisma.PromoBannerLinkFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PromoBannerLinkFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PromoBannerLinkFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>
+        }
+        findFirst: {
+          args: Prisma.PromoBannerLinkFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PromoBannerLinkFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>
+        }
+        findMany: {
+          args: Prisma.PromoBannerLinkFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>[]
+        }
+        create: {
+          args: Prisma.PromoBannerLinkCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>
+        }
+        createMany: {
+          args: Prisma.PromoBannerLinkCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PromoBannerLinkCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>[]
+        }
+        delete: {
+          args: Prisma.PromoBannerLinkDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>
+        }
+        update: {
+          args: Prisma.PromoBannerLinkUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>
+        }
+        deleteMany: {
+          args: Prisma.PromoBannerLinkDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PromoBannerLinkUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PromoBannerLinkUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>[]
+        }
+        upsert: {
+          args: Prisma.PromoBannerLinkUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromoBannerLinkPayload>
+        }
+        aggregate: {
+          args: Prisma.PromoBannerLinkAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePromoBannerLink>
+        }
+        groupBy: {
+          args: Prisma.PromoBannerLinkGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromoBannerLinkGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PromoBannerLinkCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromoBannerLinkCountAggregateOutputType> | number
+        }
+      }
+    }
     ActivityLog: {
       payload: Prisma.$ActivityLogPayload<ExtArgs>
       fields: Prisma.ActivityLogFieldRefs
@@ -1580,11 +1880,35 @@ export const UserScalarFieldEnum = {
   email: 'email',
   password: 'password',
   role: 'role',
+  isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const PermissionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  route: 'route',
+  roles: 'roles'
+} as const
+
+export type PermissionScalarFieldEnum = (typeof PermissionScalarFieldEnum)[keyof typeof PermissionScalarFieldEnum]
+
+
+export const OTPScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  type: 'type',
+  expiresAt: 'expiresAt',
+  verified: 'verified',
+  createdAt: 'createdAt',
+  userId: 'userId'
+} as const
+
+export type OTPScalarFieldEnum = (typeof OTPScalarFieldEnum)[keyof typeof OTPScalarFieldEnum]
 
 
 export const CategoryScalarFieldEnum = {
@@ -1736,6 +2060,29 @@ export const BannerScalarFieldEnum = {
 export type BannerScalarFieldEnum = (typeof BannerScalarFieldEnum)[keyof typeof BannerScalarFieldEnum]
 
 
+export const PromoBannerScalarFieldEnum = {
+  id: 'id',
+  text: 'text',
+  bgColor: 'bgColor',
+  isActive: 'isActive',
+  order: 'order',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PromoBannerScalarFieldEnum = (typeof PromoBannerScalarFieldEnum)[keyof typeof PromoBannerScalarFieldEnum]
+
+
+export const PromoBannerLinkScalarFieldEnum = {
+  id: 'id',
+  text: 'text',
+  url: 'url',
+  bannerId: 'bannerId'
+} as const
+
+export type PromoBannerLinkScalarFieldEnum = (typeof PromoBannerLinkScalarFieldEnum)[keyof typeof PromoBannerLinkScalarFieldEnum]
+
+
 export const ActivityLogScalarFieldEnum = {
   id: 'id',
   adminId: 'adminId',
@@ -1819,6 +2166,13 @@ export type ListEnumUserRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$Pri
 
 
 /**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -1857,13 +2211,6 @@ export type EnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$Pris
  * Reference to a field of type 'OrderStatus[]'
  */
 export type ListEnumOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OrderStatus[]'>
-    
-
-
-/**
- * Reference to a field of type 'Boolean'
- */
-export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 /**
@@ -1954,6 +2301,8 @@ export interface PrismaClientOptions {
 }
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
+  permission?: Prisma.PermissionOmit
+  oTP?: Prisma.OTPOmit
   category?: Prisma.CategoryOmit
   subcategory?: Prisma.SubcategoryOmit
   room?: Prisma.RoomOmit
@@ -1967,6 +2316,8 @@ export type GlobalOmitConfig = {
   wishlist?: Prisma.WishlistOmit
   blogPost?: Prisma.BlogPostOmit
   banner?: Prisma.BannerOmit
+  promoBanner?: Prisma.PromoBannerOmit
+  promoBannerLink?: Prisma.PromoBannerLinkOmit
   activityLog?: Prisma.ActivityLogOmit
 }
 

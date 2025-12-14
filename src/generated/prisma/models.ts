@@ -9,6 +9,8 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/User.js'
+export type * from './models/Permission.js'
+export type * from './models/OTP.js'
 export type * from './models/Category.js'
 export type * from './models/Subcategory.js'
 export type * from './models/Room.js'
@@ -22,5 +24,7 @@ export type * from './models/Review.js'
 export type * from './models/Wishlist.js'
 export type * from './models/BlogPost.js'
 export type * from './models/Banner.js'
+export type * from './models/PromoBanner.js'
+export type * from './models/PromoBannerLink.js'
 export type * from './models/ActivityLog.js'
 export type * from './commonInputTypes.js'

@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { CreateAboutDto } from './dto/create-about.dto';
@@ -6,9 +9,14 @@ import { CreateTnCDto } from './dto/create-tnc.dto';
 import { UpdateTnCDto } from './dto/update-tnc.dto';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
+import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
 
 @Injectable()
 export class CmsService {
+  constructor(private prisma: PrismaService) {}
+  
   private about = { content: '' };
   private tnc = { content: '' };
   private banners = [];
@@ -61,5 +69,71 @@ export class CmsService {
     console.log(id);
     // this.banners = this.banners.filter(b => b.id != id);
     // return { message: 'Banner deleted' };
+  }
+
+   // CREATE
+   createPromoBanner(dto: CreatePromoBannerDto) {
+    // console.log(dto,'dtoservice');
+    return this.prisma.promoBanner.create({
+      data: {
+        text: dto.text,
+        bgColor: dto.bgColor,
+        order: dto.order ?? 0,
+        isActive: dto.isActive ?? true,
+        links: {
+          create: dto.links.map((l) => ({
+            text: l.text,
+            url: l.url,
+          })),
+        },
+      },
+      include: { links: true },
+    });
+  }
+
+  // READ (Active only)
+   findAllActivePromoBanners() {
+    return this.prisma.promoBanner.findMany({
+      where: { isActive: true },
+      orderBy: { order: 'asc' },
+      include: { links: true },
+    });
+  }
+
+  // UPDATE (transaction-safe)
+  async updatePromoBanner(id: number, dto: UpdatePromoBannerDto) {
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.links) {
+        await tx.promoBannerLink.deleteMany({
+          where: { bannerId: id },
+        });
+      }
+
+      return tx.promoBanner.update({
+        where: { id },
+        data: {
+          text: dto.text,
+          bgColor: dto.bgColor,
+          order: dto.order,
+          isActive: dto.isActive,
+          links: dto.links
+            ? {
+                create: dto.links.map((l) => ({
+                  text: l.text,
+                  url: l.url,
+                })),
+              }
+            : undefined,
+        },
+        include: { links: true },
+      });
+    });
+  }
+
+  // DELETE
+   removePromoBanner(id: number) {
+    return this.prisma.promoBanner.delete({
+      where: { id },
+    });
   }
 }

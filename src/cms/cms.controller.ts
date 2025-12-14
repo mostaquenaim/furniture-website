@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { CreateAboutDto } from './dto/create-about.dto';
 import { UpdateAboutDto } from './dto/update-about.dto';
@@ -6,6 +7,8 @@ import { CreateTnCDto } from './dto/create-tnc.dto';
 import { UpdateTnCDto } from './dto/update-tnc.dto';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
+import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
+import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
 
 @Controller()
 export class CmsController {
@@ -62,5 +65,33 @@ export class CmsController {
   @Delete('banners/:id')
   deleteBanner(@Param('id') id: string) {
     return this.cmsService.deleteBanner(id);
+  }
+
+   // CREATE PROMO BANNER
+  @Post('promo-banners')
+  createPromoBanner(@Body() dto: CreatePromoBannerDto) {
+    // console.log(dto);
+    return this.cmsService.createPromoBanner(dto);
+  }
+
+  // GET ALL ACTIVE PROMO BANNERS (Frontend)
+  @Get('promo-banners')
+  getActivePromoBanners() {
+    return this.cmsService.findAllActivePromoBanners();
+  }
+
+  // UPDATE PROMO BANNER
+  @Put('promo-banners/:id')
+  updatePromoBanner(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePromoBannerDto,
+  ) {
+    return this.cmsService.updatePromoBanner(id, dto);
+  }
+
+  // DELETE PROMO BANNER
+  @Delete('promo-banners/:id')
+  removePromoBanner(@Param('id', ParseIntPipe) id: number) {
+    return this.cmsService.removePromoBanner(id);
   }
 }

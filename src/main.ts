@@ -12,10 +12,20 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['http://localhost:3000', 'https://sakigaibd.draft'],
+    origin: ['http://localhost:7000', 'http://127.0.0.1:8000', 'https://sakigaibd.draft'],
     credentials: true,
   });
 
+  //  app.enableCors({
+  //   origin: [
+  //     'http://127.0.0.1:8000',
+  //     'http://localhost:8000',
+  //     'https://tahamsbd.com',
+  //   ],
+  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  //   credentials: true,
+  // });
+  
   // Validation Pipes
   app.useGlobalPipes(
     new ValidationPipe({

@@ -50,6 +50,8 @@ export const AnyNull = runtime.objectEnumValues.instances.AnyNull
 
 export const ModelName = {
   User: 'User',
+  Permission: 'Permission',
+  OTP: 'OTP',
   Category: 'Category',
   Subcategory: 'Subcategory',
   Room: 'Room',
@@ -63,6 +65,8 @@ export const ModelName = {
   Wishlist: 'Wishlist',
   BlogPost: 'BlogPost',
   Banner: 'Banner',
+  PromoBanner: 'PromoBanner',
+  PromoBannerLink: 'PromoBannerLink',
   ActivityLog: 'ActivityLog'
 } as const
 
@@ -89,11 +93,35 @@ export const UserScalarFieldEnum = {
   email: 'email',
   password: 'password',
   role: 'role',
+  isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const PermissionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  route: 'route',
+  roles: 'roles'
+} as const
+
+export type PermissionScalarFieldEnum = (typeof PermissionScalarFieldEnum)[keyof typeof PermissionScalarFieldEnum]
+
+
+export const OTPScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  type: 'type',
+  expiresAt: 'expiresAt',
+  verified: 'verified',
+  createdAt: 'createdAt',
+  userId: 'userId'
+} as const
+
+export type OTPScalarFieldEnum = (typeof OTPScalarFieldEnum)[keyof typeof OTPScalarFieldEnum]
 
 
 export const CategoryScalarFieldEnum = {
@@ -243,6 +271,29 @@ export const BannerScalarFieldEnum = {
 } as const
 
 export type BannerScalarFieldEnum = (typeof BannerScalarFieldEnum)[keyof typeof BannerScalarFieldEnum]
+
+
+export const PromoBannerScalarFieldEnum = {
+  id: 'id',
+  text: 'text',
+  bgColor: 'bgColor',
+  isActive: 'isActive',
+  order: 'order',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PromoBannerScalarFieldEnum = (typeof PromoBannerScalarFieldEnum)[keyof typeof PromoBannerScalarFieldEnum]
+
+
+export const PromoBannerLinkScalarFieldEnum = {
+  id: 'id',
+  text: 'text',
+  url: 'url',
+  bannerId: 'bannerId'
+} as const
+
+export type PromoBannerLinkScalarFieldEnum = (typeof PromoBannerLinkScalarFieldEnum)[keyof typeof PromoBannerLinkScalarFieldEnum]
 
 
 export const ActivityLogScalarFieldEnum = {
