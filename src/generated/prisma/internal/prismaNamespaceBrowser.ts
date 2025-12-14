@@ -115,6 +115,8 @@ export const OTPScalarFieldEnum = {
   id: 'id',
   code: 'code',
   type: 'type',
+  email: 'email',
+  phone: 'phone',
   expiresAt: 'expiresAt',
   verified: 'verified',
   createdAt: 'createdAt',

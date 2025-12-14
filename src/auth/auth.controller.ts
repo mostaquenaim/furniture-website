@@ -12,17 +12,19 @@ export class AuthController {
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
+    console.log(dto,'regdto');
     return this.authService.register(dto);
   }
-
+ 
   @Post('verify-otp')
   verifyOtp(
-    @Body() body: { userId: number; code: string; type: 'email' | 'phone' }
+    @Body() body: { emailOrPhone: string, code: string, type: 'email' | 'phone', keepSignedIn: boolean}
   ) {
-    return this.authService.verifyOtp(body.userId, body.code, body.type);
+    console.log(body);
+    return this.authService.verifyOtp(body.emailOrPhone, body.code, body.type, body.keepSignedIn);
   }
 
-  @Post('login')
+  @Post('signin')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }

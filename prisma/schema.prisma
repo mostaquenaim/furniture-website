@@ -56,6 +56,8 @@ model OTP {
   id         Int      @id @default(autoincrement())
   code       String
   type       String   // 'email' | 'phone'
+  email      String?
+  phone      String?
   expiresAt  DateTime
   verified   Boolean  @default(false)
   createdAt  DateTime @default(now())
