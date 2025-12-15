@@ -69,7 +69,7 @@ model OTP {
 model BlackListToken {
   id         Int      @id @default(autoincrement())
   jti        String
-  expiry     Int
+  expiry     BigInt
   }
   
 // =====================

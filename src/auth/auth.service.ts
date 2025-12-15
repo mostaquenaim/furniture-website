@@ -56,7 +56,7 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('User not found');
 
-    console.log(emailOrPhone, code, type, user);
+    // console.log(emailOrPhone, code, type, user);
 
     const otpData = await this.prisma.oTP.findFirst({
       where: {
@@ -68,7 +68,7 @@ export class AuthService {
       },
     });
 
-    console.log('otpData', otpData);
+    // console.log('otpData', otpData);
 
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
@@ -99,8 +99,8 @@ export class AuthService {
     return { user, token };
   }
 
-  async verifyEmail(emailOrPhone: string, type: 'email' | 'phone') {
-    console.log(emailOrPhone);
+  async verifyEmailOrPhone(emailOrPhone: string, type: 'email' | 'phone') {
+    // console.log(emailOrPhone);
 
     if (!emailOrPhone) throw new NotFoundException('not found');
 
@@ -110,10 +110,10 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('User not found');
 
-    console.log(user, 'userrr');
+    // console.log(user, 'userrr');
 
     // Send OTP
-    await this.sendOtp(
+    return await this.sendOtp(
       user.id,
       type,
       type === 'email' ? emailOrPhone : undefined,
@@ -122,7 +122,30 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
+    // Check if email or phone already exists
+    const existingUser = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: dto.email ?? undefined }, // only check if email is provided
+          { phone: dto.phone ?? undefined }, // only check if phone is provided
+        ],
+      },
+    });
+
+    if (existingUser) {
+      // Determine which field is taken
+      if (existingUser.email === dto.email) {
+        throw new Error('Email is already registered.');
+      }
+      if (existingUser.phone === dto.phone) {
+        throw new Error('Phone number is already registered.');
+      }
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    // Create new user
     const user = await this.prisma.user.create({
       data: {
         name: dto.name,
@@ -136,7 +159,7 @@ export class AuthService {
     const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
     await this.sendOtp(user.id, otpType, dto.email, dto.phone);
 
-    return { userId: user.id, otpSentTo: otpType }; // frontend will switch to OTP view
+    return { userId: user.id, otpSentTo: otpType }; // frontend switches to OTP view
   }
 
   async login(dto: LoginDto) {
@@ -165,5 +188,17 @@ export class AuthService {
 
   async updateProfile(userId: number, data: any) {
     return this.prisma.user.update({ where: { id: userId }, data });
+  }
+
+  // Store blacklisted token in the database
+  async addToBlacklist(jti: string, exp: number) {
+    const expiryDate = Date.now() + exp * 1000; // convert seconds to ms
+
+    await this.prisma.blackListToken.create({
+      data: {
+        jti,
+        expiry: expiryDate,
+      },
+    });
   }
 }

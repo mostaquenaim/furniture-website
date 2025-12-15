@@ -27,8 +27,10 @@ export class AuthController {
   }
 
   @Post('reset-password')
-  verifyEmail(@Body() body: { emailOrPhone: string; type: 'email' | 'phone' }) {
-    return this.authService.verifyEmail(body.emailOrPhone, body.type);
+  verifyEmailOrPhone(
+    @Body() body: { emailOrPhone: string; type: 'email' | 'phone' },
+  ) {
+    return this.authService.verifyEmailOrPhone(body.emailOrPhone, body.type);
   }
 
   @Post('verify-otp')
@@ -71,10 +73,11 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: any) {
-    const tokenJti = req.user.jti; 
-    const exp = 3600; 
+    // console.log(req, 'qqqqqqqqqqqqqqq');
+    const tokenJti = req.user.jti;
+    const exp = 3600;
 
-    await this.adminService.addToBlacklist(tokenJti, exp);
+    await this.authService.addToBlacklist(tokenJti, exp);
 
     return { message: 'Logged out successfully' };
   }

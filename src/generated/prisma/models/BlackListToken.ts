@@ -33,19 +33,19 @@ export type BlackListTokenAvgAggregateOutputType = {
 
 export type BlackListTokenSumAggregateOutputType = {
   id: number | null
-  expiry: number | null
+  expiry: bigint | null
 }
 
 export type BlackListTokenMinAggregateOutputType = {
   id: number | null
   jti: string | null
-  expiry: number | null
+  expiry: bigint | null
 }
 
 export type BlackListTokenMaxAggregateOutputType = {
   id: number | null
   jti: string | null
-  expiry: number | null
+  expiry: bigint | null
 }
 
 export type BlackListTokenCountAggregateOutputType = {
@@ -174,7 +174,7 @@ export type BlackListTokenGroupByArgs<ExtArgs extends runtime.Types.Extensions.I
 export type BlackListTokenGroupByOutputType = {
   id: number
   jti: string
-  expiry: number
+  expiry: bigint
   _count: BlackListTokenCountAggregateOutputType | null
   _avg: BlackListTokenAvgAggregateOutputType | null
   _sum: BlackListTokenSumAggregateOutputType | null
@@ -203,7 +203,7 @@ export type BlackListTokenWhereInput = {
   NOT?: Prisma.BlackListTokenWhereInput | Prisma.BlackListTokenWhereInput[]
   id?: Prisma.IntFilter<"BlackListToken"> | number
   jti?: Prisma.StringFilter<"BlackListToken"> | string
-  expiry?: Prisma.IntFilter<"BlackListToken"> | number
+  expiry?: Prisma.BigIntFilter<"BlackListToken"> | bigint | number
 }
 
 export type BlackListTokenOrderByWithRelationInput = {
@@ -218,7 +218,7 @@ export type BlackListTokenWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.BlackListTokenWhereInput[]
   NOT?: Prisma.BlackListTokenWhereInput | Prisma.BlackListTokenWhereInput[]
   jti?: Prisma.StringFilter<"BlackListToken"> | string
-  expiry?: Prisma.IntFilter<"BlackListToken"> | number
+  expiry?: Prisma.BigIntFilter<"BlackListToken"> | bigint | number
 }, "id">
 
 export type BlackListTokenOrderByWithAggregationInput = {
@@ -238,46 +238,46 @@ export type BlackListTokenScalarWhereWithAggregatesInput = {
   NOT?: Prisma.BlackListTokenScalarWhereWithAggregatesInput | Prisma.BlackListTokenScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"BlackListToken"> | number
   jti?: Prisma.StringWithAggregatesFilter<"BlackListToken"> | string
-  expiry?: Prisma.IntWithAggregatesFilter<"BlackListToken"> | number
+  expiry?: Prisma.BigIntWithAggregatesFilter<"BlackListToken"> | bigint | number
 }
 
 export type BlackListTokenCreateInput = {
   jti: string
-  expiry: number
+  expiry: bigint | number
 }
 
 export type BlackListTokenUncheckedCreateInput = {
   id?: number
   jti: string
-  expiry: number
+  expiry: bigint | number
 }
 
 export type BlackListTokenUpdateInput = {
   jti?: Prisma.StringFieldUpdateOperationsInput | string
-  expiry?: Prisma.IntFieldUpdateOperationsInput | number
+  expiry?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
 }
 
 export type BlackListTokenUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   jti?: Prisma.StringFieldUpdateOperationsInput | string
-  expiry?: Prisma.IntFieldUpdateOperationsInput | number
+  expiry?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
 }
 
 export type BlackListTokenCreateManyInput = {
   id?: number
   jti: string
-  expiry: number
+  expiry: bigint | number
 }
 
 export type BlackListTokenUpdateManyMutationInput = {
   jti?: Prisma.StringFieldUpdateOperationsInput | string
-  expiry?: Prisma.IntFieldUpdateOperationsInput | number
+  expiry?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
 }
 
 export type BlackListTokenUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   jti?: Prisma.StringFieldUpdateOperationsInput | string
-  expiry?: Prisma.IntFieldUpdateOperationsInput | number
+  expiry?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
 }
 
 export type BlackListTokenCountOrderByAggregateInput = {
@@ -306,6 +306,14 @@ export type BlackListTokenMinOrderByAggregateInput = {
 export type BlackListTokenSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   expiry?: Prisma.SortOrder
+}
+
+export type BigIntFieldUpdateOperationsInput = {
+  set?: bigint | number
+  increment?: bigint | number
+  decrement?: bigint | number
+  multiply?: bigint | number
+  divide?: bigint | number
 }
 
 
@@ -342,7 +350,7 @@ export type $BlackListTokenPayload<ExtArgs extends runtime.Types.Extensions.Inte
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     jti: string
-    expiry: number
+    expiry: bigint
   }, ExtArgs["result"]["blackListToken"]>
   composites: {}
 }
@@ -768,7 +776,7 @@ export interface Prisma__BlackListTokenClient<T, Null = never, ExtArgs extends r
 export interface BlackListTokenFieldRefs {
   readonly id: Prisma.FieldRef<"BlackListToken", 'Int'>
   readonly jti: Prisma.FieldRef<"BlackListToken", 'String'>
-  readonly expiry: Prisma.FieldRef<"BlackListToken", 'Int'>
+  readonly expiry: Prisma.FieldRef<"BlackListToken", 'BigInt'>
 }
     
 
