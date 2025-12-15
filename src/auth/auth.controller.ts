@@ -1,6 +1,16 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-import { Controller, Post, Body, Get, Put, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Put,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -12,16 +22,32 @@ export class AuthController {
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    console.log(dto,'regdto');
+    console.log(dto, 'regdto');
     return this.authService.register(dto);
   }
- 
+
+  @Post('reset-password')
+  verifyEmail(@Body() body: { emailOrPhone: string; type: 'email' | 'phone' }) {
+    return this.authService.verifyEmail(body.emailOrPhone, body.type);
+  }
+
   @Post('verify-otp')
   verifyOtp(
-    @Body() body: { emailOrPhone: string, code: string, type: 'email' | 'phone', keepSignedIn: boolean}
+    @Body()
+    body: {
+      emailOrPhone: string;
+      code: string;
+      type: 'email' | 'phone';
+      keepSignedIn: boolean;
+    },
   ) {
     console.log(body);
-    return this.authService.verifyOtp(body.emailOrPhone, body.code, body.type, body.keepSignedIn);
+    return this.authService.verifyOtp(
+      body.emailOrPhone,
+      body.code,
+      body.type,
+      body.keepSignedIn,
+    );
   }
 
   @Post('signin')
@@ -41,5 +67,15 @@ export class AuthController {
     return this.authService.updateProfile(req.user.userId, data);
   }
 
-  // TODO: implement logout, forgot-password, reset-password, verify-phone, verify-email, 2FA, refresh-token
+  //logout
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  async logout(@Req() req: any) {
+    const tokenJti = req.user.jti; 
+    const exp = 3600; 
+
+    await this.adminService.addToBlacklist(tokenJti, exp);
+
+    return { message: 'Logged out successfully' };
+  }
 }

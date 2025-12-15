@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -16,7 +20,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async sendOtp(userId: number, type: 'email' | 'phone', email?: string, phone?: string) {
+  async sendOtp(
+    userId: number,
+    type: 'email' | 'phone',
+    email?: string,
+    phone?: string,
+  ) {
     const code = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -34,42 +43,85 @@ export class AuthService {
     return { message: `OTP sent to your ${type}` };
   }
 
-  async verifyOtp(emailOrPhone: string, code: string, type: 'email' | 'phone', keepSignedIn: boolean) {
-  // Find the user first
-  const user = await this.prisma.user.findFirst({
-    where: type === 'email' ? { email: emailOrPhone } : { phone: emailOrPhone },
-  });
-  if (!user) throw new UnauthorizedException('User not found');
+  async verifyOtp(
+    emailOrPhone: string,
+    code: string,
+    type: 'email' | 'phone',
+    keepSignedIn: boolean,
+  ) {
+    // Find the user first
+    const user = await this.prisma.user.findFirst({
+      where:
+        type === 'email' ? { email: emailOrPhone } : { phone: emailOrPhone },
+    });
+    if (!user) throw new UnauthorizedException('User not found');
 
-  console.log(emailOrPhone, code, type, user)
-  
-  const otpData = await this.prisma.oTP.findFirst({
-    where: { userId: user.id, code, type, verified: false, expiresAt: { gte: new Date() } },
-  });
+    console.log(emailOrPhone, code, type, user);
 
-  console.log('otpData',otpData);
+    const otpData = await this.prisma.oTP.findFirst({
+      where: {
+        userId: user.id,
+        code,
+        type,
+        verified: false,
+        expiresAt: { gte: new Date() },
+      },
+    });
 
-  if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
+    console.log('otpData', otpData);
 
-  await this.prisma.oTP.update({
-    where: { id: otpData.id },
-    data: { verified: true },
-  });
+    if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
-  const payload = {
+    await this.prisma.oTP.update({
+      where: { id: otpData.id },
+      data: { verified: true },
+    });
+
+    const jti = crypto.randomUUID();
+
+    const payload = {
       userId: user.id,
       role: user.role,
+      jti,
     };
 
+    // const payload = {
+    //   email: savedUser.email,
+    //   userId: user.id,
+    //   role: savedUser.role,
+    //   jti,
+    // };
 
-  const token = await this.jwtService.signAsync(payload, {
+    const token = await this.jwtService.signAsync(payload, {
       expiresIn: keepSignedIn ? '30d' : '1d',
     });
 
-  return { user, access_token: token };
-}
+    return { user, token };
+  }
 
- async register(dto: RegisterDto) {
+  async verifyEmail(emailOrPhone: string, type: 'email' | 'phone') {
+    console.log(emailOrPhone);
+
+    if (!emailOrPhone) throw new NotFoundException('not found');
+
+    const user = await this.prisma.user.findFirst({
+      where:
+        type === 'email' ? { email: emailOrPhone } : { phone: emailOrPhone },
+    });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    console.log(user, 'userrr');
+
+    // Send OTP
+    await this.sendOtp(
+      user.id,
+      type,
+      type === 'email' ? emailOrPhone : undefined,
+      type === 'phone' ? emailOrPhone : undefined,
+    );
+  }
+
+  async register(dto: RegisterDto) {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
       data: {
@@ -87,18 +139,24 @@ export class AuthService {
     return { userId: user.id, otpSentTo: otpType }; // frontend will switch to OTP view
   }
 
-
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: dto.phone ? { phone: dto.phone } : {email: dto.email} });
+    // console.log(dto);
+    const user = await this.prisma.user.findUnique({
+      where: dto.phone ? { phone: dto.phone } : { email: dto.email },
+    });
     if (!user) throw new UnauthorizedException('User not found');
+
+    // console.log(user, 'ache');
 
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-      const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
+    // console.log('valid');
+
+    const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
     await this.sendOtp(user.id, otpType, dto.email, dto.phone);
 
-    return { userId: user.id, otpSentTo: otpType }; 
+    return { userId: user.id, otpSentTo: otpType };
   }
 
   async profile(userId: number) {

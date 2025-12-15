@@ -58,6 +58,11 @@ export type Permission = Prisma.PermissionModel
  */
 export type OTP = Prisma.OTPModel
 /**
+ * Model BlackListToken
+ * 
+ */
+export type BlackListToken = Prisma.BlackListTokenModel
+/**
  * Model Category
  * 
  */

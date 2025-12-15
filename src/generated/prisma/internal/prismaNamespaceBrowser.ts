@@ -52,6 +52,7 @@ export const ModelName = {
   User: 'User',
   Permission: 'Permission',
   OTP: 'OTP',
+  BlackListToken: 'BlackListToken',
   Category: 'Category',
   Subcategory: 'Subcategory',
   Room: 'Room',
@@ -124,6 +125,15 @@ export const OTPScalarFieldEnum = {
 } as const
 
 export type OTPScalarFieldEnum = (typeof OTPScalarFieldEnum)[keyof typeof OTPScalarFieldEnum]
+
+
+export const BlackListTokenScalarFieldEnum = {
+  id: 'id',
+  jti: 'jti',
+  expiry: 'expiry'
+} as const
+
+export type BlackListTokenScalarFieldEnum = (typeof BlackListTokenScalarFieldEnum)[keyof typeof BlackListTokenScalarFieldEnum]
 
 
 export const CategoryScalarFieldEnum = {

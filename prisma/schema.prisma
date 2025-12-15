@@ -66,6 +66,12 @@ model OTP {
   userId     Int
 }
 
+model BlackListToken {
+  id         Int      @id @default(autoincrement())
+  jti        String
+  expiry     Int
+  }
+  
 // =====================
 // Category & Subcategory & Room
 // =====================

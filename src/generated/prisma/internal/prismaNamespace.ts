@@ -393,6 +393,7 @@ export const ModelName = {
   User: 'User',
   Permission: 'Permission',
   OTP: 'OTP',
+  BlackListToken: 'BlackListToken',
   Category: 'Category',
   Subcategory: 'Subcategory',
   Room: 'Room',
@@ -424,7 +425,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "permission" | "oTP" | "category" | "subcategory" | "room" | "product" | "productVariant" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
+    modelProps: "user" | "permission" | "oTP" | "blackListToken" | "category" | "subcategory" | "room" | "product" | "productVariant" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -647,6 +648,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.OTPCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.OTPCountAggregateOutputType> | number
+        }
+      }
+    }
+    BlackListToken: {
+      payload: Prisma.$BlackListTokenPayload<ExtArgs>
+      fields: Prisma.BlackListTokenFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BlackListTokenFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BlackListTokenFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>
+        }
+        findFirst: {
+          args: Prisma.BlackListTokenFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BlackListTokenFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>
+        }
+        findMany: {
+          args: Prisma.BlackListTokenFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>[]
+        }
+        create: {
+          args: Prisma.BlackListTokenCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>
+        }
+        createMany: {
+          args: Prisma.BlackListTokenCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.BlackListTokenCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>[]
+        }
+        delete: {
+          args: Prisma.BlackListTokenDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>
+        }
+        update: {
+          args: Prisma.BlackListTokenUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>
+        }
+        deleteMany: {
+          args: Prisma.BlackListTokenDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BlackListTokenUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.BlackListTokenUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>[]
+        }
+        upsert: {
+          args: Prisma.BlackListTokenUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BlackListTokenPayload>
+        }
+        aggregate: {
+          args: Prisma.BlackListTokenAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBlackListToken>
+        }
+        groupBy: {
+          args: Prisma.BlackListTokenGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BlackListTokenGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BlackListTokenCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BlackListTokenCountAggregateOutputType> | number
         }
       }
     }
@@ -1913,6 +1988,15 @@ export const OTPScalarFieldEnum = {
 export type OTPScalarFieldEnum = (typeof OTPScalarFieldEnum)[keyof typeof OTPScalarFieldEnum]
 
 
+export const BlackListTokenScalarFieldEnum = {
+  id: 'id',
+  jti: 'jti',
+  expiry: 'expiry'
+} as const
+
+export type BlackListTokenScalarFieldEnum = (typeof BlackListTokenScalarFieldEnum)[keyof typeof BlackListTokenScalarFieldEnum]
+
+
 export const CategoryScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -2305,6 +2389,7 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   permission?: Prisma.PermissionOmit
   oTP?: Prisma.OTPOmit
+  blackListToken?: Prisma.BlackListTokenOmit
   category?: Prisma.CategoryOmit
   subcategory?: Prisma.SubcategoryOmit
   room?: Prisma.RoomOmit

@@ -5,7 +5,9 @@ export class LoginDto {
   phone: string;
 
   @IsOptional()
-  email:string
+  email: string;
+
+  // type: string;
 
   @IsNotEmpty()
   @IsString()
