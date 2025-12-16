@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -12,6 +13,9 @@ import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
+
+const MAX_ATTEMPTS = 5;
+const BLOCK_TIME_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
@@ -163,18 +167,30 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    // console.log(dto);
+    // Use clientIp from DTO, fallback to empty string
+    const identifier = dto?.clientIp || dto?.email || dto?.phone;
+    // console.log(identifier, 'identifier');
+
+    // Check brute force before processing
+    await this.checkBruteForce(identifier);
+
     const user = await this.prisma.user.findUnique({
       where: dto.phone ? { phone: dto.phone } : { email: dto.email },
     });
-    if (!user) throw new UnauthorizedException('User not found');
 
-    // console.log(user, 'ache');
+    if (!user) {
+      await this.recordFailedAttempt(identifier);
+      throw new UnauthorizedException('User not found');
+    }
 
     const valid = await bcrypt.compare(dto.password, user.password);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) {
+      await this.recordFailedAttempt(identifier);
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
-    // console.log('valid');
+    // Reset attempts on successful login
+    await this.resetAttempts(identifier);
 
     const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
     await this.sendOtp(user.id, otpType, dto.email, dto.phone);
@@ -200,5 +216,80 @@ export class AuthService {
         expiry: expiryDate,
       },
     });
+  }
+
+  // Update checkBruteForce to properly calculate time
+  async checkBruteForce(identifier: string) {
+    const record = await this.prisma.loginAttempt.findUnique({
+      where: { identifier },
+    });
+
+    if (!record) return;
+
+    // Check if blocked
+    if (record.blockedUntil && record.blockedUntil > new Date()) {
+      const remainingMinutes = Math.ceil(
+        (record.blockedUntil.getTime() - Date.now()) / (60 * 1000),
+      );
+      throw new Error(
+        `Too many attempts. Try again after ${remainingMinutes} minutes`,
+      );
+    }
+
+    // Reset attempts if last attempt was more than BLOCK_TIME_MINUTES ago
+    if (
+      record.lastAttempt &&
+      new Date().getTime() - record.lastAttempt.getTime() >
+        BLOCK_TIME_MINUTES * 60 * 1000
+    ) {
+      await this.prisma.loginAttempt.delete({
+        where: { identifier },
+      });
+    }
+  }
+
+  // Update recordFailedAttempt
+  async recordFailedAttempt(identifier: string) {
+    const record = await this.prisma.loginAttempt.findUnique({
+      where: { identifier },
+    });
+
+    const now = new Date();
+    const attempts = record ? record.attempts + 1 : 1;
+
+    // Calculate blockedUntil if attempts reach MAX_ATTEMPTS
+    const blockedUntil =
+      attempts >= MAX_ATTEMPTS
+        ? new Date(Date.now() + BLOCK_TIME_MINUTES * 60 * 1000)
+        : null;
+
+    if (!record) {
+      await this.prisma.loginAttempt.create({
+        data: {
+          identifier,
+          attempts,
+          lastAttempt: now,
+          blockedUntil,
+        },
+      });
+    } else {
+      await this.prisma.loginAttempt.update({
+        where: { identifier },
+        data: {
+          attempts,
+          lastAttempt: now,
+          blockedUntil,
+        },
+      });
+    }
+  }
+
+  // Keep resetAttempts as is
+  async resetAttempts(identifier: string) {
+    await this.prisma.loginAttempt
+      .delete({
+        where: { identifier },
+      })
+      .catch(() => {});
   }
 }

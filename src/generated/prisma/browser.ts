@@ -38,6 +38,11 @@ export type OTP = Prisma.OTPModel
  */
 export type BlackListToken = Prisma.BlackListTokenModel
 /**
+ * Model LoginAttempt
+ * 
+ */
+export type LoginAttempt = Prisma.LoginAttemptModel
+/**
  * Model Category
  * 
  */

@@ -7,6 +7,9 @@ export class LoginDto {
   @IsOptional()
   email: string;
 
+  @IsOptional()
+  clientIp: string;
+
   // type: string;
 
   @IsNotEmpty()

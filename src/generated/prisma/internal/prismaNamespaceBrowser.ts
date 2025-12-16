@@ -53,6 +53,7 @@ export const ModelName = {
   Permission: 'Permission',
   OTP: 'OTP',
   BlackListToken: 'BlackListToken',
+  LoginAttempt: 'LoginAttempt',
   Category: 'Category',
   Subcategory: 'Subcategory',
   Room: 'Room',
@@ -134,6 +135,17 @@ export const BlackListTokenScalarFieldEnum = {
 } as const
 
 export type BlackListTokenScalarFieldEnum = (typeof BlackListTokenScalarFieldEnum)[keyof typeof BlackListTokenScalarFieldEnum]
+
+
+export const LoginAttemptScalarFieldEnum = {
+  id: 'id',
+  identifier: 'identifier',
+  attempts: 'attempts',
+  blockedUntil: 'blockedUntil',
+  lastAttempt: 'lastAttempt'
+} as const
+
+export type LoginAttemptScalarFieldEnum = (typeof LoginAttemptScalarFieldEnum)[keyof typeof LoginAttemptScalarFieldEnum]
 
 
 export const CategoryScalarFieldEnum = {

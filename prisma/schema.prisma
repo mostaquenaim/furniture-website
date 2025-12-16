@@ -72,6 +72,17 @@ model BlackListToken {
   expiry     BigInt
   }
   
+  // login attempts 
+  model LoginAttempt {
+  id        String   @id @default(cuid())
+  identifier String  // email or IP
+  attempts  Int      @default(0)
+  blockedUntil DateTime?
+  lastAttempt DateTime @default(now())
+
+  @@unique([identifier])
+}
+
 // =====================
 // Category & Subcategory & Room
 // =====================
