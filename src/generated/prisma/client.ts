@@ -48,10 +48,15 @@ path.join(process.cwd(), "src/generated/prisma/query_engine-windows.dll.node")
  */
 export type User = Prisma.UserModel
 /**
- * Model Permission
+ * Model FrontendPermission
  * 
  */
-export type Permission = Prisma.PermissionModel
+export type FrontendPermission = Prisma.FrontendPermissionModel
+/**
+ * Model BackendPermission
+ * 
+ */
+export type BackendPermission = Prisma.BackendPermissionModel
 /**
  * Model OTP
  * 

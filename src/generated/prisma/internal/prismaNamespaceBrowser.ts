@@ -50,7 +50,8 @@ export const AnyNull = runtime.objectEnumValues.instances.AnyNull
 
 export const ModelName = {
   User: 'User',
-  Permission: 'Permission',
+  FrontendPermission: 'FrontendPermission',
+  BackendPermission: 'BackendPermission',
   OTP: 'OTP',
   BlackListToken: 'BlackListToken',
   LoginAttempt: 'LoginAttempt',
@@ -103,14 +104,28 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
-export const PermissionScalarFieldEnum = {
+export const FrontendPermissionScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  route: 'route',
+  path: 'path',
+  component: 'component',
   roles: 'roles'
 } as const
 
-export type PermissionScalarFieldEnum = (typeof PermissionScalarFieldEnum)[keyof typeof PermissionScalarFieldEnum]
+export type FrontendPermissionScalarFieldEnum = (typeof FrontendPermissionScalarFieldEnum)[keyof typeof FrontendPermissionScalarFieldEnum]
+
+
+export const BackendPermissionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  endpoint: 'endpoint',
+  method: 'method',
+  resource: 'resource',
+  action: 'action',
+  roles: 'roles'
+} as const
+
+export type BackendPermissionScalarFieldEnum = (typeof BackendPermissionScalarFieldEnum)[keyof typeof BackendPermissionScalarFieldEnum]
 
 
 export const OTPScalarFieldEnum = {

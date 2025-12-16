@@ -391,7 +391,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
-  Permission: 'Permission',
+  FrontendPermission: 'FrontendPermission',
+  BackendPermission: 'BackendPermission',
   OTP: 'OTP',
   BlackListToken: 'BlackListToken',
   LoginAttempt: 'LoginAttempt',
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "permission" | "oTP" | "blackListToken" | "loginAttempt" | "category" | "subcategory" | "room" | "product" | "productVariant" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
+    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "category" | "subcategory" | "room" | "product" | "productVariant" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -504,77 +505,151 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    Permission: {
-      payload: Prisma.$PermissionPayload<ExtArgs>
-      fields: Prisma.PermissionFieldRefs
+    FrontendPermission: {
+      payload: Prisma.$FrontendPermissionPayload<ExtArgs>
+      fields: Prisma.FrontendPermissionFieldRefs
       operations: {
         findUnique: {
-          args: Prisma.PermissionFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload> | null
+          args: Prisma.FrontendPermissionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload> | null
         }
         findUniqueOrThrow: {
-          args: Prisma.PermissionFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+          args: Prisma.FrontendPermissionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>
         }
         findFirst: {
-          args: Prisma.PermissionFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload> | null
+          args: Prisma.FrontendPermissionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload> | null
         }
         findFirstOrThrow: {
-          args: Prisma.PermissionFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+          args: Prisma.FrontendPermissionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>
         }
         findMany: {
-          args: Prisma.PermissionFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>[]
+          args: Prisma.FrontendPermissionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>[]
         }
         create: {
-          args: Prisma.PermissionCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+          args: Prisma.FrontendPermissionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>
         }
         createMany: {
-          args: Prisma.PermissionCreateManyArgs<ExtArgs>
+          args: Prisma.FrontendPermissionCreateManyArgs<ExtArgs>
           result: BatchPayload
         }
         createManyAndReturn: {
-          args: Prisma.PermissionCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>[]
+          args: Prisma.FrontendPermissionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>[]
         }
         delete: {
-          args: Prisma.PermissionDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+          args: Prisma.FrontendPermissionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>
         }
         update: {
-          args: Prisma.PermissionUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+          args: Prisma.FrontendPermissionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>
         }
         deleteMany: {
-          args: Prisma.PermissionDeleteManyArgs<ExtArgs>
+          args: Prisma.FrontendPermissionDeleteManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateMany: {
-          args: Prisma.PermissionUpdateManyArgs<ExtArgs>
+          args: Prisma.FrontendPermissionUpdateManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateManyAndReturn: {
-          args: Prisma.PermissionUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>[]
+          args: Prisma.FrontendPermissionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>[]
         }
         upsert: {
-          args: Prisma.PermissionUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PermissionPayload>
+          args: Prisma.FrontendPermissionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FrontendPermissionPayload>
         }
         aggregate: {
-          args: Prisma.PermissionAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregatePermission>
+          args: Prisma.FrontendPermissionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFrontendPermission>
         }
         groupBy: {
-          args: Prisma.PermissionGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.PermissionGroupByOutputType>[]
+          args: Prisma.FrontendPermissionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FrontendPermissionGroupByOutputType>[]
         }
         count: {
-          args: Prisma.PermissionCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.PermissionCountAggregateOutputType> | number
+          args: Prisma.FrontendPermissionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FrontendPermissionCountAggregateOutputType> | number
+        }
+      }
+    }
+    BackendPermission: {
+      payload: Prisma.$BackendPermissionPayload<ExtArgs>
+      fields: Prisma.BackendPermissionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BackendPermissionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BackendPermissionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>
+        }
+        findFirst: {
+          args: Prisma.BackendPermissionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BackendPermissionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>
+        }
+        findMany: {
+          args: Prisma.BackendPermissionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>[]
+        }
+        create: {
+          args: Prisma.BackendPermissionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>
+        }
+        createMany: {
+          args: Prisma.BackendPermissionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.BackendPermissionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>[]
+        }
+        delete: {
+          args: Prisma.BackendPermissionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>
+        }
+        update: {
+          args: Prisma.BackendPermissionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>
+        }
+        deleteMany: {
+          args: Prisma.BackendPermissionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BackendPermissionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.BackendPermissionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>[]
+        }
+        upsert: {
+          args: Prisma.BackendPermissionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackendPermissionPayload>
+        }
+        aggregate: {
+          args: Prisma.BackendPermissionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBackendPermission>
+        }
+        groupBy: {
+          args: Prisma.BackendPermissionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BackendPermissionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BackendPermissionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BackendPermissionCountAggregateOutputType> | number
         }
       }
     }
@@ -2038,14 +2113,28 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
-export const PermissionScalarFieldEnum = {
+export const FrontendPermissionScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  route: 'route',
+  path: 'path',
+  component: 'component',
   roles: 'roles'
 } as const
 
-export type PermissionScalarFieldEnum = (typeof PermissionScalarFieldEnum)[keyof typeof PermissionScalarFieldEnum]
+export type FrontendPermissionScalarFieldEnum = (typeof FrontendPermissionScalarFieldEnum)[keyof typeof FrontendPermissionScalarFieldEnum]
+
+
+export const BackendPermissionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  endpoint: 'endpoint',
+  method: 'method',
+  resource: 'resource',
+  action: 'action',
+  roles: 'roles'
+} as const
+
+export type BackendPermissionScalarFieldEnum = (typeof BackendPermissionScalarFieldEnum)[keyof typeof BackendPermissionScalarFieldEnum]
 
 
 export const OTPScalarFieldEnum = {
@@ -2487,7 +2576,8 @@ export interface PrismaClientOptions {
 }
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
-  permission?: Prisma.PermissionOmit
+  frontendPermission?: Prisma.FrontendPermissionOmit
+  backendPermission?: Prisma.BackendPermissionOmit
   oTP?: Prisma.OTPOmit
   blackListToken?: Prisma.BlackListTokenOmit
   loginAttempt?: Prisma.LoginAttemptOmit

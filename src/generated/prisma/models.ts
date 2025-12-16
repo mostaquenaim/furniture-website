@@ -9,7 +9,8 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/User.js'
-export type * from './models/Permission.js'
+export type * from './models/FrontendPermission.js'
+export type * from './models/BackendPermission.js'
 export type * from './models/OTP.js'
 export type * from './models/BlackListToken.js'
 export type * from './models/LoginAttempt.js'

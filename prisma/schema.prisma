@@ -37,11 +37,22 @@ model User {
   otps      OTP[]
 }
 
-model Permission {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  route     String   @unique
-  roles     UserRole[]
+model FrontendPermission {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique     // e.g., VIEW_USER_MANAGEMENT
+  path      String     @unique     // e.g., /admin/users, /dashboard/analytics
+  component String?               // Component/Page name
+  roles     UserRole[]    
+}
+
+model BackendPermission {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique     // e.g., MANAGE_USERS
+  endpoint  String     @unique     // e.g., /api/admin/users, POST /api/users
+  method    String?               // GET, POST, PUT, DELETE, etc.
+  resource  String?               // users, products, orders, etc.
+  action    String?               // create, read, update, delete, list
+  roles     UserRole[]    
 }
 
 enum UserRole {
@@ -73,7 +84,7 @@ model BlackListToken {
   }
   
   // login attempts 
-  model LoginAttempt {
+model LoginAttempt {
   id        String   @id @default(cuid())
   identifier String  // email or IP
   attempts  Int      @default(0)

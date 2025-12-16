@@ -100,7 +100,9 @@ export class AuthService {
       expiresIn: keepSignedIn ? '30d' : '1d',
     });
 
-    return { user, token };
+    const { password, ...safeUser } = user;
+
+    return { user: safeUser, token };
   }
 
   async verifyEmailOrPhone(emailOrPhone: string, type: 'email' | 'phone') {
