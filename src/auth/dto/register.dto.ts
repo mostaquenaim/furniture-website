@@ -5,7 +5,7 @@ export class RegisterDto {
   @IsString()
   name?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   phone: string;
 

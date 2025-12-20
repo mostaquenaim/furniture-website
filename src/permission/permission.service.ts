@@ -10,7 +10,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class PermissionService {
   constructor(private prisma: PrismaService) {}
 
-  async getRolesForRoute(endpoint: string): Promise<UserRole[]> {
+  async getRolesForRoute(
+    endpoint: string,
+    method: string,
+  ): Promise<UserRole[]> {
+    console.log(endpoint, 'endpoint', method);
     const permission = await this.prisma.backendPermission.findUnique({
       where: { endpoint },
       select: { roles: true },

@@ -48,25 +48,35 @@ export type BlackListToken = Prisma.BlackListTokenModel
  */
 export type LoginAttempt = Prisma.LoginAttemptModel
 /**
+ * Model Series
+ * 
+ */
+export type Series = Prisma.SeriesModel
+/**
  * Model Category
  * 
  */
 export type Category = Prisma.CategoryModel
 /**
- * Model Subcategory
+ * Model SubCategory
  * 
  */
-export type Subcategory = Prisma.SubcategoryModel
+export type SubCategory = Prisma.SubCategoryModel
 /**
- * Model Room
+ * Model ProductSubCategory
  * 
  */
-export type Room = Prisma.RoomModel
+export type ProductSubCategory = Prisma.ProductSubCategoryModel
 /**
  * Model Product
  * 
  */
 export type Product = Prisma.ProductModel
+/**
+ * Model ProductImage
+ * 
+ */
+export type ProductImage = Prisma.ProductImageModel
 /**
  * Model ProductVariant
  * 

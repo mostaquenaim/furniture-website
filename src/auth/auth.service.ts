@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -26,7 +27,7 @@ export class AuthService {
 
   async sendOtp(
     userId: number,
-    type: 'email' | 'phone',
+    type: 'email' | 'phone' | '',
     email?: string,
     phone?: string,
   ) {
@@ -88,13 +89,6 @@ export class AuthService {
       role: user.role,
       jti,
     };
-
-    // const payload = {
-    //   email: savedUser.email,
-    //   userId: user.id,
-    //   role: savedUser.role,
-    //   jti,
-    // };
 
     const token = await this.jwtService.signAsync(payload, {
       expiresIn: keepSignedIn ? '30d' : '1d',
@@ -194,12 +188,36 @@ export class AuthService {
     // Reset attempts on successful login
     await this.resetAttempts(identifier);
 
-    const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
+    // let otpType: 'email' | 'phone' | '' = '';
+
+    if (user.role !== 'CUSTOMER') {
+      const jti = crypto.randomUUID();
+
+      const payload = {
+        userId: user.id,
+        role: user.role,
+        jti,
+      };
+
+      const token = await this.jwtService.signAsync(payload, {
+        expiresIn: '1d',
+      });
+
+      const { password, ...safeUser } = user;
+
+      return { user: safeUser, token };
+    }
+
+    // customer 
+    /*  */
+    const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
+
     await this.sendOtp(user.id, otpType, dto.email, dto.phone);
 
     return { userId: user.id, otpSentTo: otpType };
   }
 
+  // get profile
   async profile(userId: number) {
     return this.prisma.user.findUnique({ where: { id: userId } });
   }

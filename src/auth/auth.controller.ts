@@ -22,7 +22,7 @@ export class AuthController {
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    console.log(dto, 'regdto');
+    // console.log(dto, 'regdto');
     return this.authService.register(dto);
   }
 
@@ -54,6 +54,7 @@ export class AuthController {
 
   @Post('signin')
   login(@Body() dto: LoginDto) {
+    // console.log(LoginDto);
     return this.authService.login(dto);
   }
 

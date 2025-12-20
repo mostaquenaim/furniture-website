@@ -5,9 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 import { PrismaModule } from './prisma/prisma.module';
-import { CategoryModule } from './category/category.module';
 import { SubcategoryModule } from './subcategory/subcategory.module';
-import { ProductModule } from './product/product.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { OrderModule } from './order/order.module';
@@ -30,6 +28,7 @@ import { RecommendationsModule } from './recommendations/recommendations.module'
 import { SettingsModule } from './settings/settings.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionModule } from './permission/permission.module';
+import { CategoryModule } from './category/category.module';
 
 @Module({
   imports: [
@@ -37,9 +36,7 @@ import { PermissionModule } from './permission/permission.module';
       isGlobal: true,
     }),
     AuthModule,
-    CategoryModule,
     PrismaModule,
-    ProductModule,
     SubcategoryModule,
     UserModule,
     OrderModule,
@@ -61,7 +58,8 @@ import { PermissionModule } from './permission/permission.module';
     RecommendationsModule,
     SettingsModule,
     RolesModule,
-    PermissionModule
+    PermissionModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

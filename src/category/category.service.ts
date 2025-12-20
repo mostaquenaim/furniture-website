@@ -1,87 +1,90 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
-import { UpdateSubcategoryDto } from './dto/update-subcategory.dto';
-
-import { AddRoomDto } from './dto/add-room.dto';
 
 @Injectable()
 export class CategoryService {
   constructor(private prisma: PrismaService) {}
 
-  // ===== Category =====
-  createCategory(dto: CreateCategoryDto) {
-    return this.prisma.category.create({ data: dto });
+  // ✅ CREATE CATEGORY
+  async create(data: {
+    slug: string;
+    image?: string;
+    sortOrder?: number;
+    seriesId: number;
+  }) {
+    try {
+      return await this.prisma.category.create({
+        data,
+      });
+    } catch (error) {
+      throw new ConflictException(
+        'Category with this slug already exists in the series',
+      );
+    }
   }
 
-  findAllCategories() {
-    return this.prisma.category.findMany({ include: { subcategories: true } });
-  }
-
-  findCategoryById(id: number) {
-    return this.prisma.category.findUnique({ where: { id }, include: { subcategories: true } });
-  }
-
-  updateCategory(id: number, dto: UpdateCategoryDto) {
-    return this.prisma.category.update({ where: { id }, data: dto });
-  }
-
-  deleteCategory(id: number) {
-    return this.prisma.category.delete({ where: { id } });
-  }
-
-  getCategoryProducts(id: number) {
-    return this.prisma.product.findMany({
-      where: { subcategory: { categoryId: id } },
-    });
-  }
-
-  // ===== Subcategory =====
-  createSubcategory(dto: CreateSubcategoryDto) {
-    return this.prisma.subcategory.create({ data: dto });
-  }
-
-  findAllSubcategories() {
-    return this.prisma.subcategory.findMany({ include: { category: true, rooms: true } });
-  }
-
-  findSubcategoryById(id: number) {
-    return this.prisma.subcategory.findUnique({ where: { id }, include: { rooms: true, category: true } });
-  }
-
-  updateSubcategory(id: number, dto: UpdateSubcategoryDto) {
-    return this.prisma.subcategory.update({ where: { id }, data: dto });
-  }
-
-  deleteSubcategory(id: number) {
-    return this.prisma.subcategory.delete({ where: { id } });
-  }
-
-  // ===== Subcategory-Room =====
-  getSubcategoryRooms(id: number) {
-    return this.prisma.subcategory.findUnique({
-      where: { id },
-      include: { rooms: true },
-    });
-  }
-
-  addRoomToSubcategory(subcategoryId: number, dto: AddRoomDto) {
-    return this.prisma.subcategory.update({
-      where: { id: subcategoryId },
-      data: {
-        rooms: { connect: { id: dto.roomId } },
+  // ✅ GET ALL CATEGORIES (for admin)
+  async findAll() {
+    return this.prisma.category.findMany({
+      include: {
+        series: true,
+        subCategories: true,
       },
-      include: { rooms: true },
+      orderBy: {
+        sortOrder: 'asc',
+      },
     });
   }
 
-  removeRoomFromSubcategory(subcategoryId: number, roomId: number) {
-    return this.prisma.subcategory.update({
-      where: { id: subcategoryId },
-      data: { rooms: { disconnect: { id: roomId } } },
-      include: { rooms: true },
+  // ✅ GET ACTIVE CATEGORIES BY SERIES (frontend menu)
+  async findBySeries(seriesId: number) {
+    return this.prisma.category.findMany({
+      where: {
+        seriesId,
+        isActive: true,
+      },
+      include: {
+        subCategories: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: {
+        sortOrder: 'asc',
+      },
+    });
+  }
+
+  // ✅ UPDATE CATEGORY
+  async update(
+    id: number,
+    data: {
+      slug?: string;
+      image?: string;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const category = await this.prisma.category.findUnique({ where: { id } });
+    if (!category) throw new NotFoundException('Category not found');
+
+    return this.prisma.category.update({
+      where: { id },
+      data,
+    });
+  }
+
+  // ✅ DELETE CATEGORY (cascade handles subCategories)
+  async remove(id: number) {
+    const category = await this.prisma.category.findUnique({ where: { id } });
+    if (!category) throw new NotFoundException('Category not found');
+
+    return this.prisma.category.delete({
+      where: { id },
     });
   }
 }

@@ -37,6 +37,17 @@ model User {
   otps      OTP[]
 }
 
+enum UserRole {
+  SUPERADMIN
+  PRODUCTMANAGER
+  ORDERMANAGER
+  SUPPORT
+  CUSTOMER
+}
+
+// =====================
+// Permission
+// =====================
 model FrontendPermission {
   id        Int        @id @default(autoincrement())
   name      String     @unique     // e.g., VIEW_USER_MANAGEMENT
@@ -55,14 +66,9 @@ model BackendPermission {
   roles     UserRole[]    
 }
 
-enum UserRole {
-  SUPERADMIN
-  PRODUCTMANAGER
-  ORDERMANAGER
-  SUPPORT
-  CUSTOMER
-}
-
+// =====================
+// Auth / login
+// =====================
 model OTP {
   id         Int      @id @default(autoincrement())
   code       String
@@ -81,9 +87,8 @@ model BlackListToken {
   id         Int      @id @default(autoincrement())
   jti        String
   expiry     BigInt
-  }
-  
-  // login attempts 
+}
+
 model LoginAttempt {
   id        String   @id @default(cuid())
   identifier String  // email or IP
@@ -92,35 +97,75 @@ model LoginAttempt {
   lastAttempt DateTime @default(now())
 
   @@unique([identifier])
-}
+} 
 
 // =====================
 // Category & Subcategory & Room
 // =====================
+model Series {
+  id        Int               @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  image     String?  // image URL
+  notice    String?
+
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+
+  categories Category[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Category {
-  id            Int             @id @default(autoincrement())
-  name          String
-  slug          String           @unique
-  subcategories Subcategory[]
+  id        Int               @id @default(autoincrement())
+  slug      String
+  image     String?  // image URL
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+
+  series   Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  seriesId Int
+
+  subCategories SubCategory[]
+
+  @@unique([seriesId, slug])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Subcategory {
-  id         Int           @id @default(autoincrement())
-  name       String
-  slug       String        @unique
-  category   Category      @relation(fields: [categoryId], references: [id])
+model SubCategory {
+  id        Int               @id @default(autoincrement())
+  name      String
+  slug      String
+  image     String?  // image URL
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+
   categoryId Int
-  rooms      Room[]        @relation("SubcategoryRooms")
-  products   Product[]
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  products ProductSubCategory[]
+
+  @@unique([categoryId, slug])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Room {
-  id             Int           @id @default(autoincrement())
-  name           String
-  slug           String        @unique
-  subcategories  Subcategory[] @relation("SubcategoryRooms")
-}
+model ProductSubCategory {
+  productId     Int
+  subCategoryId Int
 
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subCategory SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, subCategoryId])
+}
 
 // =====================
 // Product & Variants
@@ -132,9 +177,10 @@ model Product {
   description   String?
   basePrice     Float
   stock         Int
-  subcategory   Subcategory        @relation(fields: [subcategoryId], references: [id])
-  subcategoryId Int
-  images        String[]           // base images
+  isActive    Boolean  @default(true)
+
+  productImage  ProductImage[]
+  subCategories ProductSubCategory[]
   variants      ProductVariant[]
   reviews       Review[]
   cartItems     CartItem[]
@@ -142,6 +188,15 @@ model Product {
   wishlists     Wishlist[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+}
+
+model ProductImage {
+    id            Int               @id @default(autoincrement())
+    image         String
+    product       Product        @relation(fields: [productId], references: [id])
+    productId     Int
+
+    serialNo      Int
 }
 
 model ProductVariant {
@@ -156,7 +211,6 @@ model ProductVariant {
   orderItems  OrderItem[] 
   productId   Int
 }
-
 
 // =====================
 // Cart

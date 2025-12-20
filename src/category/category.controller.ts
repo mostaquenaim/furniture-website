@@ -1,89 +1,75 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { CategoryService } from './category.service';
-import { AddRoomDto } from './dto/add-room.dto';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
-import { UpdateSubcategoryDto } from './dto/update-subcategory.dto';
-
-import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
-@UseGuards(JwtAuthGuard)
-@Controller()
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
+ 
+@Controller('category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
-  // ===== Category =====
-  @Post('categories')
-  createCategory(@Body() dto: CreateCategoryDto) {
-    return this.categoryService.createCategory(dto);
+  // 🌐 PUBLIC – frontend menu
+  @Get('series/:seriesId')
+  getBySeries(@Param('seriesId', ParseIntPipe) seriesId: number) {
+    return this.categoryService.findBySeries(seriesId);
   }
 
-  @Get('categories')
-  findAllCategories() {
-    return this.categoryService.findAllCategories();
+  // 🔐 SUPERADMIN – all categories
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('all')
+  findAll() {
+    console.log('in');
+    return this.categoryService.findAll();
   }
 
-  @Get('categories/:id')
-  findCategoryById(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.findCategoryById(id);
+  // 🔐 SUPERADMIN – create category
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  //   @Roles('SUPERADMIN')
+  @Post()
+  create(
+    @Body()
+    body: {
+      slug: string;
+      image?: string;
+      sortOrder?: number;
+      seriesId: number;
+    },
+  ) {
+    return this.categoryService.create(body);
   }
 
-  @Put('categories/:id')
-  updateCategory(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCategoryDto) {
-    return this.categoryService.updateCategory(id, dto);
+  // 🔐 SUPERADMIN – update category
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  //   @Roles('SUPERADMIN')
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      slug?: string;
+      image?: string;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+  ) {
+    return this.categoryService.update(id, body);
   }
 
-  @Delete('categories/:id')
-  deleteCategory(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.deleteCategory(id);
-  }
-
-  @Get('categories/:id/products')
-  getCategoryProducts(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.getCategoryProducts(id);
-  }
-
-  // ===== Subcategory =====
-  @Post('subcategories')
-  createSubcategory(@Body() dto: CreateSubcategoryDto) {
-    return this.categoryService.createSubcategory(dto);
-  }
-
-  @Get('subcategories')
-  findAllSubcategories() {
-    return this.categoryService.findAllSubcategories();
-  }
-
-  @Get('subcategories/:id')
-  findSubcategoryById(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.findSubcategoryById(id);
-  }
-
-  @Put('subcategories/:id')
-  updateSubcategory(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSubcategoryDto) {
-    return this.categoryService.updateSubcategory(id, dto);
-  }
-
-  @Delete('subcategories/:id')
-  deleteSubcategory(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.deleteSubcategory(id);
-  }
-
-  // ===== Subcategory Rooms =====
-  @Get('subcategories/:id/rooms')
-  getSubcategoryRooms(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.getSubcategoryRooms(id);
-  }
-
-  @Post('subcategories/:id/rooms')
-  addRoomToSubcategory(@Param('id', ParseIntPipe) id: number, @Body() dto: AddRoomDto) {
-    return this.categoryService.addRoomToSubcategory(id, dto);
-  }
-
-  @Delete('subcategories/:id/rooms/:roomId')
-  removeRoomFromSubcategory(@Param('id', ParseIntPipe) id: number, @Param('roomId', ParseIntPipe) roomId: number) {
-    return this.categoryService.removeRoomFromSubcategory(id, roomId);
+  // 🔐 SUPERADMIN – delete category
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  //   @Roles('SUPERADMIN')
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.categoryService.remove(id);
   }
 }

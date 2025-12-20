@@ -55,10 +55,12 @@ export const ModelName = {
   OTP: 'OTP',
   BlackListToken: 'BlackListToken',
   LoginAttempt: 'LoginAttempt',
+  Series: 'Series',
   Category: 'Category',
-  Subcategory: 'Subcategory',
-  Room: 'Room',
+  SubCategory: 'SubCategory',
+  ProductSubCategory: 'ProductSubCategory',
   Product: 'Product',
+  ProductImage: 'ProductImage',
   ProductVariant: 'ProductVariant',
   Cart: 'Cart',
   CartItem: 'CartItem',
@@ -163,32 +165,56 @@ export const LoginAttemptScalarFieldEnum = {
 export type LoginAttemptScalarFieldEnum = (typeof LoginAttemptScalarFieldEnum)[keyof typeof LoginAttemptScalarFieldEnum]
 
 
-export const CategoryScalarFieldEnum = {
+export const SeriesScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  slug: 'slug'
+  slug: 'slug',
+  image: 'image',
+  notice: 'notice',
+  isActive: 'isActive',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SeriesScalarFieldEnum = (typeof SeriesScalarFieldEnum)[keyof typeof SeriesScalarFieldEnum]
+
+
+export const CategoryScalarFieldEnum = {
+  id: 'id',
+  slug: 'slug',
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  seriesId: 'seriesId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 } as const
 
 export type CategoryScalarFieldEnum = (typeof CategoryScalarFieldEnum)[keyof typeof CategoryScalarFieldEnum]
 
 
-export const SubcategoryScalarFieldEnum = {
+export const SubCategoryScalarFieldEnum = {
   id: 'id',
   name: 'name',
   slug: 'slug',
-  categoryId: 'categoryId'
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  categoryId: 'categoryId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 } as const
 
-export type SubcategoryScalarFieldEnum = (typeof SubcategoryScalarFieldEnum)[keyof typeof SubcategoryScalarFieldEnum]
+export type SubCategoryScalarFieldEnum = (typeof SubCategoryScalarFieldEnum)[keyof typeof SubCategoryScalarFieldEnum]
 
 
-export const RoomScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  slug: 'slug'
+export const ProductSubCategoryScalarFieldEnum = {
+  productId: 'productId',
+  subCategoryId: 'subCategoryId'
 } as const
 
-export type RoomScalarFieldEnum = (typeof RoomScalarFieldEnum)[keyof typeof RoomScalarFieldEnum]
+export type ProductSubCategoryScalarFieldEnum = (typeof ProductSubCategoryScalarFieldEnum)[keyof typeof ProductSubCategoryScalarFieldEnum]
 
 
 export const ProductScalarFieldEnum = {
@@ -198,13 +224,22 @@ export const ProductScalarFieldEnum = {
   description: 'description',
   basePrice: 'basePrice',
   stock: 'stock',
-  subcategoryId: 'subcategoryId',
-  images: 'images',
+  isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeof ProductScalarFieldEnum]
+
+
+export const ProductImageScalarFieldEnum = {
+  id: 'id',
+  image: 'image',
+  productId: 'productId',
+  serialNo: 'serialNo'
+} as const
+
+export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[keyof typeof ProductImageScalarFieldEnum]
 
 
 export const ProductVariantScalarFieldEnum = {
