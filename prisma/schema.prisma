@@ -234,8 +234,6 @@ model CartItem {
   quantity    Int             @default(1)
 }
 
-
-
 // =====================
 // Orders
 // =====================
@@ -272,7 +270,6 @@ enum OrderStatus {
   CANCELLED
   RETURNED
 }
-
 
 // =====================
 // Reviews

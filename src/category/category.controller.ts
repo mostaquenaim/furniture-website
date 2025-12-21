@@ -25,7 +25,7 @@ export class CategoryController {
   }
 
   // 🔐 SUPERADMIN – all categories
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('all')
   findAll() {
     console.log('in');

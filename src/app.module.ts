@@ -29,6 +29,7 @@ import { SettingsModule } from './settings/settings.module';
 import { RolesModule } from './roles/roles.module';
 import { PermissionModule } from './permission/permission.module';
 import { CategoryModule } from './category/category.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { CategoryModule } from './category/category.module';
     RolesModule,
     PermissionModule,
     CategoryModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
