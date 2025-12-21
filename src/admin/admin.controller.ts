@@ -1,13 +1,17 @@
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { Controller, Get, UseGuards, Req, Post, Body } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { CategoryService } from 'src/category/category.service';
+import { CreateSeriesDto } from 'src/category/dto/seriesDto.dto';
+import cloudinary from './cloudinary.config';
 
-@Controller('admin')
+@Controller('')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
   constructor(private readonly categoryService: CategoryService) {}
-  
+
   // 🔐 ADMIN DASHBOARD BASIC INFO
   @Get('dashboard')
   getDashboard(@Req() req) {
@@ -16,15 +20,37 @@ export class AdminController {
     };
   }
 
-  @Get('all')
+  @Get('all-series')
   findAll() {
-    console.log('in');
-    return this.categoryService.findAll();
+    return this.categoryService.getAllSeries(true);
+  }
+
+  @Post('series')
+  createSeries(@Body() createSeriesDto: CreateSeriesDto) {
+    return this.categoryService.createSeries(createSeriesDto);
   }
 
   // 🔐 ADMIN PROFILE
   @Get('profile')
   getAdminProfile(@Req() req) {
     return req.user;
+  }
+
+  @Get('cloudinary-signature')
+  getCloudinarySignature() {
+    const timestamp = Math.round(new Date().getTime() / 1000);
+
+    const signature = cloudinary.utils.api_sign_request(
+      { timestamp },
+      process.env.CLOUDINARY_API_SECRET || '',
+    );
+
+    return {
+      signature,
+      timestamp,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+    };
   }
 }

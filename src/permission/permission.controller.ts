@@ -8,7 +8,7 @@ export class PermissionController {
   // get roles against frontend url
   @Get('/roles-against-url')
   getRolesAgainstURL(@Query('path') path: string) {
-    // console.log(path);
+    console.log(path);
     return this.permissionService.getRolesAgainstURL(path);
   }
 }

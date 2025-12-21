@@ -1,75 +1,86 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { CategoryService } from './category.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
- 
-@Controller('category')
+
+@Controller('')
 export class CategoryController {
-  constructor(private readonly categoryService: CategoryService) {}
+  constructor(private readonly service: CategoryService) {}
 
-  // 🌐 PUBLIC – frontend menu
-  @Get('series/:seriesId')
-  getBySeries(@Param('seriesId', ParseIntPipe) seriesId: number) {
-    return this.categoryService.findBySeries(seriesId);
+  // =====================
+  // SERIES
+  // =====================
+
+  @Get('series')
+  getAllSeries() {
+    return this.service.getAllSeries(false, true);
   }
 
-  // 🔐 SUPERADMIN – all categories
-  @UseGuards(JwtAuthGuard)
-  @Get('all')
-  findAll() {
-    console.log('in');
-    return this.categoryService.findAll();
+  @Get('series/with-relations')
+  getAllSeriesWithRelations() {
+    return this.service.getAllSeries(true, true);
   }
 
-  // 🔐 SUPERADMIN – create category
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  //   @Roles('SUPERADMIN')
-  @Post()
-  create(
-    @Body()
-    body: {
-      slug: string;
-      image?: string;
-      sortOrder?: number;
-      seriesId: number;
-    },
+  @Get('series/:id')
+  getSeries(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getSeriesById(id);
+  }
+
+  // =====================
+  // CATEGORY
+  // =====================
+
+  @Get()
+  getAllCategories() {
+    return this.service.getAllActiveCategories(false);
+  }
+
+  @Get('category/with-relations')
+  getAllCategoriesWithRelations() {
+    return this.service.getAllActiveCategories(true);
+  }
+
+  @Get('series/:seriesId/categories')
+  getCategoriesBySeries(@Param('seriesId', ParseIntPipe) seriesId: number) {
+    return this.service.getCategoriesBySeries(seriesId);
+  }
+
+  @Get('category/:id')
+  getCategory(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getCategoryById(id);
+  }
+
+  @Get('category/:id/parent')
+  getCategoryParent(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getCategoryParent(id);
+  }
+
+  // =====================
+  // SUBCATEGORY
+  // =====================
+
+  @Get('subcategory')
+  getAllSubCategories() {
+    return this.service.getAllActiveSubCategories(false);
+  }
+
+  @Get('subcategory/with-relations')
+  getAllSubCategoriesWithRelations() {
+    return this.service.getAllActiveSubCategories(true);
+  }
+
+  @Get(':categoryId/subcategories')
+  getSubCategoriesByCategory(
+    @Param('categoryId', ParseIntPipe) categoryId: number,
   ) {
-    return this.categoryService.create(body);
+    return this.service.getSubCategoriesByCategory(categoryId);
   }
 
-  // 🔐 SUPERADMIN – update category
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  //   @Roles('SUPERADMIN')
-  @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body()
-    body: {
-      slug?: string;
-      image?: string;
-      sortOrder?: number;
-      isActive?: boolean;
-    },
-  ) {
-    return this.categoryService.update(id, body);
+  @Get('subcategory/:id')
+  getSubCategory(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getSubCategoryById(id);
   }
 
-  // 🔐 SUPERADMIN – delete category
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  //   @Roles('SUPERADMIN')
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.remove(id);
+  @Get('subcategory/:id/parent')
+  getSubCategoryParent(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getSubCategoryParent(id);
   }
 }
