@@ -40,6 +40,7 @@ export type CategorySumAggregateOutputType = {
 
 export type CategoryMinAggregateOutputType = {
   id: number | null
+  name: string | null
   slug: string | null
   image: string | null
   sortOrder: number | null
@@ -51,6 +52,7 @@ export type CategoryMinAggregateOutputType = {
 
 export type CategoryMaxAggregateOutputType = {
   id: number | null
+  name: string | null
   slug: string | null
   image: string | null
   sortOrder: number | null
@@ -62,6 +64,7 @@ export type CategoryMaxAggregateOutputType = {
 
 export type CategoryCountAggregateOutputType = {
   id: number
+  name: number
   slug: number
   image: number
   sortOrder: number
@@ -87,6 +90,7 @@ export type CategorySumAggregateInputType = {
 
 export type CategoryMinAggregateInputType = {
   id?: true
+  name?: true
   slug?: true
   image?: true
   sortOrder?: true
@@ -98,6 +102,7 @@ export type CategoryMinAggregateInputType = {
 
 export type CategoryMaxAggregateInputType = {
   id?: true
+  name?: true
   slug?: true
   image?: true
   sortOrder?: true
@@ -109,6 +114,7 @@ export type CategoryMaxAggregateInputType = {
 
 export type CategoryCountAggregateInputType = {
   id?: true
+  name?: true
   slug?: true
   image?: true
   sortOrder?: true
@@ -207,6 +213,7 @@ export type CategoryGroupByArgs<ExtArgs extends runtime.Types.Extensions.Interna
 
 export type CategoryGroupByOutputType = {
   id: number
+  name: string | null
   slug: string
   image: string | null
   sortOrder: number
@@ -241,6 +248,7 @@ export type CategoryWhereInput = {
   OR?: Prisma.CategoryWhereInput[]
   NOT?: Prisma.CategoryWhereInput | Prisma.CategoryWhereInput[]
   id?: Prisma.IntFilter<"Category"> | number
+  name?: Prisma.StringNullableFilter<"Category"> | string | null
   slug?: Prisma.StringFilter<"Category"> | string
   image?: Prisma.StringNullableFilter<"Category"> | string | null
   sortOrder?: Prisma.IntFilter<"Category"> | number
@@ -254,6 +262,7 @@ export type CategoryWhereInput = {
 
 export type CategoryOrderByWithRelationInput = {
   id?: Prisma.SortOrder
+  name?: Prisma.SortOrderInput | Prisma.SortOrder
   slug?: Prisma.SortOrder
   image?: Prisma.SortOrderInput | Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -271,6 +280,7 @@ export type CategoryWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.CategoryWhereInput | Prisma.CategoryWhereInput[]
   OR?: Prisma.CategoryWhereInput[]
   NOT?: Prisma.CategoryWhereInput | Prisma.CategoryWhereInput[]
+  name?: Prisma.StringNullableFilter<"Category"> | string | null
   slug?: Prisma.StringFilter<"Category"> | string
   image?: Prisma.StringNullableFilter<"Category"> | string | null
   sortOrder?: Prisma.IntFilter<"Category"> | number
@@ -284,6 +294,7 @@ export type CategoryWhereUniqueInput = Prisma.AtLeast<{
 
 export type CategoryOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
+  name?: Prisma.SortOrderInput | Prisma.SortOrder
   slug?: Prisma.SortOrder
   image?: Prisma.SortOrderInput | Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -303,6 +314,7 @@ export type CategoryScalarWhereWithAggregatesInput = {
   OR?: Prisma.CategoryScalarWhereWithAggregatesInput[]
   NOT?: Prisma.CategoryScalarWhereWithAggregatesInput | Prisma.CategoryScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"Category"> | number
+  name?: Prisma.StringNullableWithAggregatesFilter<"Category"> | string | null
   slug?: Prisma.StringWithAggregatesFilter<"Category"> | string
   image?: Prisma.StringNullableWithAggregatesFilter<"Category"> | string | null
   sortOrder?: Prisma.IntWithAggregatesFilter<"Category"> | number
@@ -313,6 +325,7 @@ export type CategoryScalarWhereWithAggregatesInput = {
 }
 
 export type CategoryCreateInput = {
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -325,6 +338,7 @@ export type CategoryCreateInput = {
 
 export type CategoryUncheckedCreateInput = {
   id?: number
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -336,6 +350,7 @@ export type CategoryUncheckedCreateInput = {
 }
 
 export type CategoryUpdateInput = {
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -348,6 +363,7 @@ export type CategoryUpdateInput = {
 
 export type CategoryUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -360,6 +376,7 @@ export type CategoryUncheckedUpdateInput = {
 
 export type CategoryCreateManyInput = {
   id?: number
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -370,6 +387,7 @@ export type CategoryCreateManyInput = {
 }
 
 export type CategoryUpdateManyMutationInput = {
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -380,6 +398,7 @@ export type CategoryUpdateManyMutationInput = {
 
 export type CategoryUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -406,6 +425,7 @@ export type CategorySeriesIdSlugCompoundUniqueInput = {
 
 export type CategoryCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   image?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -423,6 +443,7 @@ export type CategoryAvgOrderByAggregateInput = {
 
 export type CategoryMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   image?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -434,6 +455,7 @@ export type CategoryMaxOrderByAggregateInput = {
 
 export type CategoryMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  name?: Prisma.SortOrder
   slug?: Prisma.SortOrder
   image?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
@@ -511,6 +533,7 @@ export type CategoryUpdateOneRequiredWithoutSubCategoriesNestedInput = {
 }
 
 export type CategoryCreateWithoutSeriesInput = {
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -522,6 +545,7 @@ export type CategoryCreateWithoutSeriesInput = {
 
 export type CategoryUncheckedCreateWithoutSeriesInput = {
   id?: number
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -562,6 +586,7 @@ export type CategoryScalarWhereInput = {
   OR?: Prisma.CategoryScalarWhereInput[]
   NOT?: Prisma.CategoryScalarWhereInput | Prisma.CategoryScalarWhereInput[]
   id?: Prisma.IntFilter<"Category"> | number
+  name?: Prisma.StringNullableFilter<"Category"> | string | null
   slug?: Prisma.StringFilter<"Category"> | string
   image?: Prisma.StringNullableFilter<"Category"> | string | null
   sortOrder?: Prisma.IntFilter<"Category"> | number
@@ -572,6 +597,7 @@ export type CategoryScalarWhereInput = {
 }
 
 export type CategoryCreateWithoutSubCategoriesInput = {
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -583,6 +609,7 @@ export type CategoryCreateWithoutSubCategoriesInput = {
 
 export type CategoryUncheckedCreateWithoutSubCategoriesInput = {
   id?: number
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -609,6 +636,7 @@ export type CategoryUpdateToOneWithWhereWithoutSubCategoriesInput = {
 }
 
 export type CategoryUpdateWithoutSubCategoriesInput = {
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -620,6 +648,7 @@ export type CategoryUpdateWithoutSubCategoriesInput = {
 
 export type CategoryUncheckedUpdateWithoutSubCategoriesInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -631,6 +660,7 @@ export type CategoryUncheckedUpdateWithoutSubCategoriesInput = {
 
 export type CategoryCreateManySeriesInput = {
   id?: number
+  name?: string | null
   slug: string
   image?: string | null
   sortOrder?: number
@@ -640,6 +670,7 @@ export type CategoryCreateManySeriesInput = {
 }
 
 export type CategoryUpdateWithoutSeriesInput = {
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -651,6 +682,7 @@ export type CategoryUpdateWithoutSeriesInput = {
 
 export type CategoryUncheckedUpdateWithoutSeriesInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -662,6 +694,7 @@ export type CategoryUncheckedUpdateWithoutSeriesInput = {
 
 export type CategoryUncheckedUpdateManyWithoutSeriesInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slug?: Prisma.StringFieldUpdateOperationsInput | string
   image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
@@ -703,6 +736,7 @@ export type CategoryCountOutputTypeCountSubCategoriesArgs<ExtArgs extends runtim
 
 export type CategorySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  name?: boolean
   slug?: boolean
   image?: boolean
   sortOrder?: boolean
@@ -717,6 +751,7 @@ export type CategorySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
 
 export type CategorySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  name?: boolean
   slug?: boolean
   image?: boolean
   sortOrder?: boolean
@@ -729,6 +764,7 @@ export type CategorySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
 
 export type CategorySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  name?: boolean
   slug?: boolean
   image?: boolean
   sortOrder?: boolean
@@ -741,6 +777,7 @@ export type CategorySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
 
 export type CategorySelectScalar = {
   id?: boolean
+  name?: boolean
   slug?: boolean
   image?: boolean
   sortOrder?: boolean
@@ -750,7 +787,7 @@ export type CategorySelectScalar = {
   updatedAt?: boolean
 }
 
-export type CategoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "slug" | "image" | "sortOrder" | "isActive" | "seriesId" | "createdAt" | "updatedAt", ExtArgs["result"]["category"]>
+export type CategoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "slug" | "image" | "sortOrder" | "isActive" | "seriesId" | "createdAt" | "updatedAt", ExtArgs["result"]["category"]>
 export type CategoryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   series?: boolean | Prisma.SeriesDefaultArgs<ExtArgs>
   subCategories?: boolean | Prisma.Category$subCategoriesArgs<ExtArgs>
@@ -771,6 +808,7 @@ export type $CategoryPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
+    name: string | null
     slug: string
     image: string | null
     sortOrder: number
@@ -1204,6 +1242,7 @@ export interface Prisma__CategoryClient<T, Null = never, ExtArgs extends runtime
  */
 export interface CategoryFieldRefs {
   readonly id: Prisma.FieldRef<"Category", 'Int'>
+  readonly name: Prisma.FieldRef<"Category", 'String'>
   readonly slug: Prisma.FieldRef<"Category", 'String'>
   readonly image: Prisma.FieldRef<"Category", 'String'>
   readonly sortOrder: Prisma.FieldRef<"Category", 'Int'>

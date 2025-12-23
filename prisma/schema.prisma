@@ -120,6 +120,7 @@ model Series {
 
 model Category {
   id        Int               @id @default(autoincrement())
+  name      String?
   slug      String
   image     String?  // image URL
 

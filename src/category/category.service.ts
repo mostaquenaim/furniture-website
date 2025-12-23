@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSeriesDto } from './dto/seriesDto.dto';
+import { CreateCategoryDto } from './dto/categoryDto.dto';
+import { CreateSubCategoryDto } from './dto/subCategoryDto.dto';
 
 @Injectable()
 export class CategoryService {
@@ -126,6 +128,28 @@ export class CategoryService {
     });
   }
 
+  async createSeries(dto: CreateSeriesDto) {
+    // Check slug uniqueness (important for admin UX)
+    const existing = await this.prisma.series.findUnique({
+      where: { slug: dto.slug },
+    });
+
+    if (existing) {
+      throw new ConflictException('Series with this slug already exists');
+    }
+
+    return this.prisma.series.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        image: dto.image ?? null,
+        notice: dto.notice ?? null,
+        isActive: dto.isActive ?? true,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+    });
+  }
+
   // =====================
   // CATEGORY
   // =====================
@@ -169,24 +193,39 @@ export class CategoryService {
     });
   }
 
-  async createSeries(dto: CreateSeriesDto) {
-    // Check slug uniqueness (important for admin UX)
-    const existing = await this.prisma.series.findUnique({
-      where: { slug: dto.slug },
+  async createCategory(dto: CreateCategoryDto) {
+    // Ensure parent series exists
+    const series = await this.prisma.series.findUnique({
+      where: { id: dto.seriesId },
+    });
+
+    if (!series) {
+      throw new NotFoundException('Series not found');
+    }
+
+    // Enforce slug uniqueness per series
+    const existing = await this.prisma.category.findFirst({
+      where: {
+        seriesId: dto.seriesId,
+        slug: dto.slug,
+      },
     });
 
     if (existing) {
-      throw new ConflictException('Series with this slug already exists');
+      throw new ConflictException(
+        'Category with this slug already exists in the selected series',
+      );
     }
 
-    return this.prisma.series.create({
+    // Create category
+    return this.prisma.category.create({
       data: {
-        name: dto.name,
+        name: dto.name ?? null,
         slug: dto.slug,
         image: dto.image ?? null,
-        notice: dto.notice ?? null,
-        isActive: dto.isActive ?? true,
         sortOrder: dto.sortOrder ?? 0,
+        isActive: dto.isActive ?? true,
+        seriesId: dto.seriesId,
       },
     });
   }
@@ -236,6 +275,43 @@ export class CategoryService {
             series: true,
           },
         },
+      },
+    });
+  }
+
+  async createSubCategory(dto: CreateSubCategoryDto) {
+    // Ensure parent category exists
+    const category = await this.prisma.category.findUnique({
+      where: { id: dto.categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    // Enforce slug uniqueness per series
+    const existing = await this.prisma.subCategory.findFirst({
+      where: {
+        categoryId: dto.categoryId,
+        slug: dto.slug,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'SubCategory with this slug already exists in the selected category',
+      );
+    }
+
+    // Create subcategory
+    return this.prisma.subCategory.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        image: dto.image ?? null,
+        sortOrder: dto.sortOrder ?? 0,
+        isActive: dto.isActive ?? true,
+        categoryId: dto.categoryId,
       },
     });
   }

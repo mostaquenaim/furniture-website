@@ -2339,6 +2339,7 @@ export type SeriesScalarFieldEnum = (typeof SeriesScalarFieldEnum)[keyof typeof 
 
 export const CategoryScalarFieldEnum = {
   id: 'id',
+  name: 'name',
   slug: 'slug',
   image: 'image',
   sortOrder: 'sortOrder',

@@ -6,6 +6,8 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { CategoryService } from 'src/category/category.service';
 import { CreateSeriesDto } from 'src/category/dto/seriesDto.dto';
 import cloudinary from './cloudinary.config';
+import { CreateCategoryDto } from 'src/category/dto/categoryDto.dto';
+import { CreateSubCategoryDto } from 'src/category/dto/subCategoryDto.dto';
 
 @Controller('')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,6 +30,16 @@ export class AdminController {
   @Post('series')
   createSeries(@Body() createSeriesDto: CreateSeriesDto) {
     return this.categoryService.createSeries(createSeriesDto);
+  }
+
+  @Post('category')
+  createCategory(@Body() createCategoryDto: CreateCategoryDto) {
+    return this.categoryService.createCategory(createCategoryDto);
+  }
+
+  @Post('subcategory')
+  createSubCategory(@Body() createSubCategoryDto: CreateSubCategoryDto) {
+    return this.categoryService.createSubCategory(createSubCategoryDto);
   }
 
   // 🔐 ADMIN PROFILE
