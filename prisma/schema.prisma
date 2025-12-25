@@ -97,7 +97,7 @@ model LoginAttempt {
   lastAttempt DateTime @default(now())
 
   @@unique([identifier])
-} 
+}
 
 // =====================
 // Category & Subcategory & Room
@@ -168,50 +168,122 @@ model ProductSubCategory {
   @@id([productId, subCategoryId])
 }
 
+
 // =====================
 // Product & Variants
 // =====================
-model Product {
-  id            Int               @id @default(autoincrement())
-  title         String
-  slug          String             @unique
-  description   String?
-  basePrice     Float
-  stock         Int
-  isActive    Boolean  @default(true)
 
-  productImage  ProductImage[]
+model Product {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  sku         String?
+  description String?
+  basePrice   Float
+  hasColorVariants Boolean @default(true)
+  showColor    Boolean  @default(true)
+
+  images        ProductImage[]
   subCategories ProductSubCategory[]
-  variants      ProductVariant[]
-  reviews       Review[]
-  cartItems     CartItem[]
-  orderItems    OrderItem[]
-  wishlists     Wishlist[]
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  colors        ProductColor[]
+
+  reviews     Review[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  wishlists   Wishlist[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ProductImage {
-    id            Int               @id @default(autoincrement())
-    image         String
-    product       Product        @relation(fields: [productId], references: [id])
-    productId     Int
+  id        Int    @id @default(autoincrement())
+  image     String
+  serialNo Int
 
-    serialNo      Int
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-model ProductVariant {
-  id          Int      @id @default(autoincrement())
-  color       String?
-  size        String?
-  price       Float?
-  stock       Int       @default(0)
-  images      String[]  // different images per color
-  product     Product   @relation(fields: [productId], references: [id])
-  cartItems   CartItem[]
-  orderItems  OrderItem[] 
-  productId   Int
+model ProductColor {
+  id        Int    @id @default(autoincrement())
+
+  color     Color   @relation(fields: [colorId], references: [id])
+  colorId   Int
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  images ProductColorImage[]
+  sizes  ProductSize[]
 }
+
+model ProductColorImage {
+  id      Int    @id @default(autoincrement())
+  image   String
+
+  productColorId Int
+  productColor   ProductColor @relation(fields: [productColorId], references: [id], onDelete: Cascade)
+}
+
+model Color {
+  id        Int      @id @default(autoincrement())
+  name      String
+  hexCode   String?
+  image     String?
+  sortOrder Int      @default(0)
+
+  productColor  ProductColor[]
+
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+
+model ProductSize { 
+  id      Int    @id @default(autoincrement())
+  sizeId    Int
+  size      Size @relation(fields: [sizeId], references: [id])
+  
+  sku     String?
+  price   Float?   // optional override
+
+  colorId Int
+  color   ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
+
+  stock   ProductStock?
+}
+
+model ProductStock {
+  id       Int @id @default(autoincrement())
+  quantity Int
+
+  sizeId Int  @unique
+  size   ProductSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+}
+
+model Variant {
+  id        Int     @id @default(autoincrement())
+  name      String
+  sizes     Size[]  // one-to-many relation
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Size {
+  id         Int     @id @default(autoincrement())
+  name       String
+  variantId  Int
+  variant    Variant @relation(fields: [variantId], references: [id])
+
+  productSize ProductSize[]
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
 
 // =====================
 // Cart
@@ -230,8 +302,6 @@ model CartItem {
   cartId      Int
   product     Product         @relation(fields: [productId], references: [id])
   productId   Int
-  variant     ProductVariant? @relation(fields: [variantId], references: [id])
-  variantId   Int?
   quantity    Int             @default(1)
 }
 
@@ -256,8 +326,6 @@ model OrderItem {
   orderId     Int
   product     Product         @relation(fields: [productId], references: [id])
   productId   Int
-  variant     ProductVariant? @relation(fields: [variantId], references: [id])
-  variantId   Int?
   quantity    Int             @default(1)
   price       Float
 }
@@ -342,7 +410,6 @@ model PromoBannerLink {
   bannerId  Int
   banner    PromoBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
 }
-
 
 model ActivityLog {
   id        Int      @id @default(autoincrement())

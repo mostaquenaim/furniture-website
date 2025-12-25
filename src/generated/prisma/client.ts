@@ -103,10 +103,40 @@ export type Product = Prisma.ProductModel
  */
 export type ProductImage = Prisma.ProductImageModel
 /**
- * Model ProductVariant
+ * Model ProductColor
  * 
  */
-export type ProductVariant = Prisma.ProductVariantModel
+export type ProductColor = Prisma.ProductColorModel
+/**
+ * Model ProductColorImage
+ * 
+ */
+export type ProductColorImage = Prisma.ProductColorImageModel
+/**
+ * Model Color
+ * 
+ */
+export type Color = Prisma.ColorModel
+/**
+ * Model ProductSize
+ * 
+ */
+export type ProductSize = Prisma.ProductSizeModel
+/**
+ * Model ProductStock
+ * 
+ */
+export type ProductStock = Prisma.ProductStockModel
+/**
+ * Model Variant
+ * 
+ */
+export type Variant = Prisma.VariantModel
+/**
+ * Model Size
+ * 
+ */
+export type Size = Prisma.SizeModel
 /**
  * Model Cart
  * 

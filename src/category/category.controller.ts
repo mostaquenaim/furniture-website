@@ -28,12 +28,12 @@ export class CategoryController {
   // CATEGORY
   // =====================
 
-  @Get()
+  @Get('categories')
   getAllCategories() {
     return this.service.getAllActiveCategories(false);
   }
 
-  @Get('category/with-relations')
+  @Get('categories/with-relations')
   getAllCategoriesWithRelations() {
     return this.service.getAllActiveCategories(true);
   }
@@ -62,12 +62,12 @@ export class CategoryController {
     return this.service.getAllActiveSubCategories(false);
   }
 
-  @Get('subcategory/with-relations')
+  @Get('subcategories/with-relations')
   getAllSubCategoriesWithRelations() {
     return this.service.getAllActiveSubCategories(true);
   }
 
-  @Get(':categoryId/subcategories')
+  @Get('category/:categoryId/subcategories')
   getSubCategoriesByCategory(
     @Param('categoryId', ParseIntPipe) categoryId: number,
   ) {

@@ -28,70 +28,70 @@ export type AggregateProductImage = {
 
 export type ProductImageAvgAggregateOutputType = {
   id: number | null
-  productId: number | null
   serialNo: number | null
+  productId: number | null
 }
 
 export type ProductImageSumAggregateOutputType = {
   id: number | null
-  productId: number | null
   serialNo: number | null
+  productId: number | null
 }
 
 export type ProductImageMinAggregateOutputType = {
   id: number | null
   image: string | null
-  productId: number | null
   serialNo: number | null
+  productId: number | null
 }
 
 export type ProductImageMaxAggregateOutputType = {
   id: number | null
   image: string | null
-  productId: number | null
   serialNo: number | null
+  productId: number | null
 }
 
 export type ProductImageCountAggregateOutputType = {
   id: number
   image: number
-  productId: number
   serialNo: number
+  productId: number
   _all: number
 }
 
 
 export type ProductImageAvgAggregateInputType = {
   id?: true
-  productId?: true
   serialNo?: true
+  productId?: true
 }
 
 export type ProductImageSumAggregateInputType = {
   id?: true
-  productId?: true
   serialNo?: true
+  productId?: true
 }
 
 export type ProductImageMinAggregateInputType = {
   id?: true
   image?: true
-  productId?: true
   serialNo?: true
+  productId?: true
 }
 
 export type ProductImageMaxAggregateInputType = {
   id?: true
   image?: true
-  productId?: true
   serialNo?: true
+  productId?: true
 }
 
 export type ProductImageCountAggregateInputType = {
   id?: true
   image?: true
-  productId?: true
   serialNo?: true
+  productId?: true
   _all?: true
 }
 
@@ -184,8 +184,8 @@ export type ProductImageGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
 export type ProductImageGroupByOutputType = {
   id: number
   image: string
-  productId: number
   serialNo: number
+  productId: number
   _count: ProductImageCountAggregateOutputType | null
   _avg: ProductImageAvgAggregateOutputType | null
   _sum: ProductImageSumAggregateOutputType | null
@@ -214,16 +214,16 @@ export type ProductImageWhereInput = {
   NOT?: Prisma.ProductImageWhereInput | Prisma.ProductImageWhereInput[]
   id?: Prisma.IntFilter<"ProductImage"> | number
   image?: Prisma.StringFilter<"ProductImage"> | string
-  productId?: Prisma.IntFilter<"ProductImage"> | number
   serialNo?: Prisma.IntFilter<"ProductImage"> | number
+  productId?: Prisma.IntFilter<"ProductImage"> | number
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
 }
 
 export type ProductImageOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   image?: Prisma.SortOrder
-  productId?: Prisma.SortOrder
   serialNo?: Prisma.SortOrder
+  productId?: Prisma.SortOrder
   product?: Prisma.ProductOrderByWithRelationInput
 }
 
@@ -233,16 +233,16 @@ export type ProductImageWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.ProductImageWhereInput[]
   NOT?: Prisma.ProductImageWhereInput | Prisma.ProductImageWhereInput[]
   image?: Prisma.StringFilter<"ProductImage"> | string
-  productId?: Prisma.IntFilter<"ProductImage"> | number
   serialNo?: Prisma.IntFilter<"ProductImage"> | number
+  productId?: Prisma.IntFilter<"ProductImage"> | number
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
 }, "id">
 
 export type ProductImageOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   image?: Prisma.SortOrder
-  productId?: Prisma.SortOrder
   serialNo?: Prisma.SortOrder
+  productId?: Prisma.SortOrder
   _count?: Prisma.ProductImageCountOrderByAggregateInput
   _avg?: Prisma.ProductImageAvgOrderByAggregateInput
   _max?: Prisma.ProductImageMaxOrderByAggregateInput
@@ -256,41 +256,41 @@ export type ProductImageScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ProductImageScalarWhereWithAggregatesInput | Prisma.ProductImageScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"ProductImage"> | number
   image?: Prisma.StringWithAggregatesFilter<"ProductImage"> | string
-  productId?: Prisma.IntWithAggregatesFilter<"ProductImage"> | number
   serialNo?: Prisma.IntWithAggregatesFilter<"ProductImage"> | number
+  productId?: Prisma.IntWithAggregatesFilter<"ProductImage"> | number
 }
 
 export type ProductImageCreateInput = {
   image: string
   serialNo: number
-  product: Prisma.ProductCreateNestedOneWithoutProductImageInput
+  product: Prisma.ProductCreateNestedOneWithoutImagesInput
 }
 
 export type ProductImageUncheckedCreateInput = {
   id?: number
   image: string
-  productId: number
   serialNo: number
+  productId: number
 }
 
 export type ProductImageUpdateInput = {
   image?: Prisma.StringFieldUpdateOperationsInput | string
   serialNo?: Prisma.IntFieldUpdateOperationsInput | number
-  product?: Prisma.ProductUpdateOneRequiredWithoutProductImageNestedInput
+  product?: Prisma.ProductUpdateOneRequiredWithoutImagesNestedInput
 }
 
 export type ProductImageUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   image?: Prisma.StringFieldUpdateOperationsInput | string
-  productId?: Prisma.IntFieldUpdateOperationsInput | number
   serialNo?: Prisma.IntFieldUpdateOperationsInput | number
+  productId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ProductImageCreateManyInput = {
   id?: number
   image: string
-  productId: number
   serialNo: number
+  productId: number
 }
 
 export type ProductImageUpdateManyMutationInput = {
@@ -301,8 +301,8 @@ export type ProductImageUpdateManyMutationInput = {
 export type ProductImageUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   image?: Prisma.StringFieldUpdateOperationsInput | string
-  productId?: Prisma.IntFieldUpdateOperationsInput | number
   serialNo?: Prisma.IntFieldUpdateOperationsInput | number
+  productId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ProductImageListRelationFilter = {
@@ -318,34 +318,34 @@ export type ProductImageOrderByRelationAggregateInput = {
 export type ProductImageCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   image?: Prisma.SortOrder
-  productId?: Prisma.SortOrder
   serialNo?: Prisma.SortOrder
+  productId?: Prisma.SortOrder
 }
 
 export type ProductImageAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  productId?: Prisma.SortOrder
   serialNo?: Prisma.SortOrder
+  productId?: Prisma.SortOrder
 }
 
 export type ProductImageMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   image?: Prisma.SortOrder
-  productId?: Prisma.SortOrder
   serialNo?: Prisma.SortOrder
+  productId?: Prisma.SortOrder
 }
 
 export type ProductImageMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   image?: Prisma.SortOrder
-  productId?: Prisma.SortOrder
   serialNo?: Prisma.SortOrder
+  productId?: Prisma.SortOrder
 }
 
 export type ProductImageSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  productId?: Prisma.SortOrder
   serialNo?: Prisma.SortOrder
+  productId?: Prisma.SortOrder
 }
 
 export type ProductImageCreateNestedManyWithoutProductInput = {
@@ -433,8 +433,8 @@ export type ProductImageScalarWhereInput = {
   NOT?: Prisma.ProductImageScalarWhereInput | Prisma.ProductImageScalarWhereInput[]
   id?: Prisma.IntFilter<"ProductImage"> | number
   image?: Prisma.StringFilter<"ProductImage"> | string
-  productId?: Prisma.IntFilter<"ProductImage"> | number
   serialNo?: Prisma.IntFilter<"ProductImage"> | number
+  productId?: Prisma.IntFilter<"ProductImage"> | number
 }
 
 export type ProductImageCreateManyProductInput = {
@@ -465,35 +465,35 @@ export type ProductImageUncheckedUpdateManyWithoutProductInput = {
 export type ProductImageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   image?: boolean
-  productId?: boolean
   serialNo?: boolean
+  productId?: boolean
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productImage"]>
 
 export type ProductImageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   image?: boolean
-  productId?: boolean
   serialNo?: boolean
+  productId?: boolean
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productImage"]>
 
 export type ProductImageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   image?: boolean
-  productId?: boolean
   serialNo?: boolean
+  productId?: boolean
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productImage"]>
 
 export type ProductImageSelectScalar = {
   id?: boolean
   image?: boolean
-  productId?: boolean
   serialNo?: boolean
+  productId?: boolean
 }
 
-export type ProductImageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "image" | "productId" | "serialNo", ExtArgs["result"]["productImage"]>
+export type ProductImageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "image" | "serialNo" | "productId", ExtArgs["result"]["productImage"]>
 export type ProductImageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }
@@ -512,8 +512,8 @@ export type $ProductImagePayload<ExtArgs extends runtime.Types.Extensions.Intern
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     image: string
-    productId: number
     serialNo: number
+    productId: number
   }, ExtArgs["result"]["productImage"]>
   composites: {}
 }
@@ -940,8 +940,8 @@ export interface Prisma__ProductImageClient<T, Null = never, ExtArgs extends run
 export interface ProductImageFieldRefs {
   readonly id: Prisma.FieldRef<"ProductImage", 'Int'>
   readonly image: Prisma.FieldRef<"ProductImage", 'String'>
-  readonly productId: Prisma.FieldRef<"ProductImage", 'Int'>
   readonly serialNo: Prisma.FieldRef<"ProductImage", 'Int'>
+  readonly productId: Prisma.FieldRef<"ProductImage", 'Int'>
 }
     
 

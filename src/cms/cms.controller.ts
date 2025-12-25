@@ -1,5 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { CreateAboutDto } from './dto/create-about.dto';
 import { UpdateAboutDto } from './dto/update-about.dto';
@@ -67,7 +76,7 @@ export class CmsController {
     return this.cmsService.deleteBanner(id);
   }
 
-   // CREATE PROMO BANNER
+  // CREATE PROMO BANNER
   @Post('promo-banners')
   createPromoBanner(@Body() dto: CreatePromoBannerDto) {
     // console.log(dto);
@@ -93,5 +102,17 @@ export class CmsController {
   @Delete('promo-banners/:id')
   removePromoBanner(@Param('id', ParseIntPipe) id: number) {
     return this.cmsService.removePromoBanner(id);
+  }
+
+  //VARIANTS
+  @Get('variant')
+  getVariants() {
+    return this.cmsService.getVariants();
+  }
+
+  //COLORS
+  @Get('colors')
+  getAllColors() {
+    return this.cmsService.getAllColors();
   }
 }

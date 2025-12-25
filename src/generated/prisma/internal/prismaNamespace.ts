@@ -402,7 +402,13 @@ export const ModelName = {
   ProductSubCategory: 'ProductSubCategory',
   Product: 'Product',
   ProductImage: 'ProductImage',
-  ProductVariant: 'ProductVariant',
+  ProductColor: 'ProductColor',
+  ProductColorImage: 'ProductColorImage',
+  Color: 'Color',
+  ProductSize: 'ProductSize',
+  ProductStock: 'ProductStock',
+  Variant: 'Variant',
+  Size: 'Size',
   Cart: 'Cart',
   CartItem: 'CartItem',
   Order: 'Order',
@@ -429,7 +435,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "productSubCategory" | "product" | "productImage" | "productVariant" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
+    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "productSubCategory" | "product" | "productImage" | "productColor" | "productColorImage" | "color" | "productSize" | "productStock" | "variant" | "size" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1321,77 +1327,521 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    ProductVariant: {
-      payload: Prisma.$ProductVariantPayload<ExtArgs>
-      fields: Prisma.ProductVariantFieldRefs
+    ProductColor: {
+      payload: Prisma.$ProductColorPayload<ExtArgs>
+      fields: Prisma.ProductColorFieldRefs
       operations: {
         findUnique: {
-          args: Prisma.ProductVariantFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload> | null
+          args: Prisma.ProductColorFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload> | null
         }
         findUniqueOrThrow: {
-          args: Prisma.ProductVariantFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>
+          args: Prisma.ProductColorFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>
         }
         findFirst: {
-          args: Prisma.ProductVariantFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload> | null
+          args: Prisma.ProductColorFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload> | null
         }
         findFirstOrThrow: {
-          args: Prisma.ProductVariantFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>
+          args: Prisma.ProductColorFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>
         }
         findMany: {
-          args: Prisma.ProductVariantFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>[]
+          args: Prisma.ProductColorFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>[]
         }
         create: {
-          args: Prisma.ProductVariantCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>
+          args: Prisma.ProductColorCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>
         }
         createMany: {
-          args: Prisma.ProductVariantCreateManyArgs<ExtArgs>
+          args: Prisma.ProductColorCreateManyArgs<ExtArgs>
           result: BatchPayload
         }
         createManyAndReturn: {
-          args: Prisma.ProductVariantCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>[]
+          args: Prisma.ProductColorCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>[]
         }
         delete: {
-          args: Prisma.ProductVariantDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>
+          args: Prisma.ProductColorDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>
         }
         update: {
-          args: Prisma.ProductVariantUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>
+          args: Prisma.ProductColorUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>
         }
         deleteMany: {
-          args: Prisma.ProductVariantDeleteManyArgs<ExtArgs>
+          args: Prisma.ProductColorDeleteManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateMany: {
-          args: Prisma.ProductVariantUpdateManyArgs<ExtArgs>
+          args: Prisma.ProductColorUpdateManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateManyAndReturn: {
-          args: Prisma.ProductVariantUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>[]
+          args: Prisma.ProductColorUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>[]
         }
         upsert: {
-          args: Prisma.ProductVariantUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductVariantPayload>
+          args: Prisma.ProductColorUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorPayload>
         }
         aggregate: {
-          args: Prisma.ProductVariantAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateProductVariant>
+          args: Prisma.ProductColorAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProductColor>
         }
         groupBy: {
-          args: Prisma.ProductVariantGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProductVariantGroupByOutputType>[]
+          args: Prisma.ProductColorGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductColorGroupByOutputType>[]
         }
         count: {
-          args: Prisma.ProductVariantCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProductVariantCountAggregateOutputType> | number
+          args: Prisma.ProductColorCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductColorCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProductColorImage: {
+      payload: Prisma.$ProductColorImagePayload<ExtArgs>
+      fields: Prisma.ProductColorImageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProductColorImageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProductColorImageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>
+        }
+        findFirst: {
+          args: Prisma.ProductColorImageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProductColorImageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>
+        }
+        findMany: {
+          args: Prisma.ProductColorImageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>[]
+        }
+        create: {
+          args: Prisma.ProductColorImageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>
+        }
+        createMany: {
+          args: Prisma.ProductColorImageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProductColorImageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>[]
+        }
+        delete: {
+          args: Prisma.ProductColorImageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>
+        }
+        update: {
+          args: Prisma.ProductColorImageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>
+        }
+        deleteMany: {
+          args: Prisma.ProductColorImageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProductColorImageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProductColorImageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>[]
+        }
+        upsert: {
+          args: Prisma.ProductColorImageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductColorImagePayload>
+        }
+        aggregate: {
+          args: Prisma.ProductColorImageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProductColorImage>
+        }
+        groupBy: {
+          args: Prisma.ProductColorImageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductColorImageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProductColorImageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductColorImageCountAggregateOutputType> | number
+        }
+      }
+    }
+    Color: {
+      payload: Prisma.$ColorPayload<ExtArgs>
+      fields: Prisma.ColorFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ColorFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ColorFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>
+        }
+        findFirst: {
+          args: Prisma.ColorFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ColorFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>
+        }
+        findMany: {
+          args: Prisma.ColorFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>[]
+        }
+        create: {
+          args: Prisma.ColorCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>
+        }
+        createMany: {
+          args: Prisma.ColorCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ColorCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>[]
+        }
+        delete: {
+          args: Prisma.ColorDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>
+        }
+        update: {
+          args: Prisma.ColorUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>
+        }
+        deleteMany: {
+          args: Prisma.ColorDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ColorUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ColorUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>[]
+        }
+        upsert: {
+          args: Prisma.ColorUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ColorPayload>
+        }
+        aggregate: {
+          args: Prisma.ColorAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateColor>
+        }
+        groupBy: {
+          args: Prisma.ColorGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ColorGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ColorCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ColorCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProductSize: {
+      payload: Prisma.$ProductSizePayload<ExtArgs>
+      fields: Prisma.ProductSizeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProductSizeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProductSizeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>
+        }
+        findFirst: {
+          args: Prisma.ProductSizeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProductSizeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>
+        }
+        findMany: {
+          args: Prisma.ProductSizeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>[]
+        }
+        create: {
+          args: Prisma.ProductSizeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>
+        }
+        createMany: {
+          args: Prisma.ProductSizeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProductSizeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>[]
+        }
+        delete: {
+          args: Prisma.ProductSizeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>
+        }
+        update: {
+          args: Prisma.ProductSizeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>
+        }
+        deleteMany: {
+          args: Prisma.ProductSizeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProductSizeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProductSizeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>[]
+        }
+        upsert: {
+          args: Prisma.ProductSizeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductSizePayload>
+        }
+        aggregate: {
+          args: Prisma.ProductSizeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProductSize>
+        }
+        groupBy: {
+          args: Prisma.ProductSizeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductSizeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProductSizeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductSizeCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProductStock: {
+      payload: Prisma.$ProductStockPayload<ExtArgs>
+      fields: Prisma.ProductStockFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProductStockFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProductStockFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
+        }
+        findFirst: {
+          args: Prisma.ProductStockFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProductStockFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
+        }
+        findMany: {
+          args: Prisma.ProductStockFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>[]
+        }
+        create: {
+          args: Prisma.ProductStockCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
+        }
+        createMany: {
+          args: Prisma.ProductStockCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProductStockCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>[]
+        }
+        delete: {
+          args: Prisma.ProductStockDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
+        }
+        update: {
+          args: Prisma.ProductStockUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
+        }
+        deleteMany: {
+          args: Prisma.ProductStockDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProductStockUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProductStockUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>[]
+        }
+        upsert: {
+          args: Prisma.ProductStockUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
+        }
+        aggregate: {
+          args: Prisma.ProductStockAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProductStock>
+        }
+        groupBy: {
+          args: Prisma.ProductStockGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductStockGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProductStockCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductStockCountAggregateOutputType> | number
+        }
+      }
+    }
+    Variant: {
+      payload: Prisma.$VariantPayload<ExtArgs>
+      fields: Prisma.VariantFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VariantFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VariantFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>
+        }
+        findFirst: {
+          args: Prisma.VariantFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VariantFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>
+        }
+        findMany: {
+          args: Prisma.VariantFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>[]
+        }
+        create: {
+          args: Prisma.VariantCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>
+        }
+        createMany: {
+          args: Prisma.VariantCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VariantCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>[]
+        }
+        delete: {
+          args: Prisma.VariantDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>
+        }
+        update: {
+          args: Prisma.VariantUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>
+        }
+        deleteMany: {
+          args: Prisma.VariantDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VariantUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VariantUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>[]
+        }
+        upsert: {
+          args: Prisma.VariantUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariantPayload>
+        }
+        aggregate: {
+          args: Prisma.VariantAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVariant>
+        }
+        groupBy: {
+          args: Prisma.VariantGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VariantGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VariantCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VariantCountAggregateOutputType> | number
+        }
+      }
+    }
+    Size: {
+      payload: Prisma.$SizePayload<ExtArgs>
+      fields: Prisma.SizeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SizeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SizeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>
+        }
+        findFirst: {
+          args: Prisma.SizeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SizeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>
+        }
+        findMany: {
+          args: Prisma.SizeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>[]
+        }
+        create: {
+          args: Prisma.SizeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>
+        }
+        createMany: {
+          args: Prisma.SizeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SizeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>[]
+        }
+        delete: {
+          args: Prisma.SizeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>
+        }
+        update: {
+          args: Prisma.SizeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>
+        }
+        deleteMany: {
+          args: Prisma.SizeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SizeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SizeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>[]
+        }
+        upsert: {
+          args: Prisma.SizeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SizePayload>
+        }
+        aggregate: {
+          args: Prisma.SizeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSize>
+        }
+        groupBy: {
+          args: Prisma.SizeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SizeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SizeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SizeCountAggregateOutputType> | number
         }
       }
     }
@@ -2379,10 +2829,11 @@ export const ProductScalarFieldEnum = {
   id: 'id',
   title: 'title',
   slug: 'slug',
+  sku: 'sku',
   description: 'description',
   basePrice: 'basePrice',
-  stock: 'stock',
-  isActive: 'isActive',
+  hasColorVariants: 'hasColorVariants',
+  showColor: 'showColor',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2393,24 +2844,85 @@ export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeo
 export const ProductImageScalarFieldEnum = {
   id: 'id',
   image: 'image',
-  productId: 'productId',
-  serialNo: 'serialNo'
+  serialNo: 'serialNo',
+  productId: 'productId'
 } as const
 
 export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[keyof typeof ProductImageScalarFieldEnum]
 
 
-export const ProductVariantScalarFieldEnum = {
+export const ProductColorScalarFieldEnum = {
   id: 'id',
-  color: 'color',
-  size: 'size',
-  price: 'price',
-  stock: 'stock',
-  images: 'images',
+  colorId: 'colorId',
   productId: 'productId'
 } as const
 
-export type ProductVariantScalarFieldEnum = (typeof ProductVariantScalarFieldEnum)[keyof typeof ProductVariantScalarFieldEnum]
+export type ProductColorScalarFieldEnum = (typeof ProductColorScalarFieldEnum)[keyof typeof ProductColorScalarFieldEnum]
+
+
+export const ProductColorImageScalarFieldEnum = {
+  id: 'id',
+  image: 'image',
+  productColorId: 'productColorId'
+} as const
+
+export type ProductColorImageScalarFieldEnum = (typeof ProductColorImageScalarFieldEnum)[keyof typeof ProductColorImageScalarFieldEnum]
+
+
+export const ColorScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  hexCode: 'hexCode',
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type ColorScalarFieldEnum = (typeof ColorScalarFieldEnum)[keyof typeof ColorScalarFieldEnum]
+
+
+export const ProductSizeScalarFieldEnum = {
+  id: 'id',
+  sizeId: 'sizeId',
+  sku: 'sku',
+  price: 'price',
+  colorId: 'colorId'
+} as const
+
+export type ProductSizeScalarFieldEnum = (typeof ProductSizeScalarFieldEnum)[keyof typeof ProductSizeScalarFieldEnum]
+
+
+export const ProductStockScalarFieldEnum = {
+  id: 'id',
+  quantity: 'quantity',
+  sizeId: 'sizeId'
+} as const
+
+export type ProductStockScalarFieldEnum = (typeof ProductStockScalarFieldEnum)[keyof typeof ProductStockScalarFieldEnum]
+
+
+export const VariantScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type VariantScalarFieldEnum = (typeof VariantScalarFieldEnum)[keyof typeof VariantScalarFieldEnum]
+
+
+export const SizeScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  variantId: 'variantId',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type SizeScalarFieldEnum = (typeof SizeScalarFieldEnum)[keyof typeof SizeScalarFieldEnum]
 
 
 export const CartScalarFieldEnum = {
@@ -2426,7 +2938,6 @@ export const CartItemScalarFieldEnum = {
   id: 'id',
   cartId: 'cartId',
   productId: 'productId',
-  variantId: 'variantId',
   quantity: 'quantity'
 } as const
 
@@ -2450,7 +2961,6 @@ export const OrderItemScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
   productId: 'productId',
-  variantId: 'variantId',
   quantity: 'quantity',
   price: 'price'
 } as const
@@ -2771,7 +3281,13 @@ export type GlobalOmitConfig = {
   productSubCategory?: Prisma.ProductSubCategoryOmit
   product?: Prisma.ProductOmit
   productImage?: Prisma.ProductImageOmit
-  productVariant?: Prisma.ProductVariantOmit
+  productColor?: Prisma.ProductColorOmit
+  productColorImage?: Prisma.ProductColorImageOmit
+  color?: Prisma.ColorOmit
+  productSize?: Prisma.ProductSizeOmit
+  productStock?: Prisma.ProductStockOmit
+  variant?: Prisma.VariantOmit
+  size?: Prisma.SizeOmit
   cart?: Prisma.CartOmit
   cartItem?: Prisma.CartItemOmit
   order?: Prisma.OrderOmit

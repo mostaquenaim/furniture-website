@@ -30,6 +30,7 @@ import { RolesModule } from './roles/roles.module';
 import { PermissionModule } from './permission/permission.module';
 import { CategoryModule } from './category/category.module';
 import { AdminModule } from './admin/admin.module';
+import { ProductModule } from './product/product.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { AdminModule } from './admin/admin.module';
     PermissionModule,
     CategoryModule,
     AdminModule,
+    ProductModule,
   ],
   controllers: [AppController],
   providers: [AppService],

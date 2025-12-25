@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Controller, Get, UseGuards, Req, Post, Body } from '@nestjs/common';
@@ -8,13 +9,20 @@ import { CreateSeriesDto } from 'src/category/dto/seriesDto.dto';
 import cloudinary from './cloudinary.config';
 import { CreateCategoryDto } from 'src/category/dto/categoryDto.dto';
 import { CreateSubCategoryDto } from 'src/category/dto/subCategoryDto.dto';
+import { CmsService } from 'src/cms/cms.service';
+import { CreateColorDto } from 'src/cms/dto/create-color.dto';
+import { CreateSizeDto } from 'src/cms/dto/create-size-dto.dto';
+import { CreateVariantDto } from 'src/cms/dto/create-variant.dto';
 
-@Controller('')
+@Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
-  constructor(private readonly categoryService: CategoryService) {}
+  constructor(
+    private readonly categoryService: CategoryService,
+    private readonly cmsService: CmsService,
+  ) {}
 
-  // 🔐 ADMIN DASHBOARD BASIC INFO
+  // ADMIN DASHBOARD BASIC INFO
   @Get('dashboard')
   getDashboard(@Req() req) {
     return {
@@ -27,6 +35,7 @@ export class AdminController {
     return this.categoryService.getAllSeries(true);
   }
 
+  // series, category and subcategory creation
   @Post('series')
   createSeries(@Body() createSeriesDto: CreateSeriesDto) {
     return this.categoryService.createSeries(createSeriesDto);
@@ -42,7 +51,7 @@ export class AdminController {
     return this.categoryService.createSubCategory(createSubCategoryDto);
   }
 
-  // 🔐 ADMIN PROFILE
+  // ADMIN PROFILE
   @Get('profile')
   getAdminProfile(@Req() req) {
     return req.user;
@@ -64,5 +73,21 @@ export class AdminController {
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
       upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
     };
+  }
+
+  // ADD OTHER ATTRIBUTES
+  @Post('color')
+  addColor(@Body() createColorDto: CreateColorDto) {
+    return this.cmsService.createColor(createColorDto);
+  }
+
+  @Post('size')
+  addSize(@Body() createSizeDto: CreateSizeDto) {
+    return this.cmsService.createSize(createSizeDto);
+  }
+
+  @Post('variant')
+  addVariant(@Body() createVariantDto: CreateVariantDto) {
+    return this.cmsService.createVariant(createVariantDto);
   }
 }

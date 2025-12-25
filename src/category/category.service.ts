@@ -161,10 +161,10 @@ export class CategoryService {
       include: withRelations
         ? {
             series: true,
-            subCategories: {
-              where: { isActive: true },
-              orderBy: { sortOrder: 'asc' },
-            },
+            // subCategories: {
+            //   where: { isActive: true },
+            //   orderBy: { sortOrder: 'asc' },
+            // },
           }
         : undefined,
     });
@@ -240,11 +240,12 @@ export class CategoryService {
       orderBy: { sortOrder: 'asc' },
       include: withRelations
         ? {
-            category: {
-              include: {
-                series: true,
-              },
-            },
+            category: true,
+            // {
+            //   include: {
+            //     series: true,
+            //   },
+            // },
           }
         : undefined,
     });

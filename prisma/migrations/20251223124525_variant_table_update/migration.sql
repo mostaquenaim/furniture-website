@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "Size" ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "sortOrder" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "Variant" ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "sortOrder" INTEGER NOT NULL DEFAULT 0;

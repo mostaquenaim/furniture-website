@@ -61,7 +61,13 @@ export const ModelName = {
   ProductSubCategory: 'ProductSubCategory',
   Product: 'Product',
   ProductImage: 'ProductImage',
-  ProductVariant: 'ProductVariant',
+  ProductColor: 'ProductColor',
+  ProductColorImage: 'ProductColorImage',
+  Color: 'Color',
+  ProductSize: 'ProductSize',
+  ProductStock: 'ProductStock',
+  Variant: 'Variant',
+  Size: 'Size',
   Cart: 'Cart',
   CartItem: 'CartItem',
   Order: 'Order',
@@ -222,10 +228,11 @@ export const ProductScalarFieldEnum = {
   id: 'id',
   title: 'title',
   slug: 'slug',
+  sku: 'sku',
   description: 'description',
   basePrice: 'basePrice',
-  stock: 'stock',
-  isActive: 'isActive',
+  hasColorVariants: 'hasColorVariants',
+  showColor: 'showColor',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -236,24 +243,85 @@ export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeo
 export const ProductImageScalarFieldEnum = {
   id: 'id',
   image: 'image',
-  productId: 'productId',
-  serialNo: 'serialNo'
+  serialNo: 'serialNo',
+  productId: 'productId'
 } as const
 
 export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[keyof typeof ProductImageScalarFieldEnum]
 
 
-export const ProductVariantScalarFieldEnum = {
+export const ProductColorScalarFieldEnum = {
   id: 'id',
-  color: 'color',
-  size: 'size',
-  price: 'price',
-  stock: 'stock',
-  images: 'images',
+  colorId: 'colorId',
   productId: 'productId'
 } as const
 
-export type ProductVariantScalarFieldEnum = (typeof ProductVariantScalarFieldEnum)[keyof typeof ProductVariantScalarFieldEnum]
+export type ProductColorScalarFieldEnum = (typeof ProductColorScalarFieldEnum)[keyof typeof ProductColorScalarFieldEnum]
+
+
+export const ProductColorImageScalarFieldEnum = {
+  id: 'id',
+  image: 'image',
+  productColorId: 'productColorId'
+} as const
+
+export type ProductColorImageScalarFieldEnum = (typeof ProductColorImageScalarFieldEnum)[keyof typeof ProductColorImageScalarFieldEnum]
+
+
+export const ColorScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  hexCode: 'hexCode',
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type ColorScalarFieldEnum = (typeof ColorScalarFieldEnum)[keyof typeof ColorScalarFieldEnum]
+
+
+export const ProductSizeScalarFieldEnum = {
+  id: 'id',
+  sizeId: 'sizeId',
+  sku: 'sku',
+  price: 'price',
+  colorId: 'colorId'
+} as const
+
+export type ProductSizeScalarFieldEnum = (typeof ProductSizeScalarFieldEnum)[keyof typeof ProductSizeScalarFieldEnum]
+
+
+export const ProductStockScalarFieldEnum = {
+  id: 'id',
+  quantity: 'quantity',
+  sizeId: 'sizeId'
+} as const
+
+export type ProductStockScalarFieldEnum = (typeof ProductStockScalarFieldEnum)[keyof typeof ProductStockScalarFieldEnum]
+
+
+export const VariantScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type VariantScalarFieldEnum = (typeof VariantScalarFieldEnum)[keyof typeof VariantScalarFieldEnum]
+
+
+export const SizeScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  variantId: 'variantId',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt'
+} as const
+
+export type SizeScalarFieldEnum = (typeof SizeScalarFieldEnum)[keyof typeof SizeScalarFieldEnum]
 
 
 export const CartScalarFieldEnum = {
@@ -269,7 +337,6 @@ export const CartItemScalarFieldEnum = {
   id: 'id',
   cartId: 'cartId',
   productId: 'productId',
-  variantId: 'variantId',
   quantity: 'quantity'
 } as const
 
@@ -293,7 +360,6 @@ export const OrderItemScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
   productId: 'productId',
-  variantId: 'variantId',
   quantity: 'quantity',
   price: 'price'
 } as const
