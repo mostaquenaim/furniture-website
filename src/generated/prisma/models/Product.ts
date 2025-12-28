@@ -29,11 +29,13 @@ export type AggregateProduct = {
 export type ProductAvgAggregateOutputType = {
   id: number | null
   basePrice: number | null
+  discount: number | null
 }
 
 export type ProductSumAggregateOutputType = {
   id: number | null
   basePrice: number | null
+  discount: number | null
 }
 
 export type ProductMinAggregateOutputType = {
@@ -45,6 +47,16 @@ export type ProductMinAggregateOutputType = {
   basePrice: number | null
   hasColorVariants: boolean | null
   showColor: boolean | null
+  discountType: string | null
+  discount: number | null
+  discountEnd: Date | null
+  discountStart: Date | null
+  note: string | null
+  deliveryEstimate: string | null
+  productDetails: string | null
+  dimension: string | null
+  shippingReturn: string | null
+  isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -58,6 +70,16 @@ export type ProductMaxAggregateOutputType = {
   basePrice: number | null
   hasColorVariants: boolean | null
   showColor: boolean | null
+  discountType: string | null
+  discount: number | null
+  discountEnd: Date | null
+  discountStart: Date | null
+  note: string | null
+  deliveryEstimate: string | null
+  productDetails: string | null
+  dimension: string | null
+  shippingReturn: string | null
+  isActive: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -71,6 +93,16 @@ export type ProductCountAggregateOutputType = {
   basePrice: number
   hasColorVariants: number
   showColor: number
+  discountType: number
+  discount: number
+  discountEnd: number
+  discountStart: number
+  note: number
+  deliveryEstimate: number
+  productDetails: number
+  dimension: number
+  shippingReturn: number
+  isActive: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -80,11 +112,13 @@ export type ProductCountAggregateOutputType = {
 export type ProductAvgAggregateInputType = {
   id?: true
   basePrice?: true
+  discount?: true
 }
 
 export type ProductSumAggregateInputType = {
   id?: true
   basePrice?: true
+  discount?: true
 }
 
 export type ProductMinAggregateInputType = {
@@ -96,6 +130,16 @@ export type ProductMinAggregateInputType = {
   basePrice?: true
   hasColorVariants?: true
   showColor?: true
+  discountType?: true
+  discount?: true
+  discountEnd?: true
+  discountStart?: true
+  note?: true
+  deliveryEstimate?: true
+  productDetails?: true
+  dimension?: true
+  shippingReturn?: true
+  isActive?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -109,6 +153,16 @@ export type ProductMaxAggregateInputType = {
   basePrice?: true
   hasColorVariants?: true
   showColor?: true
+  discountType?: true
+  discount?: true
+  discountEnd?: true
+  discountStart?: true
+  note?: true
+  deliveryEstimate?: true
+  productDetails?: true
+  dimension?: true
+  shippingReturn?: true
+  isActive?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -122,6 +176,16 @@ export type ProductCountAggregateInputType = {
   basePrice?: true
   hasColorVariants?: true
   showColor?: true
+  discountType?: true
+  discount?: true
+  discountEnd?: true
+  discountStart?: true
+  note?: true
+  deliveryEstimate?: true
+  productDetails?: true
+  dimension?: true
+  shippingReturn?: true
+  isActive?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -222,6 +286,16 @@ export type ProductGroupByOutputType = {
   basePrice: number
   hasColorVariants: boolean
   showColor: boolean
+  discountType: string | null
+  discount: number
+  discountEnd: Date
+  discountStart: Date
+  note: string | null
+  deliveryEstimate: string | null
+  productDetails: string | null
+  dimension: string | null
+  shippingReturn: string | null
+  isActive: boolean
   createdAt: Date
   updatedAt: Date
   _count: ProductCountAggregateOutputType | null
@@ -258,6 +332,16 @@ export type ProductWhereInput = {
   basePrice?: Prisma.FloatFilter<"Product"> | number
   hasColorVariants?: Prisma.BoolFilter<"Product"> | boolean
   showColor?: Prisma.BoolFilter<"Product"> | boolean
+  discountType?: Prisma.StringNullableFilter<"Product"> | string | null
+  discount?: Prisma.IntFilter<"Product"> | number
+  discountEnd?: Prisma.DateTimeFilter<"Product"> | Date | string
+  discountStart?: Prisma.DateTimeFilter<"Product"> | Date | string
+  note?: Prisma.StringNullableFilter<"Product"> | string | null
+  deliveryEstimate?: Prisma.StringNullableFilter<"Product"> | string | null
+  productDetails?: Prisma.StringNullableFilter<"Product"> | string | null
+  dimension?: Prisma.StringNullableFilter<"Product"> | string | null
+  shippingReturn?: Prisma.StringNullableFilter<"Product"> | string | null
+  isActive?: Prisma.BoolFilter<"Product"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   images?: Prisma.ProductImageListRelationFilter
@@ -278,6 +362,16 @@ export type ProductOrderByWithRelationInput = {
   basePrice?: Prisma.SortOrder
   hasColorVariants?: Prisma.SortOrder
   showColor?: Prisma.SortOrder
+  discountType?: Prisma.SortOrderInput | Prisma.SortOrder
+  discount?: Prisma.SortOrder
+  discountEnd?: Prisma.SortOrder
+  discountStart?: Prisma.SortOrder
+  note?: Prisma.SortOrderInput | Prisma.SortOrder
+  deliveryEstimate?: Prisma.SortOrderInput | Prisma.SortOrder
+  productDetails?: Prisma.SortOrderInput | Prisma.SortOrder
+  dimension?: Prisma.SortOrderInput | Prisma.SortOrder
+  shippingReturn?: Prisma.SortOrderInput | Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   images?: Prisma.ProductImageOrderByRelationAggregateInput
@@ -301,6 +395,16 @@ export type ProductWhereUniqueInput = Prisma.AtLeast<{
   basePrice?: Prisma.FloatFilter<"Product"> | number
   hasColorVariants?: Prisma.BoolFilter<"Product"> | boolean
   showColor?: Prisma.BoolFilter<"Product"> | boolean
+  discountType?: Prisma.StringNullableFilter<"Product"> | string | null
+  discount?: Prisma.IntFilter<"Product"> | number
+  discountEnd?: Prisma.DateTimeFilter<"Product"> | Date | string
+  discountStart?: Prisma.DateTimeFilter<"Product"> | Date | string
+  note?: Prisma.StringNullableFilter<"Product"> | string | null
+  deliveryEstimate?: Prisma.StringNullableFilter<"Product"> | string | null
+  productDetails?: Prisma.StringNullableFilter<"Product"> | string | null
+  dimension?: Prisma.StringNullableFilter<"Product"> | string | null
+  shippingReturn?: Prisma.StringNullableFilter<"Product"> | string | null
+  isActive?: Prisma.BoolFilter<"Product"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Product"> | Date | string
   images?: Prisma.ProductImageListRelationFilter
@@ -321,6 +425,16 @@ export type ProductOrderByWithAggregationInput = {
   basePrice?: Prisma.SortOrder
   hasColorVariants?: Prisma.SortOrder
   showColor?: Prisma.SortOrder
+  discountType?: Prisma.SortOrderInput | Prisma.SortOrder
+  discount?: Prisma.SortOrder
+  discountEnd?: Prisma.SortOrder
+  discountStart?: Prisma.SortOrder
+  note?: Prisma.SortOrderInput | Prisma.SortOrder
+  deliveryEstimate?: Prisma.SortOrderInput | Prisma.SortOrder
+  productDetails?: Prisma.SortOrderInput | Prisma.SortOrder
+  dimension?: Prisma.SortOrderInput | Prisma.SortOrder
+  shippingReturn?: Prisma.SortOrderInput | Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ProductCountOrderByAggregateInput
@@ -342,6 +456,16 @@ export type ProductScalarWhereWithAggregatesInput = {
   basePrice?: Prisma.FloatWithAggregatesFilter<"Product"> | number
   hasColorVariants?: Prisma.BoolWithAggregatesFilter<"Product"> | boolean
   showColor?: Prisma.BoolWithAggregatesFilter<"Product"> | boolean
+  discountType?: Prisma.StringNullableWithAggregatesFilter<"Product"> | string | null
+  discount?: Prisma.IntWithAggregatesFilter<"Product"> | number
+  discountEnd?: Prisma.DateTimeWithAggregatesFilter<"Product"> | Date | string
+  discountStart?: Prisma.DateTimeWithAggregatesFilter<"Product"> | Date | string
+  note?: Prisma.StringNullableWithAggregatesFilter<"Product"> | string | null
+  deliveryEstimate?: Prisma.StringNullableWithAggregatesFilter<"Product"> | string | null
+  productDetails?: Prisma.StringNullableWithAggregatesFilter<"Product"> | string | null
+  dimension?: Prisma.StringNullableWithAggregatesFilter<"Product"> | string | null
+  shippingReturn?: Prisma.StringNullableWithAggregatesFilter<"Product"> | string | null
+  isActive?: Prisma.BoolWithAggregatesFilter<"Product"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Product"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Product"> | Date | string
 }
@@ -354,6 +478,16 @@ export type ProductCreateInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageCreateNestedManyWithoutProductInput
@@ -374,6 +508,16 @@ export type ProductUncheckedCreateInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageUncheckedCreateNestedManyWithoutProductInput
@@ -393,6 +537,16 @@ export type ProductUpdateInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUpdateManyWithoutProductNestedInput
@@ -413,6 +567,16 @@ export type ProductUncheckedUpdateInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUncheckedUpdateManyWithoutProductNestedInput
@@ -433,6 +597,16 @@ export type ProductCreateManyInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -445,6 +619,16 @@ export type ProductUpdateManyMutationInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -458,6 +642,16 @@ export type ProductUncheckedUpdateManyInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -476,6 +670,16 @@ export type ProductCountOrderByAggregateInput = {
   basePrice?: Prisma.SortOrder
   hasColorVariants?: Prisma.SortOrder
   showColor?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discount?: Prisma.SortOrder
+  discountEnd?: Prisma.SortOrder
+  discountStart?: Prisma.SortOrder
+  note?: Prisma.SortOrder
+  deliveryEstimate?: Prisma.SortOrder
+  productDetails?: Prisma.SortOrder
+  dimension?: Prisma.SortOrder
+  shippingReturn?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -483,6 +687,7 @@ export type ProductCountOrderByAggregateInput = {
 export type ProductAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   basePrice?: Prisma.SortOrder
+  discount?: Prisma.SortOrder
 }
 
 export type ProductMaxOrderByAggregateInput = {
@@ -494,6 +699,16 @@ export type ProductMaxOrderByAggregateInput = {
   basePrice?: Prisma.SortOrder
   hasColorVariants?: Prisma.SortOrder
   showColor?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discount?: Prisma.SortOrder
+  discountEnd?: Prisma.SortOrder
+  discountStart?: Prisma.SortOrder
+  note?: Prisma.SortOrder
+  deliveryEstimate?: Prisma.SortOrder
+  productDetails?: Prisma.SortOrder
+  dimension?: Prisma.SortOrder
+  shippingReturn?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -507,6 +722,16 @@ export type ProductMinOrderByAggregateInput = {
   basePrice?: Prisma.SortOrder
   hasColorVariants?: Prisma.SortOrder
   showColor?: Prisma.SortOrder
+  discountType?: Prisma.SortOrder
+  discount?: Prisma.SortOrder
+  discountEnd?: Prisma.SortOrder
+  discountStart?: Prisma.SortOrder
+  note?: Prisma.SortOrder
+  deliveryEstimate?: Prisma.SortOrder
+  productDetails?: Prisma.SortOrder
+  dimension?: Prisma.SortOrder
+  shippingReturn?: Prisma.SortOrder
+  isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -514,6 +739,7 @@ export type ProductMinOrderByAggregateInput = {
 export type ProductSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   basePrice?: Prisma.SortOrder
+  discount?: Prisma.SortOrder
 }
 
 export type ProductCreateNestedOneWithoutSubCategoriesInput = {
@@ -630,6 +856,16 @@ export type ProductCreateWithoutSubCategoriesInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageCreateNestedManyWithoutProductInput
@@ -649,6 +885,16 @@ export type ProductUncheckedCreateWithoutSubCategoriesInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageUncheckedCreateNestedManyWithoutProductInput
@@ -683,6 +929,16 @@ export type ProductUpdateWithoutSubCategoriesInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUpdateManyWithoutProductNestedInput
@@ -702,6 +958,16 @@ export type ProductUncheckedUpdateWithoutSubCategoriesInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUncheckedUpdateManyWithoutProductNestedInput
@@ -720,6 +986,16 @@ export type ProductCreateWithoutImagesInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   subCategories?: Prisma.ProductSubCategoryCreateNestedManyWithoutProductInput
@@ -739,6 +1015,16 @@ export type ProductUncheckedCreateWithoutImagesInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   subCategories?: Prisma.ProductSubCategoryUncheckedCreateNestedManyWithoutProductInput
@@ -773,6 +1059,16 @@ export type ProductUpdateWithoutImagesInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   subCategories?: Prisma.ProductSubCategoryUpdateManyWithoutProductNestedInput
@@ -792,6 +1088,16 @@ export type ProductUncheckedUpdateWithoutImagesInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   subCategories?: Prisma.ProductSubCategoryUncheckedUpdateManyWithoutProductNestedInput
@@ -810,6 +1116,16 @@ export type ProductCreateWithoutColorsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageCreateNestedManyWithoutProductInput
@@ -829,6 +1145,16 @@ export type ProductUncheckedCreateWithoutColorsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageUncheckedCreateNestedManyWithoutProductInput
@@ -863,6 +1189,16 @@ export type ProductUpdateWithoutColorsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUpdateManyWithoutProductNestedInput
@@ -882,6 +1218,16 @@ export type ProductUncheckedUpdateWithoutColorsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUncheckedUpdateManyWithoutProductNestedInput
@@ -900,6 +1246,16 @@ export type ProductCreateWithoutCartItemsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageCreateNestedManyWithoutProductInput
@@ -919,6 +1275,16 @@ export type ProductUncheckedCreateWithoutCartItemsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageUncheckedCreateNestedManyWithoutProductInput
@@ -953,6 +1319,16 @@ export type ProductUpdateWithoutCartItemsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUpdateManyWithoutProductNestedInput
@@ -972,6 +1348,16 @@ export type ProductUncheckedUpdateWithoutCartItemsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUncheckedUpdateManyWithoutProductNestedInput
@@ -990,6 +1376,16 @@ export type ProductCreateWithoutOrderItemsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageCreateNestedManyWithoutProductInput
@@ -1009,6 +1405,16 @@ export type ProductUncheckedCreateWithoutOrderItemsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageUncheckedCreateNestedManyWithoutProductInput
@@ -1043,6 +1449,16 @@ export type ProductUpdateWithoutOrderItemsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUpdateManyWithoutProductNestedInput
@@ -1062,6 +1478,16 @@ export type ProductUncheckedUpdateWithoutOrderItemsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUncheckedUpdateManyWithoutProductNestedInput
@@ -1080,6 +1506,16 @@ export type ProductCreateWithoutReviewsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageCreateNestedManyWithoutProductInput
@@ -1099,6 +1535,16 @@ export type ProductUncheckedCreateWithoutReviewsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageUncheckedCreateNestedManyWithoutProductInput
@@ -1133,6 +1579,16 @@ export type ProductUpdateWithoutReviewsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUpdateManyWithoutProductNestedInput
@@ -1152,6 +1608,16 @@ export type ProductUncheckedUpdateWithoutReviewsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUncheckedUpdateManyWithoutProductNestedInput
@@ -1170,6 +1636,16 @@ export type ProductCreateWithoutWishlistsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageCreateNestedManyWithoutProductInput
@@ -1189,6 +1665,16 @@ export type ProductUncheckedCreateWithoutWishlistsInput = {
   basePrice: number
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: string | null
+  discount?: number
+  discountEnd?: Date | string
+  discountStart?: Date | string
+  note?: string | null
+  deliveryEstimate?: string | null
+  productDetails?: string | null
+  dimension?: string | null
+  shippingReturn?: string | null
+  isActive?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   images?: Prisma.ProductImageUncheckedCreateNestedManyWithoutProductInput
@@ -1223,6 +1709,16 @@ export type ProductUpdateWithoutWishlistsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUpdateManyWithoutProductNestedInput
@@ -1242,6 +1738,16 @@ export type ProductUncheckedUpdateWithoutWishlistsInput = {
   basePrice?: Prisma.FloatFieldUpdateOperationsInput | number
   hasColorVariants?: Prisma.BoolFieldUpdateOperationsInput | boolean
   showColor?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  discountType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  discount?: Prisma.IntFieldUpdateOperationsInput | number
+  discountEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  discountStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryEstimate?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dimension?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  shippingReturn?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   images?: Prisma.ProductImageUncheckedUpdateManyWithoutProductNestedInput
@@ -1346,6 +1852,16 @@ export type ProductSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   basePrice?: boolean
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: boolean
+  discount?: boolean
+  discountEnd?: boolean
+  discountStart?: boolean
+  note?: boolean
+  deliveryEstimate?: boolean
+  productDetails?: boolean
+  dimension?: boolean
+  shippingReturn?: boolean
+  isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   images?: boolean | Prisma.Product$imagesArgs<ExtArgs>
@@ -1367,6 +1883,16 @@ export type ProductSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   basePrice?: boolean
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: boolean
+  discount?: boolean
+  discountEnd?: boolean
+  discountStart?: boolean
+  note?: boolean
+  deliveryEstimate?: boolean
+  productDetails?: boolean
+  dimension?: boolean
+  shippingReturn?: boolean
+  isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["product"]>
@@ -1380,6 +1906,16 @@ export type ProductSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   basePrice?: boolean
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: boolean
+  discount?: boolean
+  discountEnd?: boolean
+  discountStart?: boolean
+  note?: boolean
+  deliveryEstimate?: boolean
+  productDetails?: boolean
+  dimension?: boolean
+  shippingReturn?: boolean
+  isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["product"]>
@@ -1393,11 +1929,21 @@ export type ProductSelectScalar = {
   basePrice?: boolean
   hasColorVariants?: boolean
   showColor?: boolean
+  discountType?: boolean
+  discount?: boolean
+  discountEnd?: boolean
+  discountStart?: boolean
+  note?: boolean
+  deliveryEstimate?: boolean
+  productDetails?: boolean
+  dimension?: boolean
+  shippingReturn?: boolean
+  isActive?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ProductOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "slug" | "sku" | "description" | "basePrice" | "hasColorVariants" | "showColor" | "createdAt" | "updatedAt", ExtArgs["result"]["product"]>
+export type ProductOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "slug" | "sku" | "description" | "basePrice" | "hasColorVariants" | "showColor" | "discountType" | "discount" | "discountEnd" | "discountStart" | "note" | "deliveryEstimate" | "productDetails" | "dimension" | "shippingReturn" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["product"]>
 export type ProductInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   images?: boolean | Prisma.Product$imagesArgs<ExtArgs>
   subCategories?: boolean | Prisma.Product$subCategoriesArgs<ExtArgs>
@@ -1431,6 +1977,16 @@ export type $ProductPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     basePrice: number
     hasColorVariants: boolean
     showColor: boolean
+    discountType: string | null
+    discount: number
+    discountEnd: Date
+    discountStart: Date
+    note: string | null
+    deliveryEstimate: string | null
+    productDetails: string | null
+    dimension: string | null
+    shippingReturn: string | null
+    isActive: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["product"]>
@@ -1871,6 +2427,16 @@ export interface ProductFieldRefs {
   readonly basePrice: Prisma.FieldRef<"Product", 'Float'>
   readonly hasColorVariants: Prisma.FieldRef<"Product", 'Boolean'>
   readonly showColor: Prisma.FieldRef<"Product", 'Boolean'>
+  readonly discountType: Prisma.FieldRef<"Product", 'String'>
+  readonly discount: Prisma.FieldRef<"Product", 'Int'>
+  readonly discountEnd: Prisma.FieldRef<"Product", 'DateTime'>
+  readonly discountStart: Prisma.FieldRef<"Product", 'DateTime'>
+  readonly note: Prisma.FieldRef<"Product", 'String'>
+  readonly deliveryEstimate: Prisma.FieldRef<"Product", 'String'>
+  readonly productDetails: Prisma.FieldRef<"Product", 'String'>
+  readonly dimension: Prisma.FieldRef<"Product", 'String'>
+  readonly shippingReturn: Prisma.FieldRef<"Product", 'String'>
+  readonly isActive: Prisma.FieldRef<"Product", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Product", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Product", 'DateTime'>
 }

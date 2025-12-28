@@ -262,14 +262,14 @@ export type ProductImageScalarWhereWithAggregatesInput = {
 
 export type ProductImageCreateInput = {
   image: string
-  serialNo: number
+  serialNo?: number
   product: Prisma.ProductCreateNestedOneWithoutImagesInput
 }
 
 export type ProductImageUncheckedCreateInput = {
   id?: number
   image: string
-  serialNo: number
+  serialNo?: number
   productId: number
 }
 
@@ -289,7 +289,7 @@ export type ProductImageUncheckedUpdateInput = {
 export type ProductImageCreateManyInput = {
   id?: number
   image: string
-  serialNo: number
+  serialNo?: number
   productId: number
 }
 
@@ -392,13 +392,13 @@ export type ProductImageUncheckedUpdateManyWithoutProductNestedInput = {
 
 export type ProductImageCreateWithoutProductInput = {
   image: string
-  serialNo: number
+  serialNo?: number
 }
 
 export type ProductImageUncheckedCreateWithoutProductInput = {
   id?: number
   image: string
-  serialNo: number
+  serialNo?: number
 }
 
 export type ProductImageCreateOrConnectWithoutProductInput = {
@@ -440,7 +440,7 @@ export type ProductImageScalarWhereInput = {
 export type ProductImageCreateManyProductInput = {
   id?: number
   image: string
-  serialNo: number
+  serialNo?: number
 }
 
 export type ProductImageUpdateWithoutProductInput = {

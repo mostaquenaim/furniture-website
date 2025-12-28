@@ -1,10 +1,22 @@
 import {
-  IsArray,
+  IsString,
+  IsOptional,
   IsBoolean,
   IsNumber,
-  IsOptional,
-  IsString,
+  IsArray,
+  IsEnum,
+  ValidateNested,
+  IsDate,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateProductColorDto } from './CreateProductColorDto.dto';
+import { CreateProductSubCategoryDto } from './CreateProductSubCategoryDto.dto';
+import { CreateProductImageDto } from './CreateProductImageDto.dto';
+
+export enum DiscountType {
+  PERCENT = 'PERCENT',
+  FLAT = 'FLAT',
+}
 
 export class CreateProductDto {
   @IsString()
@@ -30,22 +42,61 @@ export class CreateProductDto {
   @IsBoolean()
   showColor: boolean;
 
+  @IsOptional()
+  @IsEnum(DiscountType)
+  discountType?: DiscountType;
+
+  @IsOptional()
+  @IsNumber()
+  discount?: number;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  discountStart?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  discountEnd?: Date;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
+  @IsString()
+  deliveryEstimate?: string;
+
+  @IsOptional()
+  @IsString()
+  productDetails?: string;
+
+  @IsOptional()
+  @IsString()
+  dimension?: string;
+
+  @IsOptional()
+  @IsString()
+  shippingReturn?: string;
+
+  @IsBoolean()
+  isActive: boolean;
+
   @IsArray()
-  subCategoryIds: number[];
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductImageDto)
+  images: CreateProductImageDto[]; 
 
-  images: {
-    image: string;
-    serialNo: number;
-  }[];
+  // ✅ SubCategories
+  @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => CreateProductSubCategoryDto)
+  subCategories: number[];
 
-  colors: {
-    colorId: number;
-    images: string[];
-    sizes: {
-      sizeId: number;
-      sku?: string;
-      price?: number;
-      stock: number;
-    }[];
-  }[];
+  // ✅ Color Variants
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductColorDto)
+  colors: CreateProductColorDto[];
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -13,6 +14,8 @@ import { CmsService } from 'src/cms/cms.service';
 import { CreateColorDto } from 'src/cms/dto/create-color.dto';
 import { CreateSizeDto } from 'src/cms/dto/create-size-dto.dto';
 import { CreateVariantDto } from 'src/cms/dto/create-variant.dto';
+import { CreateProductDto } from 'src/product/dto/create-product.dto';
+import { ProductService } from 'src/product/product.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -20,6 +23,7 @@ export class AdminController {
   constructor(
     private readonly categoryService: CategoryService,
     private readonly cmsService: CmsService,
+    private readonly productService: ProductService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
@@ -59,11 +63,14 @@ export class AdminController {
 
   @Get('cloudinary-signature')
   getCloudinarySignature() {
-    const timestamp = Math.round(new Date().getTime() / 1000);
+    const timestamp = Math.round(Date.now() / 1000);
 
     const signature = cloudinary.utils.api_sign_request(
-      { timestamp },
-      process.env.CLOUDINARY_API_SECRET || '',
+      {
+        timestamp,
+        folder: 'products', // VERY IMPORTANT
+      },
+      process.env.CLOUDINARY_API_SECRET!,
     );
 
     return {
@@ -71,7 +78,7 @@ export class AdminController {
       timestamp,
       apiKey: process.env.CLOUDINARY_API_KEY,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-      upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+      folder: 'products',
     };
   }
 
@@ -89,5 +96,11 @@ export class AdminController {
   @Post('variant')
   addVariant(@Body() createVariantDto: CreateVariantDto) {
     return this.cmsService.createVariant(createVariantDto);
+  }
+
+  @Post('products')
+  async create(@Body() dto) {
+    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    return this.productService.createProduct(dto);
   }
 }

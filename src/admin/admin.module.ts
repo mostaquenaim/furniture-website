@@ -5,6 +5,7 @@ import { CategoryService } from 'src/category/category.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { CmsService } from 'src/cms/cms.service';
+import { ProductService } from 'src/product/product.service';
 
 @Module({
   controllers: [AdminController],
@@ -14,6 +15,7 @@ import { CmsService } from 'src/cms/cms.service';
     PrismaService,
     PermissionService,
     CmsService,
+    ProductService,
   ],
 })
 export class AdminModule {}

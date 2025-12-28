@@ -183,6 +183,18 @@ model Product {
   hasColorVariants Boolean @default(true)
   showColor    Boolean  @default(true)
 
+  discountType  String?
+  discount      Int      @default(0)
+  discountEnd   DateTime @default(now())
+  discountStart DateTime @default(now())
+
+  note              String?
+  deliveryEstimate  String?
+  productDetails    String?
+  dimension         String?
+  shippingReturn    String? 
+  isActive          Boolean @default(true)
+
   images        ProductImage[]
   subCategories ProductSubCategory[]
   colors        ProductColor[]
@@ -199,7 +211,7 @@ model Product {
 model ProductImage {
   id        Int    @id @default(autoincrement())
   image     String
-  serialNo Int
+  serialNo  Int    @default(0)
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
