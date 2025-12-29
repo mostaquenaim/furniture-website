@@ -262,7 +262,7 @@ model ProductSize {
   colorId Int
   color   ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
 
-  stock   ProductStock?
+  quantity Int  @default(0)
 }
 
 model ProductStock {
