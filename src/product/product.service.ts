@@ -24,16 +24,24 @@ export class ProductService {
       );
     }
 
-    // For color variants, validate that each color has at least one size
-    // if (dto.hasColorVariants) {
-    //   for (const color of dto.colors) {
-    //     if (!color.sizes || color.sizes.length === 0) {
-    //       throw new BadRequestException(
-    //         `Color variant must have at least one size`,
-    //       );
-    //     }
-    //   }
-    // }
+    // For color variants, validate that each color has at least one size with quantity > 0
+    if (dto.hasColorVariants) {
+      for (const color of dto.colors) {
+        if (!color.sizes || color.sizes.length === 0) {
+          throw new BadRequestException(
+            `Color variant must have at least one size`,
+          );
+        }
+
+        // Validate that at least one size has quantity > 0
+        const hasValidQuantity = color.sizes.some((size) => size.quantity > 0);
+        if (!hasValidQuantity) {
+          throw new BadRequestException(
+            `Color variant must have at least one size with quantity greater than 0`,
+          );
+        }
+      }
+    }
 
     // Use transaction to ensure all operations succeed or fail together
     return await this.prisma.$transaction(async (tx) => {
@@ -85,9 +93,7 @@ export class ProductService {
 
       // Create color variants if applicable
       if (dto.hasColorVariants && dto.colors && dto.colors.length > 0) {
-        console.log('hasColorVariants');
         for (const colorVariant of dto.colors) {
-          console.log(colorVariant, 'colorVariantcolorVariant');
           // Create product color
           const productColor = await tx.productColor.create({
             data: {
@@ -96,54 +102,47 @@ export class ProductService {
             },
           });
 
-          // console.log(
-          //   colorVariant?.useDefaultImages,
-          //   'colorVariant.useDefaultImages',
-          //   colorVariant?.images,
-          //   'colorVariant.images',
-          // );
-
           // Create color-specific images if not using default images
           if (
             !colorVariant.useDefaultImages &&
             colorVariant.images &&
             colorVariant.images.length > 0
           ) {
-            // console.log('dhukse');
             const colorImagesData = colorVariant.images.map((imageUrl) => ({
               image: imageUrl,
               productColorId: productColor.id,
             }));
-
-            // console.log(colorImagesData, 'colorImagesData');
 
             await tx.productColorImage.createMany({
               data: colorImagesData,
             });
           }
 
-          // Create sizes with stock
-          // if (colorVariant.sizes && colorVariant.sizes.length > 0) {
-          //   for (const size of colorVariant.sizes) {
-          //     // Create product size
-          //     const productSize = await tx.productSize.create({
-          //       data: {
-          //         sizeId: size.sizeId,
-          //         colorId: productColor.id,
-          //         sku: size.sku,
-          //         price: size.price,
-          //       },
-          //     });
+          // Create sizes with quantity
+          if (colorVariant.sizes && colorVariant.sizes.length > 0) {
+            // Filter out sizes with 0 or negative quantity
+            const validSizes = colorVariant.sizes.filter(
+              (size) => size.quantity > 0,
+            );
 
-          //     // Create stock for this size
-          //     await tx.productStock.create({
-          //       data: {
-          //         sizeId: productSize.id,
-          //         quantity: size.stock,
-          //       },
-          //     });
-          //   }
-          // }
+            if (validSizes.length > 0) {
+              const sizeData = validSizes.map((size) => ({
+                sizeId: size.sizeId,
+                colorId: productColor.id,
+                sku: size.sku || null,
+                price:
+                  size.price !== undefined && size.price !== null
+                    ? //  && size.price !== ''
+                      Number(size.price)
+                    : null,
+                quantity: Number(size.quantity),
+              }));
+
+              await tx.productSize.createMany({
+                data: sizeData,
+              });
+            }
+          }
         }
       }
 
@@ -164,7 +163,6 @@ export class ProductService {
               sizes: {
                 include: {
                   size: true,
-                  stock: true,
                 },
               },
             },
@@ -201,7 +199,7 @@ export class ProductService {
                     variant: true,
                   },
                 },
-                stock: true,
+                // stock: true,
               },
             },
           },

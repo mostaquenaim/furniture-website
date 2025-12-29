@@ -29,31 +29,26 @@ export type AggregateProductStock = {
 export type ProductStockAvgAggregateOutputType = {
   id: number | null
   quantity: number | null
-  sizeId: number | null
 }
 
 export type ProductStockSumAggregateOutputType = {
   id: number | null
   quantity: number | null
-  sizeId: number | null
 }
 
 export type ProductStockMinAggregateOutputType = {
   id: number | null
   quantity: number | null
-  sizeId: number | null
 }
 
 export type ProductStockMaxAggregateOutputType = {
   id: number | null
   quantity: number | null
-  sizeId: number | null
 }
 
 export type ProductStockCountAggregateOutputType = {
   id: number
   quantity: number
-  sizeId: number
   _all: number
 }
 
@@ -61,31 +56,26 @@ export type ProductStockCountAggregateOutputType = {
 export type ProductStockAvgAggregateInputType = {
   id?: true
   quantity?: true
-  sizeId?: true
 }
 
 export type ProductStockSumAggregateInputType = {
   id?: true
   quantity?: true
-  sizeId?: true
 }
 
 export type ProductStockMinAggregateInputType = {
   id?: true
   quantity?: true
-  sizeId?: true
 }
 
 export type ProductStockMaxAggregateInputType = {
   id?: true
   quantity?: true
-  sizeId?: true
 }
 
 export type ProductStockCountAggregateInputType = {
   id?: true
   quantity?: true
-  sizeId?: true
   _all?: true
 }
 
@@ -178,7 +168,6 @@ export type ProductStockGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
 export type ProductStockGroupByOutputType = {
   id: number
   quantity: number
-  sizeId: number
   _count: ProductStockCountAggregateOutputType | null
   _avg: ProductStockAvgAggregateOutputType | null
   _sum: ProductStockSumAggregateOutputType | null
@@ -207,31 +196,24 @@ export type ProductStockWhereInput = {
   NOT?: Prisma.ProductStockWhereInput | Prisma.ProductStockWhereInput[]
   id?: Prisma.IntFilter<"ProductStock"> | number
   quantity?: Prisma.IntFilter<"ProductStock"> | number
-  sizeId?: Prisma.IntFilter<"ProductStock"> | number
-  size?: Prisma.XOR<Prisma.ProductSizeScalarRelationFilter, Prisma.ProductSizeWhereInput>
 }
 
 export type ProductStockOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
-  sizeId?: Prisma.SortOrder
-  size?: Prisma.ProductSizeOrderByWithRelationInput
 }
 
 export type ProductStockWhereUniqueInput = Prisma.AtLeast<{
   id?: number
-  sizeId?: number
   AND?: Prisma.ProductStockWhereInput | Prisma.ProductStockWhereInput[]
   OR?: Prisma.ProductStockWhereInput[]
   NOT?: Prisma.ProductStockWhereInput | Prisma.ProductStockWhereInput[]
   quantity?: Prisma.IntFilter<"ProductStock"> | number
-  size?: Prisma.XOR<Prisma.ProductSizeScalarRelationFilter, Prisma.ProductSizeWhereInput>
-}, "id" | "sizeId">
+}, "id">
 
 export type ProductStockOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
-  sizeId?: Prisma.SortOrder
   _count?: Prisma.ProductStockCountOrderByAggregateInput
   _avg?: Prisma.ProductStockAvgOrderByAggregateInput
   _max?: Prisma.ProductStockMaxOrderByAggregateInput
@@ -245,35 +227,29 @@ export type ProductStockScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ProductStockScalarWhereWithAggregatesInput | Prisma.ProductStockScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"ProductStock"> | number
   quantity?: Prisma.IntWithAggregatesFilter<"ProductStock"> | number
-  sizeId?: Prisma.IntWithAggregatesFilter<"ProductStock"> | number
 }
 
 export type ProductStockCreateInput = {
   quantity: number
-  size: Prisma.ProductSizeCreateNestedOneWithoutStockInput
 }
 
 export type ProductStockUncheckedCreateInput = {
   id?: number
   quantity: number
-  sizeId: number
 }
 
 export type ProductStockUpdateInput = {
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
-  size?: Prisma.ProductSizeUpdateOneRequiredWithoutStockNestedInput
 }
 
 export type ProductStockUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
-  sizeId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ProductStockCreateManyInput = {
   id?: number
   quantity: number
-  sizeId: number
 }
 
 export type ProductStockUpdateManyMutationInput = {
@@ -283,108 +259,31 @@ export type ProductStockUpdateManyMutationInput = {
 export type ProductStockUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
   quantity?: Prisma.IntFieldUpdateOperationsInput | number
-  sizeId?: Prisma.IntFieldUpdateOperationsInput | number
-}
-
-export type ProductStockNullableScalarRelationFilter = {
-  is?: Prisma.ProductStockWhereInput | null
-  isNot?: Prisma.ProductStockWhereInput | null
 }
 
 export type ProductStockCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
-  sizeId?: Prisma.SortOrder
 }
 
 export type ProductStockAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
-  sizeId?: Prisma.SortOrder
 }
 
 export type ProductStockMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
-  sizeId?: Prisma.SortOrder
 }
 
 export type ProductStockMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
-  sizeId?: Prisma.SortOrder
 }
 
 export type ProductStockSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
   quantity?: Prisma.SortOrder
-  sizeId?: Prisma.SortOrder
-}
-
-export type ProductStockCreateNestedOneWithoutSizeInput = {
-  create?: Prisma.XOR<Prisma.ProductStockCreateWithoutSizeInput, Prisma.ProductStockUncheckedCreateWithoutSizeInput>
-  connectOrCreate?: Prisma.ProductStockCreateOrConnectWithoutSizeInput
-  connect?: Prisma.ProductStockWhereUniqueInput
-}
-
-export type ProductStockUncheckedCreateNestedOneWithoutSizeInput = {
-  create?: Prisma.XOR<Prisma.ProductStockCreateWithoutSizeInput, Prisma.ProductStockUncheckedCreateWithoutSizeInput>
-  connectOrCreate?: Prisma.ProductStockCreateOrConnectWithoutSizeInput
-  connect?: Prisma.ProductStockWhereUniqueInput
-}
-
-export type ProductStockUpdateOneWithoutSizeNestedInput = {
-  create?: Prisma.XOR<Prisma.ProductStockCreateWithoutSizeInput, Prisma.ProductStockUncheckedCreateWithoutSizeInput>
-  connectOrCreate?: Prisma.ProductStockCreateOrConnectWithoutSizeInput
-  upsert?: Prisma.ProductStockUpsertWithoutSizeInput
-  disconnect?: Prisma.ProductStockWhereInput | boolean
-  delete?: Prisma.ProductStockWhereInput | boolean
-  connect?: Prisma.ProductStockWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.ProductStockUpdateToOneWithWhereWithoutSizeInput, Prisma.ProductStockUpdateWithoutSizeInput>, Prisma.ProductStockUncheckedUpdateWithoutSizeInput>
-}
-
-export type ProductStockUncheckedUpdateOneWithoutSizeNestedInput = {
-  create?: Prisma.XOR<Prisma.ProductStockCreateWithoutSizeInput, Prisma.ProductStockUncheckedCreateWithoutSizeInput>
-  connectOrCreate?: Prisma.ProductStockCreateOrConnectWithoutSizeInput
-  upsert?: Prisma.ProductStockUpsertWithoutSizeInput
-  disconnect?: Prisma.ProductStockWhereInput | boolean
-  delete?: Prisma.ProductStockWhereInput | boolean
-  connect?: Prisma.ProductStockWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.ProductStockUpdateToOneWithWhereWithoutSizeInput, Prisma.ProductStockUpdateWithoutSizeInput>, Prisma.ProductStockUncheckedUpdateWithoutSizeInput>
-}
-
-export type ProductStockCreateWithoutSizeInput = {
-  quantity: number
-}
-
-export type ProductStockUncheckedCreateWithoutSizeInput = {
-  id?: number
-  quantity: number
-}
-
-export type ProductStockCreateOrConnectWithoutSizeInput = {
-  where: Prisma.ProductStockWhereUniqueInput
-  create: Prisma.XOR<Prisma.ProductStockCreateWithoutSizeInput, Prisma.ProductStockUncheckedCreateWithoutSizeInput>
-}
-
-export type ProductStockUpsertWithoutSizeInput = {
-  update: Prisma.XOR<Prisma.ProductStockUpdateWithoutSizeInput, Prisma.ProductStockUncheckedUpdateWithoutSizeInput>
-  create: Prisma.XOR<Prisma.ProductStockCreateWithoutSizeInput, Prisma.ProductStockUncheckedCreateWithoutSizeInput>
-  where?: Prisma.ProductStockWhereInput
-}
-
-export type ProductStockUpdateToOneWithWhereWithoutSizeInput = {
-  where?: Prisma.ProductStockWhereInput
-  data: Prisma.XOR<Prisma.ProductStockUpdateWithoutSizeInput, Prisma.ProductStockUncheckedUpdateWithoutSizeInput>
-}
-
-export type ProductStockUpdateWithoutSizeInput = {
-  quantity?: Prisma.IntFieldUpdateOperationsInput | number
-}
-
-export type ProductStockUncheckedUpdateWithoutSizeInput = {
-  id?: Prisma.IntFieldUpdateOperationsInput | number
-  quantity?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 
@@ -392,50 +291,31 @@ export type ProductStockUncheckedUpdateWithoutSizeInput = {
 export type ProductStockSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   quantity?: boolean
-  sizeId?: boolean
-  size?: boolean | Prisma.ProductSizeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productStock"]>
 
 export type ProductStockSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   quantity?: boolean
-  sizeId?: boolean
-  size?: boolean | Prisma.ProductSizeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productStock"]>
 
 export type ProductStockSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   quantity?: boolean
-  sizeId?: boolean
-  size?: boolean | Prisma.ProductSizeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productStock"]>
 
 export type ProductStockSelectScalar = {
   id?: boolean
   quantity?: boolean
-  sizeId?: boolean
 }
 
-export type ProductStockOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "quantity" | "sizeId", ExtArgs["result"]["productStock"]>
-export type ProductStockInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  size?: boolean | Prisma.ProductSizeDefaultArgs<ExtArgs>
-}
-export type ProductStockIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  size?: boolean | Prisma.ProductSizeDefaultArgs<ExtArgs>
-}
-export type ProductStockIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  size?: boolean | Prisma.ProductSizeDefaultArgs<ExtArgs>
-}
+export type ProductStockOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "quantity", ExtArgs["result"]["productStock"]>
 
 export type $ProductStockPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "ProductStock"
-  objects: {
-    size: Prisma.$ProductSizePayload<ExtArgs>
-  }
+  objects: {}
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     quantity: number
-    sizeId: number
   }, ExtArgs["result"]["productStock"]>
   composites: {}
 }
@@ -830,7 +710,6 @@ readonly fields: ProductStockFieldRefs;
  */
 export interface Prisma__ProductStockClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  size<T extends Prisma.ProductSizeDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductSizeDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductSizeClient<runtime.Types.Result.GetResult<Prisma.$ProductSizePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -862,7 +741,6 @@ export interface Prisma__ProductStockClient<T, Null = never, ExtArgs extends run
 export interface ProductStockFieldRefs {
   readonly id: Prisma.FieldRef<"ProductStock", 'Int'>
   readonly quantity: Prisma.FieldRef<"ProductStock", 'Int'>
-  readonly sizeId: Prisma.FieldRef<"ProductStock", 'Int'>
 }
     
 
@@ -879,10 +757,6 @@ export type ProductStockFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.
    * Omit specific fields from the ProductStock
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
   /**
    * Filter, which ProductStock to fetch.
    */
@@ -902,10 +776,6 @@ export type ProductStockFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Exte
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
   /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
-  /**
    * Filter, which ProductStock to fetch.
    */
   where: Prisma.ProductStockWhereUniqueInput
@@ -923,10 +793,6 @@ export type ProductStockFindFirstArgs<ExtArgs extends runtime.Types.Extensions.I
    * Omit specific fields from the ProductStock
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
   /**
    * Filter, which ProductStock to fetch.
    */
@@ -976,10 +842,6 @@ export type ProductStockFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Exten
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
   /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
-  /**
    * Filter, which ProductStock to fetch.
    */
   where?: Prisma.ProductStockWhereInput
@@ -1028,10 +890,6 @@ export type ProductStockFindManyArgs<ExtArgs extends runtime.Types.Extensions.In
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
   /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
-  /**
    * Filter, which ProductStocks to fetch.
    */
   where?: Prisma.ProductStockWhereInput
@@ -1075,10 +933,6 @@ export type ProductStockCreateArgs<ExtArgs extends runtime.Types.Extensions.Inte
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
   /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
-  /**
    * The data needed to create a ProductStock.
    */
   data: Prisma.XOR<Prisma.ProductStockCreateInput, Prisma.ProductStockUncheckedCreateInput>
@@ -1112,10 +966,6 @@ export type ProductStockCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Ex
    */
   data: Prisma.ProductStockCreateManyInput | Prisma.ProductStockCreateManyInput[]
   skipDuplicates?: boolean
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockIncludeCreateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1130,10 +980,6 @@ export type ProductStockUpdateArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Omit specific fields from the ProductStock
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
   /**
    * The data needed to update a ProductStock.
    */
@@ -1186,10 +1032,6 @@ export type ProductStockUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Ex
    * Limit how many ProductStocks to update.
    */
   limit?: number
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockIncludeUpdateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1204,10 +1046,6 @@ export type ProductStockUpsertArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Omit specific fields from the ProductStock
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
   /**
    * The filter to search for the ProductStock to update in case it exists.
    */
@@ -1234,10 +1072,6 @@ export type ProductStockDeleteArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Omit specific fields from the ProductStock
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
   /**
    * Filter which ProductStock to delete.
    */
@@ -1270,8 +1104,4 @@ export type ProductStockDefaultArgs<ExtArgs extends runtime.Types.Extensions.Int
    * Omit specific fields from the ProductStock
    */
   omit?: Prisma.ProductStockOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ProductStockInclude<ExtArgs> | null
 }

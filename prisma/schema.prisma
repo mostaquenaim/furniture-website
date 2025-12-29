@@ -269,8 +269,7 @@ model ProductStock {
   id       Int @id @default(autoincrement())
   quantity Int
 
-  sizeId Int  @unique
-  size   ProductSize @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  
 }
 
 model Variant {

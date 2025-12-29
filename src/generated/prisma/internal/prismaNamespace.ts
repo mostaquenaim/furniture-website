@@ -2897,7 +2897,8 @@ export const ProductSizeScalarFieldEnum = {
   sizeId: 'sizeId',
   sku: 'sku',
   price: 'price',
-  colorId: 'colorId'
+  colorId: 'colorId',
+  quantity: 'quantity'
 } as const
 
 export type ProductSizeScalarFieldEnum = (typeof ProductSizeScalarFieldEnum)[keyof typeof ProductSizeScalarFieldEnum]
@@ -2905,8 +2906,7 @@ export type ProductSizeScalarFieldEnum = (typeof ProductSizeScalarFieldEnum)[key
 
 export const ProductStockScalarFieldEnum = {
   id: 'id',
-  quantity: 'quantity',
-  sizeId: 'sizeId'
+  quantity: 'quantity'
 } as const
 
 export type ProductStockScalarFieldEnum = (typeof ProductStockScalarFieldEnum)[keyof typeof ProductStockScalarFieldEnum]

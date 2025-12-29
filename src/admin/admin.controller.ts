@@ -100,7 +100,7 @@ export class AdminController {
 
   @Post('products')
   async create(@Body() dto) {
-    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.productService.createProduct(dto);
   }
 }

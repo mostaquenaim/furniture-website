@@ -1,21 +1,45 @@
-import { IsInt, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { CreateProductSizeDto } from './CreateProductSizeDto.dto';
-import { CreateProductColorImageDto } from './CreateProductColorImageDto.dto';
+
+export class ProductColorSizeDto {
+  @IsNumber()
+  sizeId: number;
+
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @IsNumber()
+  quantity: number;
+}
 
 export class CreateProductColorDto {
-  @IsInt()
+  @IsNumber()
   colorId: number;
 
-  useDefaultImages: boolean;
+  @IsOptional()
+  @IsBoolean()
+  useDefaultImages?: boolean;
 
-  // @IsArray()
-  // @ValidateNested({ each: true })
-  // @Type(() => CreateProductSizeDto)
-  // sizes: CreateProductSizeDto[];
-
+  @IsOptional()
   @IsArray()
-  // @ValidateNested({ each: true })
-  // @Type(() => CreateProductColorImageDto)
-  images: string[];
+  @IsString({ each: true })
+  images?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductColorSizeDto)
+  sizes?: ProductColorSizeDto[];
 }
