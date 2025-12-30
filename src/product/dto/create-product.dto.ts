@@ -10,12 +10,11 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateProductColorDto } from './CreateProductColorDto.dto';
-import { CreateProductSubCategoryDto } from './CreateProductSubCategoryDto.dto';
 import { CreateProductImageDto } from './CreateProductImageDto.dto';
 
 export enum DiscountType {
   PERCENT = 'PERCENT',
-  FLAT = 'FLAT',
+  FIXED = 'FIXED',
 }
 
 export class CreateProductDto {

@@ -40,18 +40,21 @@ export type ProductColorSumAggregateOutputType = {
 
 export type ProductColorMinAggregateOutputType = {
   id: number | null
+  useDefaultImages: boolean | null
   colorId: number | null
   productId: number | null
 }
 
 export type ProductColorMaxAggregateOutputType = {
   id: number | null
+  useDefaultImages: boolean | null
   colorId: number | null
   productId: number | null
 }
 
 export type ProductColorCountAggregateOutputType = {
   id: number
+  useDefaultImages: number
   colorId: number
   productId: number
   _all: number
@@ -72,18 +75,21 @@ export type ProductColorSumAggregateInputType = {
 
 export type ProductColorMinAggregateInputType = {
   id?: true
+  useDefaultImages?: true
   colorId?: true
   productId?: true
 }
 
 export type ProductColorMaxAggregateInputType = {
   id?: true
+  useDefaultImages?: true
   colorId?: true
   productId?: true
 }
 
 export type ProductColorCountAggregateInputType = {
   id?: true
+  useDefaultImages?: true
   colorId?: true
   productId?: true
   _all?: true
@@ -177,6 +183,7 @@ export type ProductColorGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
 
 export type ProductColorGroupByOutputType = {
   id: number
+  useDefaultImages: boolean
   colorId: number
   productId: number
   _count: ProductColorCountAggregateOutputType | null
@@ -206,6 +213,7 @@ export type ProductColorWhereInput = {
   OR?: Prisma.ProductColorWhereInput[]
   NOT?: Prisma.ProductColorWhereInput | Prisma.ProductColorWhereInput[]
   id?: Prisma.IntFilter<"ProductColor"> | number
+  useDefaultImages?: Prisma.BoolFilter<"ProductColor"> | boolean
   colorId?: Prisma.IntFilter<"ProductColor"> | number
   productId?: Prisma.IntFilter<"ProductColor"> | number
   color?: Prisma.XOR<Prisma.ColorScalarRelationFilter, Prisma.ColorWhereInput>
@@ -216,6 +224,7 @@ export type ProductColorWhereInput = {
 
 export type ProductColorOrderByWithRelationInput = {
   id?: Prisma.SortOrder
+  useDefaultImages?: Prisma.SortOrder
   colorId?: Prisma.SortOrder
   productId?: Prisma.SortOrder
   color?: Prisma.ColorOrderByWithRelationInput
@@ -229,6 +238,7 @@ export type ProductColorWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.ProductColorWhereInput | Prisma.ProductColorWhereInput[]
   OR?: Prisma.ProductColorWhereInput[]
   NOT?: Prisma.ProductColorWhereInput | Prisma.ProductColorWhereInput[]
+  useDefaultImages?: Prisma.BoolFilter<"ProductColor"> | boolean
   colorId?: Prisma.IntFilter<"ProductColor"> | number
   productId?: Prisma.IntFilter<"ProductColor"> | number
   color?: Prisma.XOR<Prisma.ColorScalarRelationFilter, Prisma.ColorWhereInput>
@@ -239,6 +249,7 @@ export type ProductColorWhereUniqueInput = Prisma.AtLeast<{
 
 export type ProductColorOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
+  useDefaultImages?: Prisma.SortOrder
   colorId?: Prisma.SortOrder
   productId?: Prisma.SortOrder
   _count?: Prisma.ProductColorCountOrderByAggregateInput
@@ -253,11 +264,13 @@ export type ProductColorScalarWhereWithAggregatesInput = {
   OR?: Prisma.ProductColorScalarWhereWithAggregatesInput[]
   NOT?: Prisma.ProductColorScalarWhereWithAggregatesInput | Prisma.ProductColorScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"ProductColor"> | number
+  useDefaultImages?: Prisma.BoolWithAggregatesFilter<"ProductColor"> | boolean
   colorId?: Prisma.IntWithAggregatesFilter<"ProductColor"> | number
   productId?: Prisma.IntWithAggregatesFilter<"ProductColor"> | number
 }
 
 export type ProductColorCreateInput = {
+  useDefaultImages?: boolean
   color: Prisma.ColorCreateNestedOneWithoutProductColorInput
   product: Prisma.ProductCreateNestedOneWithoutColorsInput
   images?: Prisma.ProductColorImageCreateNestedManyWithoutProductColorInput
@@ -266,6 +279,7 @@ export type ProductColorCreateInput = {
 
 export type ProductColorUncheckedCreateInput = {
   id?: number
+  useDefaultImages?: boolean
   colorId: number
   productId: number
   images?: Prisma.ProductColorImageUncheckedCreateNestedManyWithoutProductColorInput
@@ -273,6 +287,7 @@ export type ProductColorUncheckedCreateInput = {
 }
 
 export type ProductColorUpdateInput = {
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   color?: Prisma.ColorUpdateOneRequiredWithoutProductColorNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutColorsNestedInput
   images?: Prisma.ProductColorImageUpdateManyWithoutProductColorNestedInput
@@ -281,6 +296,7 @@ export type ProductColorUpdateInput = {
 
 export type ProductColorUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   colorId?: Prisma.IntFieldUpdateOperationsInput | number
   productId?: Prisma.IntFieldUpdateOperationsInput | number
   images?: Prisma.ProductColorImageUncheckedUpdateManyWithoutProductColorNestedInput
@@ -289,16 +305,18 @@ export type ProductColorUncheckedUpdateInput = {
 
 export type ProductColorCreateManyInput = {
   id?: number
+  useDefaultImages?: boolean
   colorId: number
   productId: number
 }
 
 export type ProductColorUpdateManyMutationInput = {
-
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type ProductColorUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   colorId?: Prisma.IntFieldUpdateOperationsInput | number
   productId?: Prisma.IntFieldUpdateOperationsInput | number
 }
@@ -315,6 +333,7 @@ export type ProductColorOrderByRelationAggregateInput = {
 
 export type ProductColorCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  useDefaultImages?: Prisma.SortOrder
   colorId?: Prisma.SortOrder
   productId?: Prisma.SortOrder
 }
@@ -327,12 +346,14 @@ export type ProductColorAvgOrderByAggregateInput = {
 
 export type ProductColorMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  useDefaultImages?: Prisma.SortOrder
   colorId?: Prisma.SortOrder
   productId?: Prisma.SortOrder
 }
 
 export type ProductColorMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  useDefaultImages?: Prisma.SortOrder
   colorId?: Prisma.SortOrder
   productId?: Prisma.SortOrder
 }
@@ -461,6 +482,7 @@ export type ProductColorUpdateOneRequiredWithoutSizesNestedInput = {
 }
 
 export type ProductColorCreateWithoutProductInput = {
+  useDefaultImages?: boolean
   color: Prisma.ColorCreateNestedOneWithoutProductColorInput
   images?: Prisma.ProductColorImageCreateNestedManyWithoutProductColorInput
   sizes?: Prisma.ProductSizeCreateNestedManyWithoutColorInput
@@ -468,6 +490,7 @@ export type ProductColorCreateWithoutProductInput = {
 
 export type ProductColorUncheckedCreateWithoutProductInput = {
   id?: number
+  useDefaultImages?: boolean
   colorId: number
   images?: Prisma.ProductColorImageUncheckedCreateNestedManyWithoutProductColorInput
   sizes?: Prisma.ProductSizeUncheckedCreateNestedManyWithoutColorInput
@@ -504,11 +527,13 @@ export type ProductColorScalarWhereInput = {
   OR?: Prisma.ProductColorScalarWhereInput[]
   NOT?: Prisma.ProductColorScalarWhereInput | Prisma.ProductColorScalarWhereInput[]
   id?: Prisma.IntFilter<"ProductColor"> | number
+  useDefaultImages?: Prisma.BoolFilter<"ProductColor"> | boolean
   colorId?: Prisma.IntFilter<"ProductColor"> | number
   productId?: Prisma.IntFilter<"ProductColor"> | number
 }
 
 export type ProductColorCreateWithoutImagesInput = {
+  useDefaultImages?: boolean
   color: Prisma.ColorCreateNestedOneWithoutProductColorInput
   product: Prisma.ProductCreateNestedOneWithoutColorsInput
   sizes?: Prisma.ProductSizeCreateNestedManyWithoutColorInput
@@ -516,6 +541,7 @@ export type ProductColorCreateWithoutImagesInput = {
 
 export type ProductColorUncheckedCreateWithoutImagesInput = {
   id?: number
+  useDefaultImages?: boolean
   colorId: number
   productId: number
   sizes?: Prisma.ProductSizeUncheckedCreateNestedManyWithoutColorInput
@@ -538,6 +564,7 @@ export type ProductColorUpdateToOneWithWhereWithoutImagesInput = {
 }
 
 export type ProductColorUpdateWithoutImagesInput = {
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   color?: Prisma.ColorUpdateOneRequiredWithoutProductColorNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutColorsNestedInput
   sizes?: Prisma.ProductSizeUpdateManyWithoutColorNestedInput
@@ -545,12 +572,14 @@ export type ProductColorUpdateWithoutImagesInput = {
 
 export type ProductColorUncheckedUpdateWithoutImagesInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   colorId?: Prisma.IntFieldUpdateOperationsInput | number
   productId?: Prisma.IntFieldUpdateOperationsInput | number
   sizes?: Prisma.ProductSizeUncheckedUpdateManyWithoutColorNestedInput
 }
 
 export type ProductColorCreateWithoutColorInput = {
+  useDefaultImages?: boolean
   product: Prisma.ProductCreateNestedOneWithoutColorsInput
   images?: Prisma.ProductColorImageCreateNestedManyWithoutProductColorInput
   sizes?: Prisma.ProductSizeCreateNestedManyWithoutColorInput
@@ -558,6 +587,7 @@ export type ProductColorCreateWithoutColorInput = {
 
 export type ProductColorUncheckedCreateWithoutColorInput = {
   id?: number
+  useDefaultImages?: boolean
   productId: number
   images?: Prisma.ProductColorImageUncheckedCreateNestedManyWithoutProductColorInput
   sizes?: Prisma.ProductSizeUncheckedCreateNestedManyWithoutColorInput
@@ -590,6 +620,7 @@ export type ProductColorUpdateManyWithWhereWithoutColorInput = {
 }
 
 export type ProductColorCreateWithoutSizesInput = {
+  useDefaultImages?: boolean
   color: Prisma.ColorCreateNestedOneWithoutProductColorInput
   product: Prisma.ProductCreateNestedOneWithoutColorsInput
   images?: Prisma.ProductColorImageCreateNestedManyWithoutProductColorInput
@@ -597,6 +628,7 @@ export type ProductColorCreateWithoutSizesInput = {
 
 export type ProductColorUncheckedCreateWithoutSizesInput = {
   id?: number
+  useDefaultImages?: boolean
   colorId: number
   productId: number
   images?: Prisma.ProductColorImageUncheckedCreateNestedManyWithoutProductColorInput
@@ -619,6 +651,7 @@ export type ProductColorUpdateToOneWithWhereWithoutSizesInput = {
 }
 
 export type ProductColorUpdateWithoutSizesInput = {
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   color?: Prisma.ColorUpdateOneRequiredWithoutProductColorNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutColorsNestedInput
   images?: Prisma.ProductColorImageUpdateManyWithoutProductColorNestedInput
@@ -626,6 +659,7 @@ export type ProductColorUpdateWithoutSizesInput = {
 
 export type ProductColorUncheckedUpdateWithoutSizesInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   colorId?: Prisma.IntFieldUpdateOperationsInput | number
   productId?: Prisma.IntFieldUpdateOperationsInput | number
   images?: Prisma.ProductColorImageUncheckedUpdateManyWithoutProductColorNestedInput
@@ -633,10 +667,12 @@ export type ProductColorUncheckedUpdateWithoutSizesInput = {
 
 export type ProductColorCreateManyProductInput = {
   id?: number
+  useDefaultImages?: boolean
   colorId: number
 }
 
 export type ProductColorUpdateWithoutProductInput = {
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   color?: Prisma.ColorUpdateOneRequiredWithoutProductColorNestedInput
   images?: Prisma.ProductColorImageUpdateManyWithoutProductColorNestedInput
   sizes?: Prisma.ProductSizeUpdateManyWithoutColorNestedInput
@@ -644,6 +680,7 @@ export type ProductColorUpdateWithoutProductInput = {
 
 export type ProductColorUncheckedUpdateWithoutProductInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   colorId?: Prisma.IntFieldUpdateOperationsInput | number
   images?: Prisma.ProductColorImageUncheckedUpdateManyWithoutProductColorNestedInput
   sizes?: Prisma.ProductSizeUncheckedUpdateManyWithoutColorNestedInput
@@ -651,15 +688,18 @@ export type ProductColorUncheckedUpdateWithoutProductInput = {
 
 export type ProductColorUncheckedUpdateManyWithoutProductInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   colorId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ProductColorCreateManyColorInput = {
   id?: number
+  useDefaultImages?: boolean
   productId: number
 }
 
 export type ProductColorUpdateWithoutColorInput = {
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   product?: Prisma.ProductUpdateOneRequiredWithoutColorsNestedInput
   images?: Prisma.ProductColorImageUpdateManyWithoutProductColorNestedInput
   sizes?: Prisma.ProductSizeUpdateManyWithoutColorNestedInput
@@ -667,6 +707,7 @@ export type ProductColorUpdateWithoutColorInput = {
 
 export type ProductColorUncheckedUpdateWithoutColorInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   productId?: Prisma.IntFieldUpdateOperationsInput | number
   images?: Prisma.ProductColorImageUncheckedUpdateManyWithoutProductColorNestedInput
   sizes?: Prisma.ProductSizeUncheckedUpdateManyWithoutColorNestedInput
@@ -674,6 +715,7 @@ export type ProductColorUncheckedUpdateWithoutColorInput = {
 
 export type ProductColorUncheckedUpdateManyWithoutColorInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
+  useDefaultImages?: Prisma.BoolFieldUpdateOperationsInput | boolean
   productId?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
@@ -719,6 +761,7 @@ export type ProductColorCountOutputTypeCountSizesArgs<ExtArgs extends runtime.Ty
 
 export type ProductColorSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  useDefaultImages?: boolean
   colorId?: boolean
   productId?: boolean
   color?: boolean | Prisma.ColorDefaultArgs<ExtArgs>
@@ -730,6 +773,7 @@ export type ProductColorSelect<ExtArgs extends runtime.Types.Extensions.Internal
 
 export type ProductColorSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  useDefaultImages?: boolean
   colorId?: boolean
   productId?: boolean
   color?: boolean | Prisma.ColorDefaultArgs<ExtArgs>
@@ -738,6 +782,7 @@ export type ProductColorSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
 
 export type ProductColorSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  useDefaultImages?: boolean
   colorId?: boolean
   productId?: boolean
   color?: boolean | Prisma.ColorDefaultArgs<ExtArgs>
@@ -746,11 +791,12 @@ export type ProductColorSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
 
 export type ProductColorSelectScalar = {
   id?: boolean
+  useDefaultImages?: boolean
   colorId?: boolean
   productId?: boolean
 }
 
-export type ProductColorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "colorId" | "productId", ExtArgs["result"]["productColor"]>
+export type ProductColorOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "useDefaultImages" | "colorId" | "productId", ExtArgs["result"]["productColor"]>
 export type ProductColorInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   color?: boolean | Prisma.ColorDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
@@ -777,6 +823,7 @@ export type $ProductColorPayload<ExtArgs extends runtime.Types.Extensions.Intern
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
+    useDefaultImages: boolean
     colorId: number
     productId: number
   }, ExtArgs["result"]["productColor"]>
@@ -1207,6 +1254,7 @@ export interface Prisma__ProductColorClient<T, Null = never, ExtArgs extends run
  */
 export interface ProductColorFieldRefs {
   readonly id: Prisma.FieldRef<"ProductColor", 'Int'>
+  readonly useDefaultImages: Prisma.FieldRef<"ProductColor", 'Boolean'>
   readonly colorId: Prisma.FieldRef<"ProductColor", 'Int'>
   readonly productId: Prisma.FieldRef<"ProductColor", 'Int'>
 }

@@ -2,7 +2,17 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Controller, Get, UseGuards, Req, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Req,
+  Post,
+  Body,
+  Patch,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { CategoryService } from 'src/category/category.service';
@@ -16,6 +26,7 @@ import { CreateSizeDto } from 'src/cms/dto/create-size-dto.dto';
 import { CreateVariantDto } from 'src/cms/dto/create-variant.dto';
 import { CreateProductDto } from 'src/product/dto/create-product.dto';
 import { ProductService } from 'src/product/product.service';
+import { UpdateProductDto } from 'src/product/dto/update-product.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -98,9 +109,21 @@ export class AdminController {
     return this.cmsService.createVariant(createVariantDto);
   }
 
+  //////////////////////
+  ////// PRODUCT //////
+  ////////////////////
   @Post('products')
   async create(@Body() dto) {
     console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.productService.createProduct(dto);
+  }
+
+  @Patch('product/:productId')
+  async updateProduct(
+    @Param('productId') productId: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    return this.productService.updateProduct(productId, dto);
   }
 }

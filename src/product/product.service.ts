@@ -1,11 +1,20 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
+  // create a product
   async createProduct(dto: CreateProductDto) {
     // Validate that at least one image exists
     if (!dto.images || dto.images.length === 0) {
@@ -172,22 +181,40 @@ export class ProductService {
     });
   }
 
-  async getProductById(id: number) {
-    return await this.prisma.product.findUnique({
-      where: { id },
+  // get a product by id
+  async getProductById(slug: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { slug },
       include: {
+        // --------------------
+        // Images
+        // --------------------
         images: {
-          orderBy: { serialNo: 'asc' },
+          orderBy: {
+            serialNo: 'asc',
+          },
         },
+
+        // --------------------
+        // SubCategories → Category → Series
+        // --------------------
         subCategories: {
           include: {
             subCategory: {
               include: {
-                category: true,
+                category: {
+                  include: {
+                    series: true,
+                  },
+                },
               },
             },
           },
         },
+
+        // --------------------
+        // Colors → Images → Sizes → Size → Variant
+        // --------------------
         colors: {
           include: {
             color: true,
@@ -199,27 +226,95 @@ export class ProductService {
                     variant: true,
                   },
                 },
-                // stock: true,
               },
             },
           },
-        },
-        reviews: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
         },
       },
     });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return product;
   }
 
+  // get all products
+  async getAllProducts({
+    page = 1,
+    limit = 10,
+    search,
+    isActive,
+  }: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  }) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    // if anything in search
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (typeof isActive === 'boolean') {
+      where.isActive = isActive;
+    }
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.product.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          images: {
+            orderBy: {
+              serialNo: 'asc',
+            },
+          },
+          subCategories: {
+            include: {
+              subCategory: true,
+            },
+          },
+          colors: {
+            include: {
+              color: true,
+              images: true,
+              sizes: {
+                include: {
+                  size: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // delete a product
   async deleteProduct(id: number) {
     // Delete product (cascade will handle related records)
     return await this.prisma.product.delete({
@@ -227,9 +322,10 @@ export class ProductService {
     });
   }
 
-  async toggleProductStatus(id: number) {
+  // toggle product status
+  async toggleProductStatusBySlug(slug: string) {
     const product = await this.prisma.product.findUnique({
-      where: { id },
+      where: { slug },
     });
 
     if (!product) {
@@ -237,10 +333,153 @@ export class ProductService {
     }
 
     return await this.prisma.product.update({
-      where: { id },
+      where: { slug },
       data: {
         isActive: !product.isActive,
       },
+    });
+  }
+
+  // update product
+  async updateProduct(slug: string, dto: UpdateProductDto) {
+    const product = await this.prisma.product.findUnique({
+      where: { slug },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1️⃣ Update Product Core Fields
+      await tx.product.update({
+        where: { id: product.id },
+        data: {
+          title: dto.title,
+          slug: dto.slug,
+          sku: dto.sku,
+          description: dto.description,
+          basePrice: dto.basePrice,
+          hasColorVariants: dto.hasColorVariants,
+          showColor: dto.showColor,
+          discountType: dto.discountType,
+          discount: dto.discount,
+          discountStart: dto.discountStart,
+          discountEnd: dto.discountEnd,
+          note: dto.note,
+          deliveryEstimate: dto.deliveryEstimate,
+          productDetails: dto.productDetails,
+          dimension: dto.dimension,
+          shippingReturn: dto.shippingReturn,
+          isActive: dto.isActive,
+        },
+      });
+
+      // 2️⃣ Replace Images
+      if (dto.images) {
+        await tx.productImage.deleteMany({
+          where: { productId: product.id },
+        });
+
+        await tx.productImage.createMany({
+          data: dto.images.map((img, index) => ({
+            productId: product.id,
+            image: img.image,
+            serialNo: img.serialNo ?? index + 1,
+          })),
+        });
+      }
+
+      // 3️⃣ Replace SubCategories
+      if (dto.subCategories) {
+        await tx.productSubCategory.deleteMany({
+          where: { productId: product.id },
+        });
+
+        await tx.productSubCategory.createMany({
+          data: dto.subCategories.map((subCategoryId) => ({
+            productId: product.id,
+            subCategoryId,
+          })),
+        });
+      }
+
+      // 4️⃣ Replace Colors & Sizes
+      if (dto.colors) {
+        // 1️⃣ Clear old data
+        await tx.productColorImage.deleteMany({
+          where: { productColor: { productId: product.id } },
+        });
+
+        await tx.productSize.deleteMany({
+          where: { color: { productId: product.id } },
+        });
+
+        await tx.productColor.deleteMany({
+          where: { productId: product.id },
+        });
+
+        // 2️⃣ Re-create like create flow
+        for (const colorVariant of dto.colors) {
+          const productColor = await tx.productColor.create({
+            data: {
+              productId: product.id,
+              colorId: colorVariant.colorId,
+              useDefaultImages: colorVariant.useDefaultImages ?? false,
+            },
+          });
+
+          // 3️⃣ Create color images (only if NOT default)
+          if (
+            !colorVariant.useDefaultImages &&
+            colorVariant.images &&
+            colorVariant.images.length > 0
+          ) {
+            await tx.productColorImage.createMany({
+              data: colorVariant.images.map((imageUrl, index) => ({
+                productColorId: productColor.id,
+                image: imageUrl,
+                serialNo: index + 1,
+              })),
+            });
+          }
+
+          // 4️⃣ Create sizes (quantity > 0 only)
+          if (colorVariant.sizes && colorVariant.sizes.length > 0) {
+            const validSizes = colorVariant.sizes.filter(
+              (size) => size.sku != '',
+            );
+
+            if (validSizes.length > 0) {
+              await tx.productSize.createMany({
+                data: validSizes.map((size) => ({
+                  colorId: productColor.id,
+                  sizeId: size.sizeId,
+                  sku: size.sku || null,
+                  price:
+                    size.price !== undefined && size.price !== null
+                      ? Number(size.price)
+                      : null,
+                  quantity: Number(size.quantity),
+                })),
+              });
+            }
+          }
+        }
+      }
+
+      return tx.product.findUnique({
+        where: { id: product.id },
+        include: {
+          images: true,
+          subCategories: true,
+          colors: {
+            include: {
+              sizes: true,
+            },
+          },
+        },
+      });
     });
   }
 }

@@ -123,11 +123,6 @@ export type Color = Prisma.ColorModel
  */
 export type ProductSize = Prisma.ProductSizeModel
 /**
- * Model ProductStock
- * 
- */
-export type ProductStock = Prisma.ProductStockModel
-/**
  * Model Variant
  * 
  */

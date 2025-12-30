@@ -220,6 +220,8 @@ model ProductImage {
 model ProductColor {
   id        Int    @id @default(autoincrement())
 
+  useDefaultImages  Boolean @default(true)
+
   color     Color   @relation(fields: [colorId], references: [id])
   colorId   Int
 
@@ -233,6 +235,7 @@ model ProductColor {
 model ProductColorImage {
   id      Int    @id @default(autoincrement())
   image   String
+  serialNo  Int    @default(0)
 
   productColorId Int
   productColor   ProductColor @relation(fields: [productColorId], references: [id], onDelete: Cascade)
@@ -253,23 +256,16 @@ model Color {
 
 model ProductSize { 
   id      Int    @id @default(autoincrement())
-  sizeId    Int
-  size      Size @relation(fields: [sizeId], references: [id])
   
   sku     String?
   price   Float?   // optional override
+  quantity Int  @default(0)
+
+  sizeId    Int
+  size      Size @relation(fields: [sizeId], references: [id])
 
   colorId Int
   color   ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
-
-  quantity Int  @default(0)
-}
-
-model ProductStock {
-  id       Int @id @default(autoincrement())
-  quantity Int
-
-  
 }
 
 model Variant {

@@ -406,7 +406,6 @@ export const ModelName = {
   ProductColorImage: 'ProductColorImage',
   Color: 'Color',
   ProductSize: 'ProductSize',
-  ProductStock: 'ProductStock',
   Variant: 'Variant',
   Size: 'Size',
   Cart: 'Cart',
@@ -435,7 +434,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "productSubCategory" | "product" | "productImage" | "productColor" | "productColorImage" | "color" | "productSize" | "productStock" | "variant" | "size" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
+    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "productSubCategory" | "product" | "productImage" | "productColor" | "productColorImage" | "color" | "productSize" | "variant" | "size" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1623,80 +1622,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    ProductStock: {
-      payload: Prisma.$ProductStockPayload<ExtArgs>
-      fields: Prisma.ProductStockFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.ProductStockFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.ProductStockFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
-        }
-        findFirst: {
-          args: Prisma.ProductStockFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.ProductStockFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
-        }
-        findMany: {
-          args: Prisma.ProductStockFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>[]
-        }
-        create: {
-          args: Prisma.ProductStockCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
-        }
-        createMany: {
-          args: Prisma.ProductStockCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.ProductStockCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>[]
-        }
-        delete: {
-          args: Prisma.ProductStockDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
-        }
-        update: {
-          args: Prisma.ProductStockUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
-        }
-        deleteMany: {
-          args: Prisma.ProductStockDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.ProductStockUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.ProductStockUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>[]
-        }
-        upsert: {
-          args: Prisma.ProductStockUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductStockPayload>
-        }
-        aggregate: {
-          args: Prisma.ProductStockAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateProductStock>
-        }
-        groupBy: {
-          args: Prisma.ProductStockGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProductStockGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.ProductStockCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ProductStockCountAggregateOutputType> | number
-        }
-      }
-    }
     Variant: {
       payload: Prisma.$VariantPayload<ExtArgs>
       fields: Prisma.VariantFieldRefs
@@ -2863,6 +2788,7 @@ export type ProductImageScalarFieldEnum = (typeof ProductImageScalarFieldEnum)[k
 
 export const ProductColorScalarFieldEnum = {
   id: 'id',
+  useDefaultImages: 'useDefaultImages',
   colorId: 'colorId',
   productId: 'productId'
 } as const
@@ -2873,6 +2799,7 @@ export type ProductColorScalarFieldEnum = (typeof ProductColorScalarFieldEnum)[k
 export const ProductColorImageScalarFieldEnum = {
   id: 'id',
   image: 'image',
+  serialNo: 'serialNo',
   productColorId: 'productColorId'
 } as const
 
@@ -2902,14 +2829,6 @@ export const ProductSizeScalarFieldEnum = {
 } as const
 
 export type ProductSizeScalarFieldEnum = (typeof ProductSizeScalarFieldEnum)[keyof typeof ProductSizeScalarFieldEnum]
-
-
-export const ProductStockScalarFieldEnum = {
-  id: 'id',
-  quantity: 'quantity'
-} as const
-
-export type ProductStockScalarFieldEnum = (typeof ProductStockScalarFieldEnum)[keyof typeof ProductStockScalarFieldEnum]
 
 
 export const VariantScalarFieldEnum = {
@@ -3295,7 +3214,6 @@ export type GlobalOmitConfig = {
   productColorImage?: Prisma.ProductColorImageOmit
   color?: Prisma.ColorOmit
   productSize?: Prisma.ProductSizeOmit
-  productStock?: Prisma.ProductStockOmit
   variant?: Prisma.VariantOmit
   size?: Prisma.SizeOmit
   cart?: Prisma.CartOmit
