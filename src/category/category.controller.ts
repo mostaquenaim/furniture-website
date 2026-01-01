@@ -1,9 +1,9 @@
-import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { CategoryService } from './category.service';
 
 @Controller('')
 export class CategoryController {
-  constructor(private readonly service: CategoryService) {}
+  constructor(private readonly categoryService: CategoryService) {}
 
   // =====================
   // SERIES
@@ -11,17 +11,17 @@ export class CategoryController {
 
   @Get('series')
   getAllSeries() {
-    return this.service.getAllSeries(false, true);
+    return this.categoryService.getAllSeries(false, true);
   }
 
   @Get('series/with-relations')
   getAllSeriesWithRelations() {
-    return this.service.getAllSeries(true, true);
+    return this.categoryService.getAllSeries(true, true);
   }
 
   @Get('series/:id')
   getSeries(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getSeriesById(id);
+    return this.categoryService.getSeriesById(id);
   }
 
   // =====================
@@ -30,27 +30,27 @@ export class CategoryController {
 
   @Get('categories')
   getAllCategories() {
-    return this.service.getAllActiveCategories(false);
+    return this.categoryService.getAllActiveCategories(false);
   }
 
   @Get('categories/with-relations')
   getAllCategoriesWithRelations() {
-    return this.service.getAllActiveCategories(true);
+    return this.categoryService.getAllActiveCategories(true);
   }
 
   @Get('series/:seriesId/categories')
   getCategoriesBySeries(@Param('seriesId', ParseIntPipe) seriesId: number) {
-    return this.service.getCategoriesBySeries(seriesId);
+    return this.categoryService.getCategoriesBySeries(seriesId);
   }
 
   @Get('category/:id')
   getCategory(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getCategoryById(id);
+    return this.categoryService.getCategoryById(id);
   }
 
   @Get('category/:id/parent')
   getCategoryParent(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getCategoryParent(id);
+    return this.categoryService.getCategoryParent(id);
   }
 
   // =====================
@@ -59,28 +59,45 @@ export class CategoryController {
 
   @Get('subcategory')
   getAllSubCategories() {
-    return this.service.getAllActiveSubCategories(false);
+    return this.categoryService.getAllActiveSubCategories(false);
   }
 
   @Get('subcategories/with-relations')
   getAllSubCategoriesWithRelations() {
-    return this.service.getAllActiveSubCategories(true);
+    return this.categoryService.getAllActiveSubCategories(true);
   }
 
   @Get('category/:categoryId/subcategories')
   getSubCategoriesByCategory(
     @Param('categoryId', ParseIntPipe) categoryId: number,
   ) {
-    return this.service.getSubCategoriesByCategory(categoryId);
+    return this.categoryService.getSubCategoriesByCategory(categoryId);
   }
 
   @Get('subcategory/:id')
   getSubCategory(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getSubCategoryById(id);
+    return this.categoryService.getSubCategoryById(id);
   }
 
   @Get('subcategory/:id/parent')
   getSubCategoryParent(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getSubCategoryParent(id);
+    return this.categoryService.getSubCategoryParent(id);
+  }
+
+  @Get('subcategory/:slug/products')
+  getSubCategoryWiseProducts(
+    @Param('slug') slug: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('search') search?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    return this.categoryService.getSubCategoryWiseProducts({
+      page: Number(page) || 1,
+      limit: Number(limit) || 10,
+      search,
+      isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      slug,
+    });
   }
 }

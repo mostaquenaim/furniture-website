@@ -251,6 +251,7 @@ export class CategoryService {
     });
   }
 
+  // get subcategories by categories
   getSubCategoriesByCategory(categoryId: number) {
     return this.prisma.subCategory.findMany({
       where: {
@@ -259,6 +260,72 @@ export class CategoryService {
       },
       orderBy: { sortOrder: 'asc' },
     });
+  }
+
+  // get products by subcategory
+  async getSubCategoryWiseProducts({
+    page = 1,
+    limit = 10,
+    search,
+    isActive = true,
+    slug,
+  }: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+    slug?: string;
+  }) {
+    const subcategory = await this.prisma.subCategory.findFirst({
+      where: {
+        slug,
+      },
+    });
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.productSubCategory.findMany({
+        skip,
+        take: limit,
+        include: {
+          product: {
+            include: {
+              images: true,
+              colors: {
+                include: {
+                  color: true,
+                },
+              },
+            },
+          },
+        },
+        where: {
+          subCategoryId: subcategory?.id,
+          product: {
+            isActive: isActive,
+          },
+        },
+      }),
+      this.prisma.productSubCategory.count({
+        where: {
+          subCategoryId: subcategory?.id,
+          product: {
+            isActive: isActive,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   getSubCategoryById(id: number) {
