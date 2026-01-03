@@ -31,6 +31,7 @@ import { PermissionModule } from './permission/permission.module';
 import { CategoryModule } from './category/category.module';
 import { AdminModule } from './admin/admin.module';
 import { ProductModule } from './product/product.module';
+import { MaterialModule } from './material/material.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { ProductModule } from './product/product.module';
     CategoryModule,
     AdminModule,
     ProductModule,
+    MaterialModule,
   ],
   controllers: [AppController],
   providers: [AppService],

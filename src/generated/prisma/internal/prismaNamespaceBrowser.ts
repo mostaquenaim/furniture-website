@@ -60,6 +60,7 @@ export const ModelName = {
   SubCategory: 'SubCategory',
   ProductSubCategory: 'ProductSubCategory',
   Product: 'Product',
+  Material: 'Material',
   ProductImage: 'ProductImage',
   ProductColor: 'ProductColor',
   ProductColorImage: 'ProductColorImage',
@@ -242,11 +243,25 @@ export const ProductScalarFieldEnum = {
   dimension: 'dimension',
   shippingReturn: 'shippingReturn',
   isActive: 'isActive',
+  materialId: 'materialId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeof ProductScalarFieldEnum]
+
+
+export const MaterialScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  order: 'order',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MaterialScalarFieldEnum = (typeof MaterialScalarFieldEnum)[keyof typeof MaterialScalarFieldEnum]
 
 
 export const ProductImageScalarFieldEnum = {
@@ -294,11 +309,11 @@ export type ColorScalarFieldEnum = (typeof ColorScalarFieldEnum)[keyof typeof Co
 
 export const ProductSizeScalarFieldEnum = {
   id: 'id',
-  sizeId: 'sizeId',
   sku: 'sku',
   price: 'price',
-  colorId: 'colorId',
-  quantity: 'quantity'
+  quantity: 'quantity',
+  sizeId: 'sizeId',
+  colorId: 'colorId'
 } as const
 
 export type ProductSizeScalarFieldEnum = (typeof ProductSizeScalarFieldEnum)[keyof typeof ProductSizeScalarFieldEnum]

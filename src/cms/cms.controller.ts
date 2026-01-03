@@ -115,4 +115,10 @@ export class CmsController {
   getAllColors() {
     return this.cmsService.getAllColors();
   }
+
+  //MATERIALS
+  @Get('materials')
+  getAllMaterials() {
+    return this.cmsService.getAllMaterials();
+  }
 }

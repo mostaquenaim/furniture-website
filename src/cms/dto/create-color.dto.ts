@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, isString, IsString } from 'class-validator';
 
 export class CreateColorDto {
   @IsString()
@@ -12,4 +12,8 @@ export class CreateColorDto {
   @IsOptional()
   @IsInt()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  image?: string;
 }

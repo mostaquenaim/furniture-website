@@ -227,10 +227,20 @@ export class CmsService {
     });
   }
 
+  // get all colors
   getAllColors() {
     return this.prisma.color.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
+      // include: { links: true },
+    });
+  }
+
+  // get all materials
+  getAllMaterials() {
+    return this.prisma.material.findMany({
+      where: { isActive: true },
+      orderBy: { order: 'asc' },
       // include: { links: true },
     });
   }

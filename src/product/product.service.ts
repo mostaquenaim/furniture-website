@@ -74,6 +74,7 @@ export class ProductService {
           dimension: dto.dimension,
           shippingReturn: dto.shippingReturn,
           isActive: dto.isActive ?? true,
+          materialId: dto.materialId ?? null,
         },
       });
 
@@ -187,6 +188,10 @@ export class ProductService {
       where: { slug },
       include: {
         // --------------------
+        // Material
+        // --------------------
+        material: true,
+        // --------------------
         // Images
         // --------------------
         images: {
@@ -196,7 +201,7 @@ export class ProductService {
         },
 
         // --------------------
-        // SubCategories → Category → Series
+        // CATEGORIES
         // --------------------
         subCategories: {
           include: {
@@ -213,7 +218,16 @@ export class ProductService {
         },
 
         // --------------------
-        // Colors → Images → Sizes → Size → Variant
+        // REVIEWS
+        // --------------------
+        reviews: {
+          include: {
+            user: true,
+          },
+        },
+
+        // --------------------
+        // COLORS
         // --------------------
         colors: {
           include: {
@@ -277,16 +291,29 @@ export class ProductService {
           createdAt: 'desc',
         },
         include: {
+          // --------------------
+          // Material
+          // --------------------
+          material: true,
+          // --------------------
+          // Images
+          // --------------------
           images: {
             orderBy: {
               serialNo: 'asc',
             },
           },
+          // --------------------
+          // SubCategories
+          // --------------------
           subCategories: {
             include: {
               subCategory: true,
             },
           },
+          // --------------------
+          // Colors
+          // --------------------
           colors: {
             include: {
               color: true,
@@ -372,6 +399,7 @@ export class ProductService {
           dimension: dto.dimension,
           shippingReturn: dto.shippingReturn,
           isActive: dto.isActive,
+          materialId: dto.materialId || product.materialId,
         },
       });
 

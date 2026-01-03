@@ -32,6 +32,10 @@ export class CreateProductDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
+  @IsNumber()
+  materialId?: number;
+
   @IsNumber()
   basePrice: number;
 

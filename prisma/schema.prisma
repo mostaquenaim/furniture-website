@@ -172,7 +172,6 @@ model ProductSubCategory {
 // =====================
 // Product & Variants
 // =====================
-
 model Product {
   id          Int      @id @default(autoincrement())
   title       String
@@ -195,6 +194,9 @@ model Product {
   shippingReturn    String? 
   isActive          Boolean @default(true)
 
+  material      Material?  @relation(fields: [materialId], references: [id])
+  materialId    Int?
+
   images        ProductImage[]
   subCategories ProductSubCategory[]
   colors        ProductColor[]
@@ -208,6 +210,18 @@ model Product {
   updatedAt DateTime @updatedAt
 }
 
+model Material {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+
+  products  Product[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
 model ProductImage {
   id        Int    @id @default(autoincrement())
   image     String
@@ -219,7 +233,6 @@ model ProductImage {
 
 model ProductColor {
   id        Int    @id @default(autoincrement())
-
   useDefaultImages  Boolean @default(true)
 
   color     Color   @relation(fields: [colorId], references: [id])
