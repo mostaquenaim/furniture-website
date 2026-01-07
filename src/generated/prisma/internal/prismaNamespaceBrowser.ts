@@ -58,6 +58,7 @@ export const ModelName = {
   Series: 'Series',
   Category: 'Category',
   SubCategory: 'SubCategory',
+  SubCategoryBlogs: 'SubCategoryBlogs',
   ProductSubCategory: 'ProductSubCategory',
   Product: 'Product',
   Material: 'Material',
@@ -74,6 +75,7 @@ export const ModelName = {
   OrderItem: 'OrderItem',
   Review: 'Review',
   Wishlist: 'Wishlist',
+  BlogCategory: 'BlogCategory',
   BlogPost: 'BlogPost',
   Banner: 'Banner',
   PromoBanner: 'PromoBanner',
@@ -216,6 +218,15 @@ export const SubCategoryScalarFieldEnum = {
 export type SubCategoryScalarFieldEnum = (typeof SubCategoryScalarFieldEnum)[keyof typeof SubCategoryScalarFieldEnum]
 
 
+export const SubCategoryBlogsScalarFieldEnum = {
+  subCategoryId: 'subCategoryId',
+  blogPostId: 'blogPostId',
+  createdAt: 'createdAt'
+} as const
+
+export type SubCategoryBlogsScalarFieldEnum = (typeof SubCategoryBlogsScalarFieldEnum)[keyof typeof SubCategoryBlogsScalarFieldEnum]
+
+
 export const ProductSubCategoryScalarFieldEnum = {
   productId: 'productId',
   subCategoryId: 'subCategoryId'
@@ -345,6 +356,8 @@ export type SizeScalarFieldEnum = (typeof SizeScalarFieldEnum)[keyof typeof Size
 export const CartScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  status: 'status',
+  createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
@@ -354,8 +367,10 @@ export type CartScalarFieldEnum = (typeof CartScalarFieldEnum)[keyof typeof Cart
 export const CartItemScalarFieldEnum = {
   id: 'id',
   cartId: 'cartId',
-  productId: 'productId',
-  quantity: 'quantity'
+  quantity: 'quantity',
+  priceAtAdd: 'priceAtAdd',
+  subtotal: 'subtotal',
+  productSizeId: 'productSizeId'
 } as const
 
 export type CartItemScalarFieldEnum = (typeof CartItemScalarFieldEnum)[keyof typeof CartItemScalarFieldEnum]
@@ -407,6 +422,19 @@ export const WishlistScalarFieldEnum = {
 export type WishlistScalarFieldEnum = (typeof WishlistScalarFieldEnum)[keyof typeof WishlistScalarFieldEnum]
 
 
+export const BlogCategoryScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  order: 'order',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BlogCategoryScalarFieldEnum = (typeof BlogCategoryScalarFieldEnum)[keyof typeof BlogCategoryScalarFieldEnum]
+
+
 export const BlogPostScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -415,7 +443,8 @@ export const BlogPostScalarFieldEnum = {
   image: 'image',
   published: 'published',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  categoryId: 'categoryId'
 } as const
 
 export type BlogPostScalarFieldEnum = (typeof BlogPostScalarFieldEnum)[keyof typeof BlogPostScalarFieldEnum]

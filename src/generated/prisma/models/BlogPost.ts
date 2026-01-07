@@ -28,10 +28,12 @@ export type AggregateBlogPost = {
 
 export type BlogPostAvgAggregateOutputType = {
   id: number | null
+  categoryId: number | null
 }
 
 export type BlogPostSumAggregateOutputType = {
   id: number | null
+  categoryId: number | null
 }
 
 export type BlogPostMinAggregateOutputType = {
@@ -43,6 +45,7 @@ export type BlogPostMinAggregateOutputType = {
   published: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
+  categoryId: number | null
 }
 
 export type BlogPostMaxAggregateOutputType = {
@@ -54,6 +57,7 @@ export type BlogPostMaxAggregateOutputType = {
   published: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
+  categoryId: number | null
 }
 
 export type BlogPostCountAggregateOutputType = {
@@ -65,16 +69,19 @@ export type BlogPostCountAggregateOutputType = {
   published: number
   createdAt: number
   updatedAt: number
+  categoryId: number
   _all: number
 }
 
 
 export type BlogPostAvgAggregateInputType = {
   id?: true
+  categoryId?: true
 }
 
 export type BlogPostSumAggregateInputType = {
   id?: true
+  categoryId?: true
 }
 
 export type BlogPostMinAggregateInputType = {
@@ -86,6 +93,7 @@ export type BlogPostMinAggregateInputType = {
   published?: true
   createdAt?: true
   updatedAt?: true
+  categoryId?: true
 }
 
 export type BlogPostMaxAggregateInputType = {
@@ -97,6 +105,7 @@ export type BlogPostMaxAggregateInputType = {
   published?: true
   createdAt?: true
   updatedAt?: true
+  categoryId?: true
 }
 
 export type BlogPostCountAggregateInputType = {
@@ -108,6 +117,7 @@ export type BlogPostCountAggregateInputType = {
   published?: true
   createdAt?: true
   updatedAt?: true
+  categoryId?: true
   _all?: true
 }
 
@@ -206,6 +216,7 @@ export type BlogPostGroupByOutputType = {
   published: boolean
   createdAt: Date
   updatedAt: Date
+  categoryId: number
   _count: BlogPostCountAggregateOutputType | null
   _avg: BlogPostAvgAggregateOutputType | null
   _sum: BlogPostSumAggregateOutputType | null
@@ -240,6 +251,9 @@ export type BlogPostWhereInput = {
   published?: Prisma.BoolFilter<"BlogPost"> | boolean
   createdAt?: Prisma.DateTimeFilter<"BlogPost"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"BlogPost"> | Date | string
+  categoryId?: Prisma.IntFilter<"BlogPost"> | number
+  category?: Prisma.XOR<Prisma.BlogCategoryScalarRelationFilter, Prisma.BlogCategoryWhereInput>
+  subCategories?: Prisma.SubCategoryBlogsListRelationFilter
 }
 
 export type BlogPostOrderByWithRelationInput = {
@@ -251,6 +265,9 @@ export type BlogPostOrderByWithRelationInput = {
   published?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
+  category?: Prisma.BlogCategoryOrderByWithRelationInput
+  subCategories?: Prisma.SubCategoryBlogsOrderByRelationAggregateInput
 }
 
 export type BlogPostWhereUniqueInput = Prisma.AtLeast<{
@@ -265,6 +282,9 @@ export type BlogPostWhereUniqueInput = Prisma.AtLeast<{
   published?: Prisma.BoolFilter<"BlogPost"> | boolean
   createdAt?: Prisma.DateTimeFilter<"BlogPost"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"BlogPost"> | Date | string
+  categoryId?: Prisma.IntFilter<"BlogPost"> | number
+  category?: Prisma.XOR<Prisma.BlogCategoryScalarRelationFilter, Prisma.BlogCategoryWhereInput>
+  subCategories?: Prisma.SubCategoryBlogsListRelationFilter
 }, "id" | "slug">
 
 export type BlogPostOrderByWithAggregationInput = {
@@ -276,6 +296,7 @@ export type BlogPostOrderByWithAggregationInput = {
   published?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
   _count?: Prisma.BlogPostCountOrderByAggregateInput
   _avg?: Prisma.BlogPostAvgOrderByAggregateInput
   _max?: Prisma.BlogPostMaxOrderByAggregateInput
@@ -295,6 +316,7 @@ export type BlogPostScalarWhereWithAggregatesInput = {
   published?: Prisma.BoolWithAggregatesFilter<"BlogPost"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"BlogPost"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"BlogPost"> | Date | string
+  categoryId?: Prisma.IntWithAggregatesFilter<"BlogPost"> | number
 }
 
 export type BlogPostCreateInput = {
@@ -305,6 +327,8 @@ export type BlogPostCreateInput = {
   published?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  category: Prisma.BlogCategoryCreateNestedOneWithoutPostsInput
+  subCategories?: Prisma.SubCategoryBlogsCreateNestedManyWithoutBlogPostInput
 }
 
 export type BlogPostUncheckedCreateInput = {
@@ -316,6 +340,8 @@ export type BlogPostUncheckedCreateInput = {
   published?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  categoryId: number
+  subCategories?: Prisma.SubCategoryBlogsUncheckedCreateNestedManyWithoutBlogPostInput
 }
 
 export type BlogPostUpdateInput = {
@@ -326,6 +352,8 @@ export type BlogPostUpdateInput = {
   published?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  category?: Prisma.BlogCategoryUpdateOneRequiredWithoutPostsNestedInput
+  subCategories?: Prisma.SubCategoryBlogsUpdateManyWithoutBlogPostNestedInput
 }
 
 export type BlogPostUncheckedUpdateInput = {
@@ -337,6 +365,8 @@ export type BlogPostUncheckedUpdateInput = {
   published?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  categoryId?: Prisma.IntFieldUpdateOperationsInput | number
+  subCategories?: Prisma.SubCategoryBlogsUncheckedUpdateManyWithoutBlogPostNestedInput
 }
 
 export type BlogPostCreateManyInput = {
@@ -348,6 +378,7 @@ export type BlogPostCreateManyInput = {
   published?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  categoryId: number
 }
 
 export type BlogPostUpdateManyMutationInput = {
@@ -369,6 +400,22 @@ export type BlogPostUncheckedUpdateManyInput = {
   published?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  categoryId?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
+export type BlogPostScalarRelationFilter = {
+  is?: Prisma.BlogPostWhereInput
+  isNot?: Prisma.BlogPostWhereInput
+}
+
+export type BlogPostListRelationFilter = {
+  every?: Prisma.BlogPostWhereInput
+  some?: Prisma.BlogPostWhereInput
+  none?: Prisma.BlogPostWhereInput
+}
+
+export type BlogPostOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type BlogPostCountOrderByAggregateInput = {
@@ -380,10 +427,12 @@ export type BlogPostCountOrderByAggregateInput = {
   published?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
 export type BlogPostAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
 export type BlogPostMaxOrderByAggregateInput = {
@@ -395,6 +444,7 @@ export type BlogPostMaxOrderByAggregateInput = {
   published?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
 export type BlogPostMinOrderByAggregateInput = {
@@ -406,12 +456,270 @@ export type BlogPostMinOrderByAggregateInput = {
   published?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
 export type BlogPostSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
+export type BlogPostCreateNestedOneWithoutSubCategoriesInput = {
+  create?: Prisma.XOR<Prisma.BlogPostCreateWithoutSubCategoriesInput, Prisma.BlogPostUncheckedCreateWithoutSubCategoriesInput>
+  connectOrCreate?: Prisma.BlogPostCreateOrConnectWithoutSubCategoriesInput
+  connect?: Prisma.BlogPostWhereUniqueInput
+}
+
+export type BlogPostUpdateOneRequiredWithoutSubCategoriesNestedInput = {
+  create?: Prisma.XOR<Prisma.BlogPostCreateWithoutSubCategoriesInput, Prisma.BlogPostUncheckedCreateWithoutSubCategoriesInput>
+  connectOrCreate?: Prisma.BlogPostCreateOrConnectWithoutSubCategoriesInput
+  upsert?: Prisma.BlogPostUpsertWithoutSubCategoriesInput
+  connect?: Prisma.BlogPostWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.BlogPostUpdateToOneWithWhereWithoutSubCategoriesInput, Prisma.BlogPostUpdateWithoutSubCategoriesInput>, Prisma.BlogPostUncheckedUpdateWithoutSubCategoriesInput>
+}
+
+export type BlogPostCreateNestedManyWithoutCategoryInput = {
+  create?: Prisma.XOR<Prisma.BlogPostCreateWithoutCategoryInput, Prisma.BlogPostUncheckedCreateWithoutCategoryInput> | Prisma.BlogPostCreateWithoutCategoryInput[] | Prisma.BlogPostUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.BlogPostCreateOrConnectWithoutCategoryInput | Prisma.BlogPostCreateOrConnectWithoutCategoryInput[]
+  createMany?: Prisma.BlogPostCreateManyCategoryInputEnvelope
+  connect?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+}
+
+export type BlogPostUncheckedCreateNestedManyWithoutCategoryInput = {
+  create?: Prisma.XOR<Prisma.BlogPostCreateWithoutCategoryInput, Prisma.BlogPostUncheckedCreateWithoutCategoryInput> | Prisma.BlogPostCreateWithoutCategoryInput[] | Prisma.BlogPostUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.BlogPostCreateOrConnectWithoutCategoryInput | Prisma.BlogPostCreateOrConnectWithoutCategoryInput[]
+  createMany?: Prisma.BlogPostCreateManyCategoryInputEnvelope
+  connect?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+}
+
+export type BlogPostUpdateManyWithoutCategoryNestedInput = {
+  create?: Prisma.XOR<Prisma.BlogPostCreateWithoutCategoryInput, Prisma.BlogPostUncheckedCreateWithoutCategoryInput> | Prisma.BlogPostCreateWithoutCategoryInput[] | Prisma.BlogPostUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.BlogPostCreateOrConnectWithoutCategoryInput | Prisma.BlogPostCreateOrConnectWithoutCategoryInput[]
+  upsert?: Prisma.BlogPostUpsertWithWhereUniqueWithoutCategoryInput | Prisma.BlogPostUpsertWithWhereUniqueWithoutCategoryInput[]
+  createMany?: Prisma.BlogPostCreateManyCategoryInputEnvelope
+  set?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  disconnect?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  delete?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  connect?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  update?: Prisma.BlogPostUpdateWithWhereUniqueWithoutCategoryInput | Prisma.BlogPostUpdateWithWhereUniqueWithoutCategoryInput[]
+  updateMany?: Prisma.BlogPostUpdateManyWithWhereWithoutCategoryInput | Prisma.BlogPostUpdateManyWithWhereWithoutCategoryInput[]
+  deleteMany?: Prisma.BlogPostScalarWhereInput | Prisma.BlogPostScalarWhereInput[]
+}
+
+export type BlogPostUncheckedUpdateManyWithoutCategoryNestedInput = {
+  create?: Prisma.XOR<Prisma.BlogPostCreateWithoutCategoryInput, Prisma.BlogPostUncheckedCreateWithoutCategoryInput> | Prisma.BlogPostCreateWithoutCategoryInput[] | Prisma.BlogPostUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.BlogPostCreateOrConnectWithoutCategoryInput | Prisma.BlogPostCreateOrConnectWithoutCategoryInput[]
+  upsert?: Prisma.BlogPostUpsertWithWhereUniqueWithoutCategoryInput | Prisma.BlogPostUpsertWithWhereUniqueWithoutCategoryInput[]
+  createMany?: Prisma.BlogPostCreateManyCategoryInputEnvelope
+  set?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  disconnect?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  delete?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  connect?: Prisma.BlogPostWhereUniqueInput | Prisma.BlogPostWhereUniqueInput[]
+  update?: Prisma.BlogPostUpdateWithWhereUniqueWithoutCategoryInput | Prisma.BlogPostUpdateWithWhereUniqueWithoutCategoryInput[]
+  updateMany?: Prisma.BlogPostUpdateManyWithWhereWithoutCategoryInput | Prisma.BlogPostUpdateManyWithWhereWithoutCategoryInput[]
+  deleteMany?: Prisma.BlogPostScalarWhereInput | Prisma.BlogPostScalarWhereInput[]
+}
+
+export type BlogPostCreateWithoutSubCategoriesInput = {
+  title: string
+  slug: string
+  content: string
+  image?: string | null
+  published?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  category: Prisma.BlogCategoryCreateNestedOneWithoutPostsInput
+}
+
+export type BlogPostUncheckedCreateWithoutSubCategoriesInput = {
+  id?: number
+  title: string
+  slug: string
+  content: string
+  image?: string | null
+  published?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  categoryId: number
+}
+
+export type BlogPostCreateOrConnectWithoutSubCategoriesInput = {
+  where: Prisma.BlogPostWhereUniqueInput
+  create: Prisma.XOR<Prisma.BlogPostCreateWithoutSubCategoriesInput, Prisma.BlogPostUncheckedCreateWithoutSubCategoriesInput>
+}
+
+export type BlogPostUpsertWithoutSubCategoriesInput = {
+  update: Prisma.XOR<Prisma.BlogPostUpdateWithoutSubCategoriesInput, Prisma.BlogPostUncheckedUpdateWithoutSubCategoriesInput>
+  create: Prisma.XOR<Prisma.BlogPostCreateWithoutSubCategoriesInput, Prisma.BlogPostUncheckedCreateWithoutSubCategoriesInput>
+  where?: Prisma.BlogPostWhereInput
+}
+
+export type BlogPostUpdateToOneWithWhereWithoutSubCategoriesInput = {
+  where?: Prisma.BlogPostWhereInput
+  data: Prisma.XOR<Prisma.BlogPostUpdateWithoutSubCategoriesInput, Prisma.BlogPostUncheckedUpdateWithoutSubCategoriesInput>
+}
+
+export type BlogPostUpdateWithoutSubCategoriesInput = {
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  published?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  category?: Prisma.BlogCategoryUpdateOneRequiredWithoutPostsNestedInput
+}
+
+export type BlogPostUncheckedUpdateWithoutSubCategoriesInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  published?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  categoryId?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
+export type BlogPostCreateWithoutCategoryInput = {
+  title: string
+  slug: string
+  content: string
+  image?: string | null
+  published?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  subCategories?: Prisma.SubCategoryBlogsCreateNestedManyWithoutBlogPostInput
+}
+
+export type BlogPostUncheckedCreateWithoutCategoryInput = {
+  id?: number
+  title: string
+  slug: string
+  content: string
+  image?: string | null
+  published?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  subCategories?: Prisma.SubCategoryBlogsUncheckedCreateNestedManyWithoutBlogPostInput
+}
+
+export type BlogPostCreateOrConnectWithoutCategoryInput = {
+  where: Prisma.BlogPostWhereUniqueInput
+  create: Prisma.XOR<Prisma.BlogPostCreateWithoutCategoryInput, Prisma.BlogPostUncheckedCreateWithoutCategoryInput>
+}
+
+export type BlogPostCreateManyCategoryInputEnvelope = {
+  data: Prisma.BlogPostCreateManyCategoryInput | Prisma.BlogPostCreateManyCategoryInput[]
+  skipDuplicates?: boolean
+}
+
+export type BlogPostUpsertWithWhereUniqueWithoutCategoryInput = {
+  where: Prisma.BlogPostWhereUniqueInput
+  update: Prisma.XOR<Prisma.BlogPostUpdateWithoutCategoryInput, Prisma.BlogPostUncheckedUpdateWithoutCategoryInput>
+  create: Prisma.XOR<Prisma.BlogPostCreateWithoutCategoryInput, Prisma.BlogPostUncheckedCreateWithoutCategoryInput>
+}
+
+export type BlogPostUpdateWithWhereUniqueWithoutCategoryInput = {
+  where: Prisma.BlogPostWhereUniqueInput
+  data: Prisma.XOR<Prisma.BlogPostUpdateWithoutCategoryInput, Prisma.BlogPostUncheckedUpdateWithoutCategoryInput>
+}
+
+export type BlogPostUpdateManyWithWhereWithoutCategoryInput = {
+  where: Prisma.BlogPostScalarWhereInput
+  data: Prisma.XOR<Prisma.BlogPostUpdateManyMutationInput, Prisma.BlogPostUncheckedUpdateManyWithoutCategoryInput>
+}
+
+export type BlogPostScalarWhereInput = {
+  AND?: Prisma.BlogPostScalarWhereInput | Prisma.BlogPostScalarWhereInput[]
+  OR?: Prisma.BlogPostScalarWhereInput[]
+  NOT?: Prisma.BlogPostScalarWhereInput | Prisma.BlogPostScalarWhereInput[]
+  id?: Prisma.IntFilter<"BlogPost"> | number
+  title?: Prisma.StringFilter<"BlogPost"> | string
+  slug?: Prisma.StringFilter<"BlogPost"> | string
+  content?: Prisma.StringFilter<"BlogPost"> | string
+  image?: Prisma.StringNullableFilter<"BlogPost"> | string | null
+  published?: Prisma.BoolFilter<"BlogPost"> | boolean
+  createdAt?: Prisma.DateTimeFilter<"BlogPost"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"BlogPost"> | Date | string
+  categoryId?: Prisma.IntFilter<"BlogPost"> | number
+}
+
+export type BlogPostCreateManyCategoryInput = {
+  id?: number
+  title: string
+  slug: string
+  content: string
+  image?: string | null
+  published?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type BlogPostUpdateWithoutCategoryInput = {
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  published?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  subCategories?: Prisma.SubCategoryBlogsUpdateManyWithoutBlogPostNestedInput
+}
+
+export type BlogPostUncheckedUpdateWithoutCategoryInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  published?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  subCategories?: Prisma.SubCategoryBlogsUncheckedUpdateManyWithoutBlogPostNestedInput
+}
+
+export type BlogPostUncheckedUpdateManyWithoutCategoryInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.StringFieldUpdateOperationsInput | string
+  image?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  published?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+
+/**
+ * Count Type BlogPostCountOutputType
+ */
+
+export type BlogPostCountOutputType = {
+  subCategories: number
+}
+
+export type BlogPostCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  subCategories?: boolean | BlogPostCountOutputTypeCountSubCategoriesArgs
+}
+
+/**
+ * BlogPostCountOutputType without action
+ */
+export type BlogPostCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the BlogPostCountOutputType
+   */
+  select?: Prisma.BlogPostCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * BlogPostCountOutputType without action
+ */
+export type BlogPostCountOutputTypeCountSubCategoriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SubCategoryBlogsWhereInput
+}
 
 
 export type BlogPostSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -423,6 +731,10 @@ export type BlogPostSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   published?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  categoryId?: boolean
+  category?: boolean | Prisma.BlogCategoryDefaultArgs<ExtArgs>
+  subCategories?: boolean | Prisma.BlogPost$subCategoriesArgs<ExtArgs>
+  _count?: boolean | Prisma.BlogPostCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["blogPost"]>
 
 export type BlogPostSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -434,6 +746,8 @@ export type BlogPostSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   published?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  categoryId?: boolean
+  category?: boolean | Prisma.BlogCategoryDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["blogPost"]>
 
 export type BlogPostSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -445,6 +759,8 @@ export type BlogPostSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   published?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  categoryId?: boolean
+  category?: boolean | Prisma.BlogCategoryDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["blogPost"]>
 
 export type BlogPostSelectScalar = {
@@ -456,13 +772,28 @@ export type BlogPostSelectScalar = {
   published?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  categoryId?: boolean
 }
 
-export type BlogPostOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "slug" | "content" | "image" | "published" | "createdAt" | "updatedAt", ExtArgs["result"]["blogPost"]>
+export type BlogPostOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "slug" | "content" | "image" | "published" | "createdAt" | "updatedAt" | "categoryId", ExtArgs["result"]["blogPost"]>
+export type BlogPostInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  category?: boolean | Prisma.BlogCategoryDefaultArgs<ExtArgs>
+  subCategories?: boolean | Prisma.BlogPost$subCategoriesArgs<ExtArgs>
+  _count?: boolean | Prisma.BlogPostCountOutputTypeDefaultArgs<ExtArgs>
+}
+export type BlogPostIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  category?: boolean | Prisma.BlogCategoryDefaultArgs<ExtArgs>
+}
+export type BlogPostIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  category?: boolean | Prisma.BlogCategoryDefaultArgs<ExtArgs>
+}
 
 export type $BlogPostPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "BlogPost"
-  objects: {}
+  objects: {
+    category: Prisma.$BlogCategoryPayload<ExtArgs>
+    subCategories: Prisma.$SubCategoryBlogsPayload<ExtArgs>[]
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
     title: string
@@ -472,6 +803,7 @@ export type $BlogPostPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     published: boolean
     createdAt: Date
     updatedAt: Date
+    categoryId: number
   }, ExtArgs["result"]["blogPost"]>
   composites: {}
 }
@@ -866,6 +1198,8 @@ readonly fields: BlogPostFieldRefs;
  */
 export interface Prisma__BlogPostClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  category<T extends Prisma.BlogCategoryDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BlogCategoryDefaultArgs<ExtArgs>>): Prisma.Prisma__BlogCategoryClient<runtime.Types.Result.GetResult<Prisma.$BlogCategoryPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  subCategories<T extends Prisma.BlogPost$subCategoriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BlogPost$subCategoriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubCategoryBlogsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -903,6 +1237,7 @@ export interface BlogPostFieldRefs {
   readonly published: Prisma.FieldRef<"BlogPost", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"BlogPost", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"BlogPost", 'DateTime'>
+  readonly categoryId: Prisma.FieldRef<"BlogPost", 'Int'>
 }
     
 
@@ -919,6 +1254,10 @@ export type BlogPostFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Omit specific fields from the BlogPost
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
   /**
    * Filter, which BlogPost to fetch.
    */
@@ -938,6 +1277,10 @@ export type BlogPostFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensio
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
+  /**
    * Filter, which BlogPost to fetch.
    */
   where: Prisma.BlogPostWhereUniqueInput
@@ -955,6 +1298,10 @@ export type BlogPostFindFirstArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Omit specific fields from the BlogPost
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
   /**
    * Filter, which BlogPost to fetch.
    */
@@ -1004,6 +1351,10 @@ export type BlogPostFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extension
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
+  /**
    * Filter, which BlogPost to fetch.
    */
   where?: Prisma.BlogPostWhereInput
@@ -1052,6 +1403,10 @@ export type BlogPostFindManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
+  /**
    * Filter, which BlogPosts to fetch.
    */
   where?: Prisma.BlogPostWhereInput
@@ -1095,6 +1450,10 @@ export type BlogPostCreateArgs<ExtArgs extends runtime.Types.Extensions.Internal
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
+  /**
    * The data needed to create a BlogPost.
    */
   data: Prisma.XOR<Prisma.BlogPostCreateInput, Prisma.BlogPostUncheckedCreateInput>
@@ -1128,6 +1487,10 @@ export type BlogPostCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extens
    */
   data: Prisma.BlogPostCreateManyInput | Prisma.BlogPostCreateManyInput[]
   skipDuplicates?: boolean
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostIncludeCreateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1142,6 +1505,10 @@ export type BlogPostUpdateArgs<ExtArgs extends runtime.Types.Extensions.Internal
    * Omit specific fields from the BlogPost
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
   /**
    * The data needed to update a BlogPost.
    */
@@ -1194,6 +1561,10 @@ export type BlogPostUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extens
    * Limit how many BlogPosts to update.
    */
   limit?: number
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostIncludeUpdateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1208,6 +1579,10 @@ export type BlogPostUpsertArgs<ExtArgs extends runtime.Types.Extensions.Internal
    * Omit specific fields from the BlogPost
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
   /**
    * The filter to search for the BlogPost to update in case it exists.
    */
@@ -1235,6 +1610,10 @@ export type BlogPostDeleteArgs<ExtArgs extends runtime.Types.Extensions.Internal
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
+  /**
    * Filter which BlogPost to delete.
    */
   where: Prisma.BlogPostWhereUniqueInput
@@ -1255,6 +1634,30 @@ export type BlogPostDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
 }
 
 /**
+ * BlogPost.subCategories
+ */
+export type BlogPost$subCategoriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SubCategoryBlogs
+   */
+  select?: Prisma.SubCategoryBlogsSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SubCategoryBlogs
+   */
+  omit?: Prisma.SubCategoryBlogsOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SubCategoryBlogsInclude<ExtArgs> | null
+  where?: Prisma.SubCategoryBlogsWhereInput
+  orderBy?: Prisma.SubCategoryBlogsOrderByWithRelationInput | Prisma.SubCategoryBlogsOrderByWithRelationInput[]
+  cursor?: Prisma.SubCategoryBlogsWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SubCategoryBlogsScalarFieldEnum | Prisma.SubCategoryBlogsScalarFieldEnum[]
+}
+
+/**
  * BlogPost without action
  */
 export type BlogPostDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1266,4 +1669,8 @@ export type BlogPostDefaultArgs<ExtArgs extends runtime.Types.Extensions.Interna
    * Omit specific fields from the BlogPost
    */
   omit?: Prisma.BlogPostOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.BlogPostInclude<ExtArgs> | null
 }

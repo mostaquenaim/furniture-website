@@ -299,6 +299,16 @@ export class CategoryService {
               },
             },
           },
+
+          subCategory: {
+            include: {
+              blogs: {
+                include: {
+                  blogPost: true,
+                },
+              },
+            },
+          },
         },
         where: {
           subCategoryId: subcategory?.id,

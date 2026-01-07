@@ -88,6 +88,11 @@ export type Category = Prisma.CategoryModel
  */
 export type SubCategory = Prisma.SubCategoryModel
 /**
+ * Model SubCategoryBlogs
+ * 
+ */
+export type SubCategoryBlogs = Prisma.SubCategoryBlogsModel
+/**
  * Model ProductSubCategory
  * 
  */
@@ -167,6 +172,11 @@ export type Review = Prisma.ReviewModel
  * 
  */
 export type Wishlist = Prisma.WishlistModel
+/**
+ * Model BlogCategory
+ * 
+ */
+export type BlogCategory = Prisma.BlogCategoryModel
 /**
  * Model BlogPost
  * 

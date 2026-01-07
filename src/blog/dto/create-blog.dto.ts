@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
 
 export class CreateBlogDto {
   @IsString()
@@ -12,9 +12,13 @@ export class CreateBlogDto {
 
   @IsOptional()
   @IsString()
-  thumbnail?: string;
+  image?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 
   @IsOptional()
   @IsArray()
-  productIds?: string[];
+  subcategoryIds?: string[];
 }

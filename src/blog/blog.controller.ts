@@ -1,7 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+} from '@nestjs/common';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { BlogsService } from './blog.service';
@@ -15,14 +23,14 @@ export class BlogsController {
     return this.service.getAll();
   }
 
-  @Post()
-  create(@Body() dto: CreateBlogDto) {
-    return this.service.create(dto);
-  }
-
   @Get(':slug')
   getBySlug(@Param('slug') slug: string) {
     return this.service.getBySlug(slug);
+  }
+
+  @Get('categories')
+  getCategories() {
+    return this.service.getCategories();
   }
 
   @Put(':id')
@@ -41,7 +49,10 @@ export class BlogsController {
   }
 
   @Post(':id/products')
-  linkProducts(@Param('id') id: string, @Body() body: { productIds: string[] }) {
+  linkProducts(
+    @Param('id') id: string,
+    @Body() body: { productIds: string[] },
+  ) {
     return this.service.linkProducts(id, body.productIds);
   }
 }

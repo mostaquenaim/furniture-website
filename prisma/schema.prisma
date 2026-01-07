@@ -6,9 +6,9 @@
 // output   = "../generated/prisma"
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-  moduleFormat    = "cjs"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -20,21 +20,21 @@ datasource db {
 // User
 // =====================
 model User {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String?
-  phone     String    @unique
-  email     String?   @unique
+  phone     String   @unique
+  email     String?  @unique
   password  String?
-  role      UserRole  @default(CUSTOMER)
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  role      UserRole @default(CUSTOMER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  wishlist  Wishlist[]
-  carts     Cart[]
-  orders    Order[]
-  reviews   Review[]
-  otps      OTP[]
+  wishlist Wishlist[]
+  orders   Order[]
+  reviews  Review[]
+  otps     OTP[]
+  cart     Cart?
 }
 
 enum UserRole {
@@ -50,51 +50,51 @@ enum UserRole {
 // =====================
 model FrontendPermission {
   id        Int        @id @default(autoincrement())
-  name      String     @unique     // e.g., VIEW_USER_MANAGEMENT
-  path      String     @unique     // e.g., /admin/users, /dashboard/analytics
-  component String?               // Component/Page name
-  roles     UserRole[]    
+  name      String     @unique // e.g., VIEW_USER_MANAGEMENT
+  path      String     @unique // e.g., /admin/users, /dashboard/analytics
+  component String? // Component/Page name
+  roles     UserRole[]
 }
 
 model BackendPermission {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique     // e.g., MANAGE_USERS
-  endpoint  String     @unique     // e.g., /api/admin/users, POST /api/users
-  method    String?               // GET, POST, PUT, DELETE, etc.
-  resource  String?               // users, products, orders, etc.
-  action    String?               // create, read, update, delete, list
-  roles     UserRole[]    
+  id       Int        @id @default(autoincrement())
+  name     String     @unique // e.g., MANAGE_USERS
+  endpoint String     @unique // e.g., /api/admin/users, POST /api/users
+  method   String? // GET, POST, PUT, DELETE, etc.
+  resource String? // users, products, orders, etc.
+  action   String? // create, read, update, delete, list
+  roles    UserRole[]
 }
 
 // =====================
 // Auth / login
 // =====================
 model OTP {
-  id         Int      @id @default(autoincrement())
-  code       String
-  type       String   // 'email' | 'phone'
-  email      String?
-  phone      String?
-  expiresAt  DateTime
-  verified   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  code      String
+  type      String // 'email' | 'phone'
+  email     String?
+  phone     String?
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  user       User @relation(fields: [userId], references: [id])
-  userId     Int
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
 }
 
 model BlackListToken {
-  id         Int      @id @default(autoincrement())
-  jti        String
-  expiry     BigInt
+  id     Int    @id @default(autoincrement())
+  jti    String
+  expiry BigInt
 }
 
 model LoginAttempt {
-  id        String   @id @default(cuid())
-  identifier String  // email or IP
-  attempts  Int      @default(0)
+  id           String    @id @default(cuid())
+  identifier   String // email or IP
+  attempts     Int       @default(0)
   blockedUntil DateTime?
-  lastAttempt DateTime @default(now())
+  lastAttempt  DateTime  @default(now())
 
   @@unique([identifier])
 }
@@ -103,14 +103,14 @@ model LoginAttempt {
 // Category & Subcategory & Room
 // =====================
 model Series {
-  id        Int               @id @default(autoincrement())
-  name      String
-  slug      String   @unique
-  image     String?  // image URL
-  notice    String?
+  id     Int     @id @default(autoincrement())
+  name   String
+  slug   String  @unique
+  image  String? // image URL
+  notice String?
 
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
 
   categories Category[]
 
@@ -119,43 +119,56 @@ model Series {
 }
 
 model Category {
-  id        Int               @id @default(autoincrement())
-  name      String?
-  slug      String
-  image     String?  // image URL
+  id    Int     @id @default(autoincrement())
+  name  String?
+  slug  String
+  image String? // image URL
 
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
 
-  series   Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   seriesId Int
 
   subCategories SubCategory[]
 
-  @@unique([seriesId, slug])
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([seriesId, slug])
 }
 
 model SubCategory {
-  id        Int               @id @default(autoincrement())
-  name      String
-  slug      String
-  image     String?  // image URL
+  id    Int     @id @default(autoincrement())
+  name  String
+  slug  String
+  image String? // image URL
 
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
 
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   products ProductSubCategory[]
-
-  @@unique([categoryId, slug])
+  blogs    SubCategoryBlogs[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, slug])
+}
+
+model SubCategoryBlogs {
+  subCategoryId Int
+  blogPostId    Int
+
+  subCategory SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  blogPost    BlogPost    @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([subCategoryId, blogPostId])
 }
 
 model ProductSubCategory {
@@ -168,75 +181,71 @@ model ProductSubCategory {
   @@id([productId, subCategoryId])
 }
 
-
 // =====================
 // Product & Variants
 // =====================
 model Product {
-  id          Int      @id @default(autoincrement())
-  title       String
-  slug        String   @unique
-  sku         String?
-  description String?
-  basePrice   Float
+  id               Int     @id @default(autoincrement())
+  title            String
+  slug             String  @unique
+  sku              String?
+  description      String?
+  basePrice        Float
   hasColorVariants Boolean @default(true)
-  showColor    Boolean  @default(true)
+  showColor        Boolean @default(true)
 
   discountType  String?
   discount      Int      @default(0)
   discountEnd   DateTime @default(now())
   discountStart DateTime @default(now())
 
-  note              String?
-  deliveryEstimate  String?
-  productDetails    String?
-  dimension         String?
-  shippingReturn    String? 
-  isActive          Boolean @default(true)
+  note             String?
+  deliveryEstimate String?
+  productDetails   String?
+  dimension        String?
+  shippingReturn   String?
+  isActive         Boolean @default(true)
 
-  material      Material?  @relation(fields: [materialId], references: [id])
+  material      Material?            @relation(fields: [materialId], references: [id])
   materialId    Int?
-
+  orderItems    OrderItem[]
+  wishlists     Wishlist[]
   images        ProductImage[]
   subCategories ProductSubCategory[]
   colors        ProductColor[]
-
-  reviews     Review[]
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
-  wishlists   Wishlist[]
+  reviews       Review[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Material {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  slug      String   @unique
-  order     Int      @default(0)
-  isActive  Boolean  @default(true)
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  slug     String  @unique
+  order    Int     @default(0)
+  isActive Boolean @default(true)
 
   products  Product[]
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 }
 
 model ProductImage {
-  id        Int    @id @default(autoincrement())
-  image     String
-  serialNo  Int    @default(0)
+  id       Int    @id @default(autoincrement())
+  image    String
+  serialNo Int    @default(0)
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model ProductColor {
-  id        Int    @id @default(autoincrement())
-  useDefaultImages  Boolean @default(true)
+  id               Int     @id @default(autoincrement())
+  useDefaultImages Boolean @default(true)
 
-  color     Color   @relation(fields: [colorId], references: [id])
-  colorId   Int
+  color   Color @relation(fields: [colorId], references: [id])
+  colorId Int
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -246,45 +255,46 @@ model ProductColor {
 }
 
 model ProductColorImage {
-  id      Int    @id @default(autoincrement())
-  image   String
-  serialNo  Int    @default(0)
+  id       Int    @id @default(autoincrement())
+  image    String
+  serialNo Int    @default(0)
 
   productColorId Int
   productColor   ProductColor @relation(fields: [productColorId], references: [id], onDelete: Cascade)
 }
 
 model Color {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   name      String
   hexCode   String?
   image     String?
-  sortOrder Int      @default(0)
+  sortOrder Int     @default(0)
 
-  productColor  ProductColor[]
+  productColor ProductColor[]
 
-  isActive  Boolean @default(true)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 }
 
-model ProductSize { 
-  id      Int    @id @default(autoincrement())
-  
-  sku     String?
-  price   Float?   // optional override
-  quantity Int  @default(0)
+model ProductSize {
+  id Int @id @default(autoincrement())
 
-  sizeId    Int
-  size      Size @relation(fields: [sizeId], references: [id])
+  sku      String?
+  price    Float? // optional override
+  quantity Int     @default(0)
 
-  colorId Int
-  color   ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  sizeId Int
+  size   Size @relation(fields: [sizeId], references: [id])
+
+  colorId   Int
+  color     ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  cartItems CartItem[]
 }
 
 model Variant {
-  id        Int     @id @default(autoincrement())
-  name      String
-  sizes     Size[]  // one-to-many relation
+  id    Int    @id @default(autoincrement())
+  name  String
+  sizes Size[] // one-to-many relation
 
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
@@ -292,10 +302,10 @@ model Variant {
 }
 
 model Size {
-  id         Int     @id @default(autoincrement())
-  name       String
-  variantId  Int
-  variant    Variant @relation(fields: [variantId], references: [id])
+  id        Int     @id @default(autoincrement())
+  name      String
+  variantId Int
+  variant   Variant @relation(fields: [variantId], references: [id])
 
   productSize ProductSize[]
 
@@ -304,50 +314,63 @@ model Size {
   createdAt DateTime @default(now())
 }
 
-
 // =====================
 // Cart
 // =====================
 model Cart {
   id        Int        @id @default(autoincrement())
   user      User       @relation(fields: [userId], references: [id])
-  userId    Int
+  userId    Int        @unique
   items     CartItem[]
+  status    CartStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
 
 model CartItem {
-  id          Int             @id @default(autoincrement())
-  cart        Cart            @relation(fields: [cartId], references: [id])
-  cartId      Int
-  product     Product         @relation(fields: [productId], references: [id])
-  productId   Int
-  quantity    Int             @default(1)
+  id     Int  @id @default(autoincrement())
+  cart   Cart @relation(fields: [cartId], references: [id])
+  cartId Int
+
+  quantity   Int   @default(1)
+  priceAtAdd Float
+  subtotal   Float
+
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+  productSizeId Int
+
+  @@unique([cartId, productSizeId])
+}
+
+enum CartStatus {
+  ACTIVE
+  CHECKED_OUT
+  ABANDONED
 }
 
 // =====================
 // Orders
 // =====================
 model Order {
-  id          Int         @id @default(autoincrement())
-  user        User        @relation(fields: [userId], references: [id])
-  userId      Int
-  items       OrderItem[]
-  total       Float
-  status      OrderStatus @default(PENDING)
-  awbNumber   String?     // courier AWB
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        Int         @id @default(autoincrement())
+  user      User        @relation(fields: [userId], references: [id])
+  userId    Int
+  items     OrderItem[]
+  total     Float
+  status    OrderStatus @default(PENDING)
+  awbNumber String? // courier AWB
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 model OrderItem {
-  id          Int             @id @default(autoincrement())
-  order       Order           @relation(fields: [orderId], references: [id])
-  orderId     Int
-  product     Product         @relation(fields: [productId], references: [id])
-  productId   Int
-  quantity    Int             @default(1)
-  price       Float
+  id        Int     @id @default(autoincrement())
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   Int
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+  quantity  Int     @default(1)
+  price     Float
 }
 
 enum OrderStatus {
@@ -374,7 +397,6 @@ model Review {
   createdAt DateTime @default(now())
 }
 
-
 // =====================
 // Wishlist
 // =====================
@@ -387,10 +409,21 @@ model Wishlist {
   createdAt DateTime @default(now())
 }
 
-
 // =====================
 // Blog / CMS
 // =====================
+model BlogCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts BlogPost[]
+}
+
 model BlogPost {
   id        Int      @id @default(autoincrement())
   title     String
@@ -400,35 +433,40 @@ model BlogPost {
   published Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  categoryId Int
+  category   BlogCategory @relation(fields: [categoryId], references: [id])
+
+  subCategories SubCategoryBlogs[]
 }
 
 model Banner {
-  id        Int      @id @default(autoincrement())
-  title     String?
-  image     String
-  link      String?
-  active    Boolean  @default(true)
+  id     Int     @id @default(autoincrement())
+  title  String?
+  image  String
+  link   String?
+  active Boolean @default(true)
 }
 
 model PromoBanner {
-  id          Int              @id @default(autoincrement())
-  text        String
-  bgColor     String           // e.g. "#0f172a"
-  isActive    Boolean          @default(true)
-  order       Int              @default(0)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  id        Int      @id @default(autoincrement())
+  text      String
+  bgColor   String // e.g. "#0f172a"
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  links       PromoBannerLink[]
+  links PromoBannerLink[]
 }
 
 model PromoBannerLink {
-  id        Int         @id @default(autoincrement())
-  text     String
-  url       String
+  id   Int    @id @default(autoincrement())
+  text String
+  url  String
 
-  bannerId  Int
-  banner    PromoBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+  bannerId Int
+  banner   PromoBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
 }
 
 model ActivityLog {

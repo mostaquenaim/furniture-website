@@ -27,11 +27,14 @@ import { CreateVariantDto } from 'src/cms/dto/create-variant.dto';
 import { CreateProductDto } from 'src/product/dto/create-product.dto';
 import { ProductService } from 'src/product/product.service';
 import { UpdateProductDto } from 'src/product/dto/update-product.dto';
+import { CreateBlogDto } from 'src/blog/dto/create-blog.dto';
+import { BlogsService } from 'src/blog/blog.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
   constructor(
+    private readonly blogService: BlogsService,
     private readonly categoryService: CategoryService,
     private readonly cmsService: CmsService,
     private readonly productService: ProductService,
@@ -113,8 +116,8 @@ export class AdminController {
   ////// PRODUCT //////
   ////////////////////
   @Post('products')
-  async create(@Body() dto) {
-    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+  async createProduct(@Body() dto) {
+    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.productService.createProduct(dto);
   }
 
@@ -123,7 +126,16 @@ export class AdminController {
     @Param('productId') productId: string,
     @Body() dto: UpdateProductDto,
   ) {
-    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.productService.updateProduct(productId, dto);
+  }
+
+  //////////////////////
+  ////// BLOG //////
+  ////////////////////
+  @Post('/blogs')
+  async createBlog(@Body() dto: CreateBlogDto) {
+    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    return this.blogService.createBlog(dto);
   }
 }

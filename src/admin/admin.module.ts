@@ -6,11 +6,13 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { CmsService } from 'src/cms/cms.service';
 import { ProductService } from 'src/product/product.service';
+import { BlogsService } from 'src/blog/blog.service';
 
 @Module({
   controllers: [AdminController],
   providers: [
     AdminService,
+    BlogsService,
     CategoryService,
     PrismaService,
     PermissionService,
