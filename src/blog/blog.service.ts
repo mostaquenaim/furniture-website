@@ -18,18 +18,36 @@ export class BlogsService {
   }
 
   async createBlog(dto: CreateBlogDto) {
-    const existing = await this.prisma.blogPost.findUnique({
-      where: {
-        slug: dto.slug,
-      },
+    // Check duplicate blog slug
+    const existingBlog = await this.prisma.blogPost.findUnique({
+      where: { slug: dto.slug },
     });
 
-    if (existing)
-      throw new ConflictException(
-        'Blog with this slug already exists in the series',
-      );
+    if (existingBlog) {
+      throw new ConflictException('Blog with this slug already exists');
+    }
 
-    // Create blog post first
+    // Find or create blog category
+    let category = await this.prisma.blogCategory.findUnique({
+      where: { slug: dto.categorySlug },
+    });
+
+    if (!category) {
+      if (!dto.categoryName) {
+        throw new ConflictException(
+          'Category does not exist. categoryName is required to create one.',
+        );
+      }
+
+      category = await this.prisma.blogCategory.create({
+        data: {
+          name: dto.categoryName,
+          slug: dto.categorySlug,
+        },
+      });
+    }
+
+    // Create blog post
     const blog = await this.prisma.blogPost.create({
       data: {
         title: dto.title,
@@ -37,20 +55,27 @@ export class BlogsService {
         content: dto.content,
         image: dto.image ?? null,
         published: dto.published ?? false,
-        // connect subcategories in the join table
-        subCategories: dto.subcategoryIds
+
+        // Category (mandatory)
+        category: {
+          connect: { id: category.id },
+        },
+
+        // Subcategories (many-to-many)
+        subCategories: dto.subcategoryIds?.length
           ? {
               create: dto.subcategoryIds.map((id) => ({
-                subCategory: { connect: { id: parseInt(id, 10) } },
+                subCategory: {
+                  connect: { id: Number(id) },
+                },
               })),
             }
           : undefined,
       },
       include: {
+        category: true,
         subCategories: {
-          include: {
-            subCategory: true, // optional: include subcategory info
-          },
+          include: { subCategory: true },
         },
       },
     });

@@ -18,6 +18,15 @@ export class CreateBlogDto {
   @IsBoolean()
   published?: boolean;
 
+  // Blog Category
+  @IsString()
+  categorySlug: string;
+
+  @IsOptional()
+  @IsString()
+  categoryName?: string;
+
+  // Subcategories
   @IsOptional()
   @IsArray()
   subcategoryIds?: string[];
