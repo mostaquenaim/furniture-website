@@ -3165,7 +3165,9 @@ export const WishlistScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   productId: 'productId',
-  createdAt: 'createdAt'
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 } as const
 
 export type WishlistScalarFieldEnum = (typeof WishlistScalarFieldEnum)[keyof typeof WishlistScalarFieldEnum]
