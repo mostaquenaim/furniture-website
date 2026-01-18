@@ -24,6 +24,24 @@ export class CategoryController {
     return this.categoryService.getSeriesById(id);
   }
 
+  // subCategoryWise products
+  @Get('series/:slug/products')
+  getSeriesWiseProducts(
+    @Param('slug') slug: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('search') search?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    return this.categoryService.getSeriesWiseProducts({
+      page: Number(page) || 1,
+      limit: Number(limit) || 10,
+      search,
+      isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      slug,
+    });
+  }
+
   // =====================
   // CATEGORY
   // =====================
@@ -74,16 +92,19 @@ export class CategoryController {
     return this.categoryService.getSubCategoriesByCategory(categoryId);
   }
 
+  // get subCategory by id 
   @Get('subcategory/:id')
   getSubCategory(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.getSubCategoryById(id);
   }
 
+  // get subCategory parent
   @Get('subcategory/:id/parent')
   getSubCategoryParent(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.getSubCategoryParent(id);
   }
 
+  // subCategoryWise products
   @Get('subcategory/:slug/products')
   getSubCategoryWiseProducts(
     @Param('slug') slug: string,

@@ -30,11 +30,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  wishlist Wishlist[]
-  orders   Order[]
-  reviews  Review[]
-  otps     OTP[]
-  cart     Cart?
+  wishlist     Wishlist[]
+  orders       Order[]
+  reviews      Review[]
+  otps         OTP[]
+  cart         Cart?
+  productViews ProductView[]
 }
 
 enum UserRole {
@@ -150,8 +151,9 @@ model SubCategory {
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  products ProductSubCategory[]
-  blogs    SubCategoryBlogs[]
+  products           ProductSubCategory[]
+  blogs              SubCategoryBlogs[]
+  featuredCategories FeaturedCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -198,6 +200,7 @@ model Product {
   discount      Int      @default(0)
   discountEnd   DateTime @default(now())
   discountStart DateTime @default(now())
+  viewCount     Int      @default(0)
 
   note             String?
   deliveryEstimate String?
@@ -215,6 +218,18 @@ model Product {
   colors        ProductColor[]
   reviews       Review[]
 
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  productViews ProductView[]
+}
+
+model ProductView {
+  id        Int      @id @default(autoincrement())
+  product   Product  @relation(fields: [productId], references: [id])
+  productId Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  viewCount Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -280,7 +295,7 @@ model ProductSize {
   id Int @id @default(autoincrement())
 
   sku      String?
-  price    Float? // optional override
+  price    Float?
   quantity Int     @default(0)
 
   sizeId Int
@@ -335,6 +350,9 @@ model CartItem {
   quantity   Int   @default(1)
   priceAtAdd Float
   subtotal   Float
+
+  color String
+  size  String
 
   productSize   ProductSize @relation(fields: [productSizeId], references: [id])
   productSizeId Int
@@ -401,15 +419,15 @@ model Review {
 // Wishlist
 // =====================
 model Wishlist {
-  id        Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
 
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
   productId Int
 
-  isActive  Boolean  @default(true)
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -456,6 +474,15 @@ model Banner {
   active Boolean @default(true)
 }
 
+model HomepageBanner {
+  id        Int      @id @default(autoincrement())
+  image     String
+  sortOrder Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model PromoBanner {
   id        Int      @id @default(autoincrement())
   text      String
@@ -475,6 +502,19 @@ model PromoBannerLink {
 
   bannerId Int
   banner   PromoBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+}
+
+model FeaturedCategory {
+  id        Int     @id @default(autoincrement())
+  image     String
+  sortOrder Int
+  isActive  Boolean @default(true)
+
+  subcategory   SubCategory @relation(fields: [subCategoryId], references: [id])
+  subCategoryId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ActivityLog {

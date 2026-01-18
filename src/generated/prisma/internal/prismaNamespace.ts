@@ -402,6 +402,7 @@ export const ModelName = {
   SubCategoryBlogs: 'SubCategoryBlogs',
   ProductSubCategory: 'ProductSubCategory',
   Product: 'Product',
+  ProductView: 'ProductView',
   Material: 'Material',
   ProductImage: 'ProductImage',
   ProductColor: 'ProductColor',
@@ -437,7 +438,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "subCategoryBlogs" | "productSubCategory" | "product" | "material" | "productImage" | "productColor" | "productColorImage" | "color" | "productSize" | "variant" | "size" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogCategory" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
+    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "subCategoryBlogs" | "productSubCategory" | "product" | "productView" | "material" | "productImage" | "productColor" | "productColorImage" | "color" | "productSize" | "variant" | "size" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogCategory" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1326,6 +1327,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ProductCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ProductCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProductView: {
+      payload: Prisma.$ProductViewPayload<ExtArgs>
+      fields: Prisma.ProductViewFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProductViewFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProductViewFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>
+        }
+        findFirst: {
+          args: Prisma.ProductViewFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProductViewFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>
+        }
+        findMany: {
+          args: Prisma.ProductViewFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>[]
+        }
+        create: {
+          args: Prisma.ProductViewCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>
+        }
+        createMany: {
+          args: Prisma.ProductViewCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProductViewCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>[]
+        }
+        delete: {
+          args: Prisma.ProductViewDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>
+        }
+        update: {
+          args: Prisma.ProductViewUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>
+        }
+        deleteMany: {
+          args: Prisma.ProductViewDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProductViewUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProductViewUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>[]
+        }
+        upsert: {
+          args: Prisma.ProductViewUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductViewPayload>
+        }
+        aggregate: {
+          args: Prisma.ProductViewAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProductView>
+        }
+        groupBy: {
+          args: Prisma.ProductViewGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductViewGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProductViewCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductViewCountAggregateOutputType> | number
         }
       }
     }
@@ -2997,6 +3072,7 @@ export const ProductScalarFieldEnum = {
   discount: 'discount',
   discountEnd: 'discountEnd',
   discountStart: 'discountStart',
+  viewCount: 'viewCount',
   note: 'note',
   deliveryEstimate: 'deliveryEstimate',
   productDetails: 'productDetails',
@@ -3009,6 +3085,18 @@ export const ProductScalarFieldEnum = {
 } as const
 
 export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeof ProductScalarFieldEnum]
+
+
+export const ProductViewScalarFieldEnum = {
+  id: 'id',
+  productId: 'productId',
+  userId: 'userId',
+  viewCount: 'viewCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProductViewScalarFieldEnum = (typeof ProductViewScalarFieldEnum)[keyof typeof ProductViewScalarFieldEnum]
 
 
 export const MaterialScalarFieldEnum = {
@@ -3492,6 +3580,7 @@ export type GlobalOmitConfig = {
   subCategoryBlogs?: Prisma.SubCategoryBlogsOmit
   productSubCategory?: Prisma.ProductSubCategoryOmit
   product?: Prisma.ProductOmit
+  productView?: Prisma.ProductViewOmit
   material?: Prisma.MaterialOmit
   productImage?: Prisma.ProductImageOmit
   productColor?: Prisma.ProductColorOmit

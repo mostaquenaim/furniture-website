@@ -61,6 +61,7 @@ export const ModelName = {
   SubCategoryBlogs: 'SubCategoryBlogs',
   ProductSubCategory: 'ProductSubCategory',
   Product: 'Product',
+  ProductView: 'ProductView',
   Material: 'Material',
   ProductImage: 'ProductImage',
   ProductColor: 'ProductColor',
@@ -248,6 +249,7 @@ export const ProductScalarFieldEnum = {
   discount: 'discount',
   discountEnd: 'discountEnd',
   discountStart: 'discountStart',
+  viewCount: 'viewCount',
   note: 'note',
   deliveryEstimate: 'deliveryEstimate',
   productDetails: 'productDetails',
@@ -260,6 +262,18 @@ export const ProductScalarFieldEnum = {
 } as const
 
 export type ProductScalarFieldEnum = (typeof ProductScalarFieldEnum)[keyof typeof ProductScalarFieldEnum]
+
+
+export const ProductViewScalarFieldEnum = {
+  id: 'id',
+  productId: 'productId',
+  userId: 'userId',
+  viewCount: 'viewCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProductViewScalarFieldEnum = (typeof ProductViewScalarFieldEnum)[keyof typeof ProductViewScalarFieldEnum]
 
 
 export const MaterialScalarFieldEnum = {

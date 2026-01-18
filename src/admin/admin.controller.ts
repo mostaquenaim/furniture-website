@@ -11,7 +11,6 @@ import {
   Body,
   Patch,
   Param,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -24,11 +23,11 @@ import { CmsService } from 'src/cms/cms.service';
 import { CreateColorDto } from 'src/cms/dto/create-color.dto';
 import { CreateSizeDto } from 'src/cms/dto/create-size-dto.dto';
 import { CreateVariantDto } from 'src/cms/dto/create-variant.dto';
-import { CreateProductDto } from 'src/product/dto/create-product.dto';
 import { ProductService } from 'src/product/product.service';
 import { UpdateProductDto } from 'src/product/dto/update-product.dto';
 import { CreateBlogDto } from 'src/blog/dto/create-blog.dto';
 import { BlogsService } from 'src/blog/blog.service';
+import { CreateBlogCategoryDto } from 'src/blog/dto/create-blog-category.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -135,7 +134,13 @@ export class AdminController {
   ////////////////////
   @Post('/blogs')
   async createBlog(@Body() dto: CreateBlogDto) {
-    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.blogService.createBlog(dto);
+  }
+
+  @Post('blog-categories')
+  async createBlogCategory(@Body() dto: CreateBlogCategoryDto) {
+    // console.log('DTO:', dto);
+    return this.blogService.createBlogCategory(dto);
   }
 }

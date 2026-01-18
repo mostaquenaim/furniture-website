@@ -10,7 +10,6 @@ import {
   Param,
   Body,
 } from '@nestjs/common';
-import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { BlogsService } from './blog.service';
 
@@ -23,13 +22,14 @@ export class BlogsController {
     return this.service.getAll();
   }
 
-  @Get(':slug')
+  @Get('/details/:slug')
   getBySlug(@Param('slug') slug: string) {
     return this.service.getBySlug(slug);
   }
 
   @Get('categories')
   getCategories() {
+    console.log('here');
     return this.service.getCategories();
   }
 

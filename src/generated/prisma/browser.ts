@@ -78,6 +78,11 @@ export type ProductSubCategory = Prisma.ProductSubCategoryModel
  */
 export type Product = Prisma.ProductModel
 /**
+ * Model ProductView
+ * 
+ */
+export type ProductView = Prisma.ProductViewModel
+/**
  * Model Material
  * 
  */

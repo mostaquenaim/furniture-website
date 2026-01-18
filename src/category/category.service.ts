@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NotFoundException,
@@ -148,6 +149,145 @@ export class CategoryService {
         sortOrder: dto.sortOrder ?? 0,
       },
     });
+  }
+
+  // get products by series
+  async getSeriesWiseProducts({
+    page = 1,
+    limit = 10,
+    search,
+    isActive = true,
+    slug,
+  }: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+    slug?: string;
+  }) {
+    const selectedSeries = await this.prisma.series.findFirst({
+      where: { slug },
+      select: { id: true, name: true },
+    });
+
+    if (!selectedSeries) {
+      return {
+        products: [],
+        subcategories: [],
+        blog: null,
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.productSubCategory.findMany({
+        skip,
+        take: limit,
+        where: {
+          product: { isActive },
+          subCategory: {
+            isActive,
+            category: {
+              isActive,
+              seriesId: selectedSeries.id,
+              series: { isActive },
+            },
+          },
+        },
+        include: {
+          product: {
+            include: {
+              images: true,
+              colors: {
+                include: { color: true },
+              },
+            },
+          },
+          subCategory: {
+            include: {
+              blogs: {
+                where: {
+                  blogPost: { published: true },
+                },
+                take: 1,
+                include: {
+                  blogPost: {
+                    select: {
+                      id: true,
+                      title: true,
+                      slug: true,
+                      content: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      this.prisma.productSubCategory.count({
+        where: {
+          product: { isActive },
+          subCategory: {
+            isActive,
+            category: {
+              isActive,
+              seriesId: selectedSeries.id,
+              series: { isActive },
+            },
+          },
+        },
+      }),
+    ]);
+
+    // ---------------------------
+    // NORMALIZATION
+    // ---------------------------
+
+    const productMap = new Map<number, any>();
+    const subCategoryMap = new Map<number, any>();
+    let blog: any = null;
+
+    for (const row of rows) {
+      // Products (deduplicated)
+      if (!productMap.has(row.product.id)) {
+        productMap.set(row.product.id, row.product);
+      }
+
+      // Subcategories (deduplicated)
+      if (!subCategoryMap.has(row.subCategory.id)) {
+        subCategoryMap.set(row.subCategory.id, {
+          id: row.subCategory.id,
+          name: row.subCategory.name,
+          slug: row.subCategory.slug,
+          categoryId: row.subCategory.categoryId,
+        });
+      }
+
+      // Single blog (pick first published only)
+      if (!blog) {
+        const blogPost = row.subCategory.blogs?.[0]?.blogPost;
+        if (blogPost) {
+          blog = blogPost;
+        }
+      }
+    }
+
+    return {
+      products: Array.from(productMap.values()),
+      subcategories: Array.from(subCategoryMap.values()),
+      blog,
+      series: selectedSeries.name,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   // =====================
@@ -303,8 +443,21 @@ export class CategoryService {
           subCategory: {
             include: {
               blogs: {
+                where: {
+                  blogPost: {
+                    published: true,
+                  },
+                },
+                take: 1,
                 include: {
-                  blogPost: true,
+                  blogPost: {
+                    select: {
+                      title: true,
+                      slug: true,
+                      published: true,
+                      content: true,
+                    },
+                  },
                 },
               },
             },
@@ -312,6 +465,9 @@ export class CategoryService {
         },
         where: {
           subCategoryId: subcategory?.id,
+          subCategory: {
+            isActive: isActive,
+          },
           product: {
             isActive: isActive,
           },
@@ -320,6 +476,9 @@ export class CategoryService {
       this.prisma.productSubCategory.count({
         where: {
           subCategoryId: subcategory?.id,
+          subCategory: {
+            isActive: isActive,
+          },
           product: {
             isActive: isActive,
           },

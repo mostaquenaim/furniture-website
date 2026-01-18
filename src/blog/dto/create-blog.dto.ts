@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsBoolean, IsInt } from 'class-validator';
 
 export class CreateBlogDto {
   @IsString()
@@ -19,15 +19,11 @@ export class CreateBlogDto {
   published?: boolean;
 
   // Blog Category
-  @IsString()
-  categorySlug: string;
-
-  @IsOptional()
-  @IsString()
-  categoryName?: string;
+  @IsInt()
+  blogCategoryId: number;
 
   // Subcategories
   @IsOptional()
   @IsArray()
-  subcategoryIds?: string[];
+  selectedSubCategoryIds?: string[];
 }

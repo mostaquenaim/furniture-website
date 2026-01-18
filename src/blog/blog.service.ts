@@ -2,10 +2,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateBlogCategoryDto } from './dto/create-blog-category.dto';
 
 @Injectable()
 export class BlogsService {
@@ -18,6 +23,7 @@ export class BlogsService {
   }
 
   async createBlog(dto: CreateBlogDto) {
+    console.log(dto);
     // Check duplicate blog slug
     const existingBlog = await this.prisma.blogPost.findUnique({
       where: { slug: dto.slug },
@@ -28,23 +34,12 @@ export class BlogsService {
     }
 
     // Find or create blog category
-    let category = await this.prisma.blogCategory.findUnique({
-      where: { slug: dto.categorySlug },
+    const category = await this.prisma.blogCategory.findUnique({
+      where: { id: dto.blogCategoryId },
     });
 
     if (!category) {
-      if (!dto.categoryName) {
-        throw new ConflictException(
-          'Category does not exist. categoryName is required to create one.',
-        );
-      }
-
-      category = await this.prisma.blogCategory.create({
-        data: {
-          name: dto.categoryName,
-          slug: dto.categorySlug,
-        },
-      });
+      throw new BadRequestException('Category not found');
     }
 
     // Create blog post
@@ -62,12 +57,10 @@ export class BlogsService {
         },
 
         // Subcategories (many-to-many)
-        subCategories: dto.subcategoryIds?.length
+        subCategories: dto.selectedSubCategoryIds?.length
           ? {
-              create: dto.subcategoryIds.map((id) => ({
-                subCategory: {
-                  connect: { id: Number(id) },
-                },
+              create: dto.selectedSubCategoryIds.map((id) => ({
+                subCategoryId: Number(id),
               })),
             }
           : undefined,
@@ -83,21 +76,55 @@ export class BlogsService {
     return blog;
   }
 
+  async createBlogCategory(dto: CreateBlogCategoryDto) {
+    const { name, slug: inputSlug, order = 0, isActive = true } = dto;
+
+    // Auto-generate slug if not provided
+    const slug =
+      inputSlug ||
+      name
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+
+    // Check for duplicates
+    const existing = await this.prisma.blogCategory.findUnique({
+      where: { slug },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Category with this name already exists');
+    }
+
+    // Create category
+    const category = await this.prisma.blogCategory.create({
+      data: {
+        name,
+        slug,
+        order,
+        isActive,
+      },
+    });
+
+    return category;
+  }
+
   getBySlug(slug: string) {
     console.log(slug);
     // return this.blogs.find((b) => b.slug === slug);
   }
 
   async getCategories() {
-    // try {
+    console.log('here it goes');
     const categories = await this.prisma.blogCategory.findMany({
       where: { isActive: true },
       orderBy: { order: 'asc' },
     });
+
+    console.log(categories);
     return categories;
-    // } catch (error) {
-    //   throw new Error('Failed to fetch categories');
-    // }
   }
 
   update(id: string, dto: UpdateBlogDto) {
