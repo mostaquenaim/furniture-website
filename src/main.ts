@@ -18,6 +18,7 @@ async function bootstrap() {
       'http://localhost:9000',
       'http://127.0.0.1:9000',
       'https://sakigaibd.draft',
+      'https://furniture-frontend-iota.vercel.app/',
     ],
     //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     //   credentials: true,

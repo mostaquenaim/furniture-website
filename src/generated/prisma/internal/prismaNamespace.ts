@@ -420,8 +420,10 @@ export const ModelName = {
   BlogCategory: 'BlogCategory',
   BlogPost: 'BlogPost',
   Banner: 'Banner',
+  HomepageBanner: 'HomepageBanner',
   PromoBanner: 'PromoBanner',
   PromoBannerLink: 'PromoBannerLink',
+  FeaturedCategory: 'FeaturedCategory',
   ActivityLog: 'ActivityLog'
 } as const
 
@@ -438,7 +440,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "subCategoryBlogs" | "productSubCategory" | "product" | "productView" | "material" | "productImage" | "productColor" | "productColorImage" | "color" | "productSize" | "variant" | "size" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogCategory" | "blogPost" | "banner" | "promoBanner" | "promoBannerLink" | "activityLog"
+    modelProps: "user" | "frontendPermission" | "backendPermission" | "oTP" | "blackListToken" | "loginAttempt" | "series" | "category" | "subCategory" | "subCategoryBlogs" | "productSubCategory" | "product" | "productView" | "material" | "productImage" | "productColor" | "productColorImage" | "color" | "productSize" | "variant" | "size" | "cart" | "cartItem" | "order" | "orderItem" | "review" | "wishlist" | "blogCategory" | "blogPost" | "banner" | "homepageBanner" | "promoBanner" | "promoBannerLink" | "featuredCategory" | "activityLog"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2662,6 +2664,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    HomepageBanner: {
+      payload: Prisma.$HomepageBannerPayload<ExtArgs>
+      fields: Prisma.HomepageBannerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.HomepageBannerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.HomepageBannerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>
+        }
+        findFirst: {
+          args: Prisma.HomepageBannerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.HomepageBannerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>
+        }
+        findMany: {
+          args: Prisma.HomepageBannerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>[]
+        }
+        create: {
+          args: Prisma.HomepageBannerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>
+        }
+        createMany: {
+          args: Prisma.HomepageBannerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.HomepageBannerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>[]
+        }
+        delete: {
+          args: Prisma.HomepageBannerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>
+        }
+        update: {
+          args: Prisma.HomepageBannerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>
+        }
+        deleteMany: {
+          args: Prisma.HomepageBannerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.HomepageBannerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.HomepageBannerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>[]
+        }
+        upsert: {
+          args: Prisma.HomepageBannerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$HomepageBannerPayload>
+        }
+        aggregate: {
+          args: Prisma.HomepageBannerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateHomepageBanner>
+        }
+        groupBy: {
+          args: Prisma.HomepageBannerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.HomepageBannerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.HomepageBannerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.HomepageBannerCountAggregateOutputType> | number
+        }
+      }
+    }
     PromoBanner: {
       payload: Prisma.$PromoBannerPayload<ExtArgs>
       fields: Prisma.PromoBannerFieldRefs
@@ -2807,6 +2883,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.PromoBannerLinkCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.PromoBannerLinkCountAggregateOutputType> | number
+        }
+      }
+    }
+    FeaturedCategory: {
+      payload: Prisma.$FeaturedCategoryPayload<ExtArgs>
+      fields: Prisma.FeaturedCategoryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FeaturedCategoryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FeaturedCategoryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>
+        }
+        findFirst: {
+          args: Prisma.FeaturedCategoryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FeaturedCategoryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>
+        }
+        findMany: {
+          args: Prisma.FeaturedCategoryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>[]
+        }
+        create: {
+          args: Prisma.FeaturedCategoryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>
+        }
+        createMany: {
+          args: Prisma.FeaturedCategoryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FeaturedCategoryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>[]
+        }
+        delete: {
+          args: Prisma.FeaturedCategoryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>
+        }
+        update: {
+          args: Prisma.FeaturedCategoryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>
+        }
+        deleteMany: {
+          args: Prisma.FeaturedCategoryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FeaturedCategoryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FeaturedCategoryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>[]
+        }
+        upsert: {
+          args: Prisma.FeaturedCategoryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FeaturedCategoryPayload>
+        }
+        aggregate: {
+          args: Prisma.FeaturedCategoryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFeaturedCategory>
+        }
+        groupBy: {
+          args: Prisma.FeaturedCategoryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FeaturedCategoryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FeaturedCategoryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FeaturedCategoryCountAggregateOutputType> | number
         }
       }
     }
@@ -3207,6 +3357,8 @@ export const CartItemScalarFieldEnum = {
   quantity: 'quantity',
   priceAtAdd: 'priceAtAdd',
   subtotal: 'subtotal',
+  color: 'color',
+  size: 'size',
   productSizeId: 'productSizeId'
 } as const
 
@@ -3300,6 +3452,18 @@ export const BannerScalarFieldEnum = {
 export type BannerScalarFieldEnum = (typeof BannerScalarFieldEnum)[keyof typeof BannerScalarFieldEnum]
 
 
+export const HomepageBannerScalarFieldEnum = {
+  id: 'id',
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type HomepageBannerScalarFieldEnum = (typeof HomepageBannerScalarFieldEnum)[keyof typeof HomepageBannerScalarFieldEnum]
+
+
 export const PromoBannerScalarFieldEnum = {
   id: 'id',
   text: 'text',
@@ -3321,6 +3485,19 @@ export const PromoBannerLinkScalarFieldEnum = {
 } as const
 
 export type PromoBannerLinkScalarFieldEnum = (typeof PromoBannerLinkScalarFieldEnum)[keyof typeof PromoBannerLinkScalarFieldEnum]
+
+
+export const FeaturedCategoryScalarFieldEnum = {
+  id: 'id',
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  subCategoryId: 'subCategoryId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type FeaturedCategoryScalarFieldEnum = (typeof FeaturedCategoryScalarFieldEnum)[keyof typeof FeaturedCategoryScalarFieldEnum]
 
 
 export const ActivityLogScalarFieldEnum = {
@@ -3598,8 +3775,10 @@ export type GlobalOmitConfig = {
   blogCategory?: Prisma.BlogCategoryOmit
   blogPost?: Prisma.BlogPostOmit
   banner?: Prisma.BannerOmit
+  homepageBanner?: Prisma.HomepageBannerOmit
   promoBanner?: Prisma.PromoBannerOmit
   promoBannerLink?: Prisma.PromoBannerLinkOmit
+  featuredCategory?: Prisma.FeaturedCategoryOmit
   activityLog?: Prisma.ActivityLogOmit
 }
 

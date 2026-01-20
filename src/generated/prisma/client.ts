@@ -193,6 +193,11 @@ export type BlogPost = Prisma.BlogPostModel
  */
 export type Banner = Prisma.BannerModel
 /**
+ * Model HomepageBanner
+ * 
+ */
+export type HomepageBanner = Prisma.HomepageBannerModel
+/**
  * Model PromoBanner
  * 
  */
@@ -202,6 +207,11 @@ export type PromoBanner = Prisma.PromoBannerModel
  * 
  */
 export type PromoBannerLink = Prisma.PromoBannerLinkModel
+/**
+ * Model FeaturedCategory
+ * 
+ */
+export type FeaturedCategory = Prisma.FeaturedCategoryModel
 /**
  * Model ActivityLog
  * 

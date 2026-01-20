@@ -79,8 +79,10 @@ export const ModelName = {
   BlogCategory: 'BlogCategory',
   BlogPost: 'BlogPost',
   Banner: 'Banner',
+  HomepageBanner: 'HomepageBanner',
   PromoBanner: 'PromoBanner',
   PromoBannerLink: 'PromoBannerLink',
+  FeaturedCategory: 'FeaturedCategory',
   ActivityLog: 'ActivityLog'
 } as const
 
@@ -384,6 +386,8 @@ export const CartItemScalarFieldEnum = {
   quantity: 'quantity',
   priceAtAdd: 'priceAtAdd',
   subtotal: 'subtotal',
+  color: 'color',
+  size: 'size',
   productSizeId: 'productSizeId'
 } as const
 
@@ -477,6 +481,18 @@ export const BannerScalarFieldEnum = {
 export type BannerScalarFieldEnum = (typeof BannerScalarFieldEnum)[keyof typeof BannerScalarFieldEnum]
 
 
+export const HomepageBannerScalarFieldEnum = {
+  id: 'id',
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type HomepageBannerScalarFieldEnum = (typeof HomepageBannerScalarFieldEnum)[keyof typeof HomepageBannerScalarFieldEnum]
+
+
 export const PromoBannerScalarFieldEnum = {
   id: 'id',
   text: 'text',
@@ -498,6 +514,19 @@ export const PromoBannerLinkScalarFieldEnum = {
 } as const
 
 export type PromoBannerLinkScalarFieldEnum = (typeof PromoBannerLinkScalarFieldEnum)[keyof typeof PromoBannerLinkScalarFieldEnum]
+
+
+export const FeaturedCategoryScalarFieldEnum = {
+  id: 'id',
+  image: 'image',
+  sortOrder: 'sortOrder',
+  isActive: 'isActive',
+  subCategoryId: 'subCategoryId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type FeaturedCategoryScalarFieldEnum = (typeof FeaturedCategoryScalarFieldEnum)[keyof typeof FeaturedCategoryScalarFieldEnum]
 
 
 export const ActivityLogScalarFieldEnum = {

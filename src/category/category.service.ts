@@ -95,31 +95,46 @@ export class CategoryService {
   // =====================
   // SERIES
   // =====================
-
   getAllSeries(withRelations = false, isActive?: boolean) {
     return this.prisma.series.findMany({
       where: {
         ...(isActive !== undefined && { isActive }),
       },
       orderBy: { sortOrder: 'asc' },
-      include: withRelations
-        ? {
-            categories: {
-              where: {
-                ...(isActive !== undefined && { isActive }),
-              },
-              orderBy: { sortOrder: 'asc' },
-              include: {
-                subCategories: {
-                  where: {
-                    ...(isActive !== undefined && { isActive }),
-                  },
-                  orderBy: { sortOrder: 'asc' },
+
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        image: true,
+        notice: true,
+
+        ...(withRelations && {
+          categories: {
+            where: {
+              ...(isActive !== undefined && { isActive }),
+            },
+            orderBy: { sortOrder: 'asc' },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+
+              subCategories: {
+                where: {
+                  ...(isActive !== undefined && { isActive }),
+                },
+                orderBy: { sortOrder: 'asc' },
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
                 },
               },
             },
-          }
-        : undefined,
+          },
+        }),
+      },
     });
   }
 
@@ -373,7 +388,6 @@ export class CategoryService {
   // =====================
   // SUBCATEGORY
   // =====================
-
   getAllActiveSubCategories(withRelations = false) {
     return this.prisma.subCategory.findMany({
       where: { isActive: true },
