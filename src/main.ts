@@ -10,7 +10,11 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Security middlewares
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // CORS
   app.enableCors({
@@ -45,6 +49,8 @@ async function bootstrap() {
   );
   // prefix is set to "api"
   app.setGlobalPrefix('api');
+  // Without this, cookies + IPs can behave weird.
+  // app.set('trust proxy', 1);
   // Listen AFTER all config
   await app.listen(process.env.PORT ?? 3000);
 }

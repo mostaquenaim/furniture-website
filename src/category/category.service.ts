@@ -308,7 +308,6 @@ export class CategoryService {
   // =====================
   // CATEGORY
   // =====================
-
   getAllActiveCategories(withRelations = false) {
     return this.prisma.category.findMany({
       where: { isActive: true },

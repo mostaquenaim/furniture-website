@@ -8,7 +8,6 @@ export class CategoryController {
   // =====================
   // SERIES
   // =====================
-
   @Get('series')
   getAllSeries() {
     return this.categoryService.getAllSeries(false, true);
@@ -45,7 +44,6 @@ export class CategoryController {
   // =====================
   // CATEGORY
   // =====================
-
   @Get('categories')
   getAllCategories() {
     return this.categoryService.getAllActiveCategories(false);
@@ -74,7 +72,6 @@ export class CategoryController {
   // =====================
   // SUBCATEGORY
   // =====================
-
   @Get('subcategory')
   getAllSubCategories() {
     return this.categoryService.getAllActiveSubCategories(false);
@@ -92,7 +89,7 @@ export class CategoryController {
     return this.categoryService.getSubCategoriesByCategory(categoryId);
   }
 
-  // get subCategory by id 
+  // get subCategory by id
   @Get('subcategory/:id')
   getSubCategory(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.getSubCategoryById(id);
