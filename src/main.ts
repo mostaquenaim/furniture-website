@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -12,16 +14,25 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: [
-      'http://localhost:7000',
-      'http://127.0.0.1:7000',
-      'http://localhost:9000',
-      'http://127.0.0.1:9000',
-      'https://sakigaibd.draft',
-      'https://furniture-frontend-iota.vercel.app/',
-    ],
-    //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    //   credentials: true,
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        'http://localhost:7000',
+        'http://127.0.0.1:7000',
+        'http://localhost:9000',
+        'http://127.0.0.1:9000',
+        'https://sakigaibd.draft',
+        'https://sakigai-frontend.vercel.app', // example
+      ];
+
+      // allow server-to-server & Postman
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   });
 
