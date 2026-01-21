@@ -18,6 +18,7 @@ const sampleData = {
       categories: [
         {
           id: 1,
+          name: 'Sofas',
           slug: 'sofas',
           image: 'https://example.com/images/categories/sofas.jpg',
           sortOrder: 1,
@@ -94,6 +95,7 @@ const sampleData = {
         },
         {
           id: 2,
+          name: 'Coffee Tables',
           slug: 'coffee-tables',
           image: 'https://example.com/images/categories/coffee-tables.jpg',
           sortOrder: 2,
@@ -129,6 +131,7 @@ const sampleData = {
         },
         {
           id: 3,
+          name: 'TV Stands',
           slug: 'tv-stands',
           image: 'https://example.com/images/categories/tv-stands.jpg',
           sortOrder: 3,
@@ -175,6 +178,7 @@ const sampleData = {
       categories: [
         {
           id: 4,
+          name: 'Beds',
           slug: 'beds',
           image: 'https://example.com/images/categories/beds.jpg',
           sortOrder: 1,
@@ -236,6 +240,7 @@ const sampleData = {
         },
         {
           id: 5,
+          name: 'Wardrobes',
           slug: 'wardrobes',
           image: 'https://example.com/images/categories/wardrobes.jpg',
           sortOrder: 2,
@@ -282,6 +287,7 @@ const sampleData = {
       categories: [
         {
           id: 6,
+          name: 'Kitchen Cabinets',
           slug: 'kitchen-cabinets',
           image: 'https://example.com/images/categories/kitchen-cabinets.jpg',
           sortOrder: 1,
@@ -317,6 +323,7 @@ const sampleData = {
         },
         {
           id: 7,
+          name: 'Dining Tables',
           slug: 'dining-tables',
           image: 'https://example.com/images/categories/dining-tables.jpg',
           sortOrder: 2,
@@ -363,6 +370,7 @@ const sampleData = {
       categories: [
         {
           id: 8,
+          name: 'Office Desks',
           slug: 'office-desks',
           image: 'https://example.com/images/categories/office-desks.jpg',
           sortOrder: 1,
@@ -398,6 +406,7 @@ const sampleData = {
         },
         {
           id: 9,
+          name: 'Office Chairs',
           slug: 'office-chairs',
           image: 'https://example.com/images/categories/office-chairs.jpg',
           sortOrder: 2,
@@ -444,6 +453,7 @@ const sampleData = {
       categories: [
         {
           id: 10,
+          name: 'Patio Furniture',
           slug: 'patio-furniture',
           image: 'https://example.com/images/categories/patio-furniture.jpg',
           sortOrder: 1,
@@ -490,6 +500,7 @@ const sampleData = {
       categories: [
         {
           id: 11,
+          name: 'Kids Beds',
           slug: 'kids-beds',
           image: 'https://example.com/images/categories/kids-beds.jpg',
           sortOrder: 1,
@@ -535,6 +546,7 @@ const sampleData = {
       categories: [
         {
           id: 12,
+          name: 'Shelves',
           slug: 'shelves',
           image: 'https://example.com/images/categories/shelves.jpg',
           sortOrder: 1,
@@ -581,6 +593,7 @@ const sampleData = {
       categories: [
         {
           id: 13,
+          name: 'Ceiling Lights',
           slug: 'ceiling-lights',
           image: 'https://example.com/images/categories/ceiling-lights.jpg',
           sortOrder: 1,
@@ -626,6 +639,7 @@ const sampleData = {
       categories: [
         {
           id: 14,
+          name: 'Wall Art',
           slug: 'wall-art',
           image: 'https://example.com/images/categories/wall-art.jpg',
           sortOrder: 1,
@@ -673,6 +687,7 @@ const sampleData = {
         {
           id: 15,
           slug: 'vanities',
+          name: 'Vanities',
           image: 'https://example.com/images/categories/vanities.jpg',
           sortOrder: 1,
           isActive: true,
@@ -718,6 +733,7 @@ const sampleData = {
       categories: [
         {
           id: 16,
+          name: 'Home Theater',
           slug: 'home-theater',
           image: 'https://example.com/images/categories/home-theater.jpg',
           sortOrder: 1,
@@ -764,6 +780,7 @@ const sampleData = {
       categories: [
         {
           id: 17,
+          name: 'Accent Chairs',
           slug: 'accent-chairs',
           image: 'https://example.com/images/categories/accent-chairs.jpg',
           sortOrder: 1,
@@ -802,31 +819,26 @@ const sampleData = {
 };
 
 async function main() {
-  console.log('Seeding data...');
+  console.log('🌱 Seeding Sakigai catalog...');
 
-  for (const seriesItem of sampleData.series) {
-    // Create or Update Series
+  for (const seriesItem of sampleData) {
     const series = await prisma.series.upsert({
       where: { slug: seriesItem.slug },
       update: {
         name: seriesItem.name,
         image: seriesItem.image,
         notice: seriesItem.notice,
-        isActive: seriesItem.isActive,
-        sortOrder: seriesItem.sortOrder,
       },
       create: {
         name: seriesItem.name,
         slug: seriesItem.slug,
         image: seriesItem.image,
         notice: seriesItem.notice,
-        isActive: seriesItem.isActive,
-        sortOrder: seriesItem.sortOrder,
+        isActive: true,
       },
     });
 
     for (const categoryItem of seriesItem.categories) {
-      // Create or Update Category (Unique by seriesId and slug)
       const category = await prisma.category.upsert({
         where: {
           seriesId_slug: {
@@ -835,48 +847,39 @@ async function main() {
           },
         },
         update: {
-          image: categoryItem.image,
-          sortOrder: categoryItem.sortOrder,
-          isActive: categoryItem.isActive,
+          name: categoryItem.name,
         },
         create: {
+          name: categoryItem.name,
           slug: categoryItem.slug,
-          image: categoryItem.image,
-          sortOrder: categoryItem.sortOrder,
-          isActive: categoryItem.isActive,
           seriesId: series.id,
+          isActive: true,
         },
       });
 
-      for (const subItem of categoryItem.subCategories) {
-        // Create or Update SubCategory (Unique by categoryId and slug)
+      for (const sub of categoryItem.subCategories) {
         await prisma.subCategory.upsert({
           where: {
             categoryId_slug: {
               categoryId: category.id,
-              slug: subItem.slug,
+              slug: sub.slug,
             },
           },
           update: {
-            name: subItem.name,
-            image: subItem.image,
-            sortOrder: subItem.sortOrder,
-            isActive: subItem.isActive,
+            name: sub.name,
           },
           create: {
-            name: subItem.name,
-            slug: subItem.slug,
-            image: subItem.image,
-            sortOrder: subItem.sortOrder,
-            isActive: subItem.isActive,
+            name: sub.name,
+            slug: sub.slug,
             categoryId: category.id,
+            isActive: true,
           },
         });
       }
     }
   }
 
-  console.log('Seed data inserted successfully!');
+  console.log('✅ Sakigai catalog seeded successfully');
 }
 
 main()
