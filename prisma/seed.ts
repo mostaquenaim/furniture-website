@@ -802,7 +802,7 @@ const sampleData = {
 };
 
 async function main() {
-  console.log('⏳ Seeding data...');
+  console.log('Seeding data...');
 
   for (const seriesItem of sampleData.series) {
     // Create or Update Series
@@ -876,7 +876,7 @@ async function main() {
     }
   }
 
-  console.log('🌱 Seed data inserted successfully!');
+  console.log('Seed data inserted successfully!');
 }
 
 main()
