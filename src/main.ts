@@ -22,9 +22,6 @@ async function bootstrap() {
       const allowedOrigins = [
         'http://localhost:7000',
         'http://127.0.0.1:7000',
-        'http://localhost:9000',
-        'http://127.0.0.1:9000',
-        'https://sakigaibd.draft',
         'https://furniture-frontend-iota.vercel.app',
       ];
 
