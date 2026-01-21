@@ -8,7 +8,7 @@
   "scripts": {
     "build": "npx prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start:prod": "node dist/src/main.js",
+    "start:prod": "npx prisma migrate deploy && npx prisma db seed && node dist/src/main.js",
     "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "seed:prod": "npx prisma db seed",
