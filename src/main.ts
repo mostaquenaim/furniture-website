@@ -25,7 +25,7 @@ async function bootstrap() {
         'http://localhost:9000',
         'http://127.0.0.1:9000',
         'https://sakigaibd.draft',
-        'https://sakigai-frontend.vercel.app', // example
+        'https://sakigai-frontend.vercel.app',
       ];
 
       // allow server-to-server & Postman
@@ -47,6 +47,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
   // prefix is set to "api"
   app.setGlobalPrefix('api');
   // Without this, cookies + IPs can behave weird.
