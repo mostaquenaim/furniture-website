@@ -32,6 +32,7 @@ export class CategoryController {
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
   ) {
+    console.log('getSeriesWiseProducts');
     return this.categoryService.getSeriesWiseProducts({
       page: Number(page) || 1,
       limit: Number(limit) || 10,
