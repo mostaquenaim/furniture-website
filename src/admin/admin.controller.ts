@@ -28,6 +28,7 @@ import { UpdateProductDto } from 'src/product/dto/update-product.dto';
 import { CreateBlogDto } from 'src/blog/dto/create-blog.dto';
 import { BlogsService } from 'src/blog/blog.service';
 import { CreateBlogCategoryDto } from 'src/blog/dto/create-blog-category.dto';
+import { CreateMaterialDto } from 'src/cms/dto/create-material.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -111,6 +112,11 @@ export class AdminController {
     return this.cmsService.createVariant(createVariantDto);
   }
 
+  @Post('material')
+  addMaterial(@Body() createMaterialDto: CreateMaterialDto) {
+    return this.cmsService.addMaterial(createMaterialDto);
+  }
+
   //////////////////////
   ////// PRODUCT //////
   ////////////////////
@@ -127,6 +133,12 @@ export class AdminController {
   ) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.productService.updateProduct(productId, dto);
+  }
+
+  @Get('product-sync-prices')
+  async syncAllProductPrices() {
+    console.log('admin');
+    return this.productService.syncAllProductPrices();
   }
 
   //////////////////////

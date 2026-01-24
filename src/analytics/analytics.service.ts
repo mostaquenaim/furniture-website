@@ -34,22 +34,34 @@ export class AnalyticsService {
   ];
 
   // Sales analytics
-  getSales() { return this.sales; }
+  getSales() {
+    return this.sales;
+  }
 
   // Product analytics
-  getProducts() { return this.products; }
+  getProducts() {
+    return this.products;
+  }
 
   // User analytics
-  getUsers() { return this.users; }
+  getUsers() {
+    return this.users;
+  }
 
   // Search keyword analytics
-  getSearch() { return this.searchKeywords; }
+  getSearch() {
+    return this.searchKeywords;
+  }
 
   // User retention analytics
-  getRetention() { return this.retention; }
+  getRetention() {
+    return this.retention;
+  }
 
   // Revenue trends
-  getRevenue() { return this.revenue; }
+  getRevenue() {
+    return this.revenue;
+  }
 
   // Dashboard summary
   getDashboard() {

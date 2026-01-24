@@ -429,78 +429,128 @@ export class CategoryService {
     isActive?: boolean;
     slug?: string;
   }) {
-    const subcategory = await this.prisma.subCategory.findFirst({
+    const subCategory = await this.prisma.subCategory.findFirst({
       where: {
         slug,
+        isActive,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            series: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        categoryId: true,
       },
     });
 
+    if (!subCategory) {
+      return {
+        products: [],
+        blog: null,
+        subCategory: null,
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.prisma.$transaction([
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.productSubCategory.findMany({
         skip,
         take: limit,
+        where: {
+          subCategoryId: subCategory.id,
+          subCategory: { isActive },
+          product: { isActive },
+        },
         include: {
           product: {
             include: {
               images: true,
               colors: {
-                include: {
-                  color: true,
-                },
+                include: { color: true },
               },
             },
           },
-
           subCategory: {
             include: {
               blogs: {
                 where: {
-                  blogPost: {
-                    published: true,
-                  },
+                  blogPost: { published: true },
                 },
                 take: 1,
                 include: {
                   blogPost: {
                     select: {
+                      id: true,
                       title: true,
                       slug: true,
-                      published: true,
                       content: true,
                     },
                   },
                 },
               },
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  series: true,
+                },
+              },
             },
           },
         },
-        where: {
-          subCategoryId: subcategory?.id,
-          subCategory: {
-            isActive: isActive,
-          },
-          product: {
-            isActive: isActive,
-          },
-        },
       }),
+
       this.prisma.productSubCategory.count({
         where: {
-          subCategoryId: subcategory?.id,
-          subCategory: {
-            isActive: isActive,
-          },
-          product: {
-            isActive: isActive,
-          },
+          subCategoryId: subCategory.id,
+          subCategory: { isActive },
+          product: { isActive },
         },
       }),
     ]);
 
+    // ---------------------------
+    // NORMALIZATION
+    // ---------------------------
+
+    const productMap = new Map<number, any>();
+    let blog: any = null;
+
+    for (const row of rows) {
+      // Deduplicate products
+      if (!productMap.has(row.product.id)) {
+        productMap.set(row.product.id, row.product);
+      }
+
+      // Pick single published blog
+      if (!blog) {
+        const blogPost = row.subCategory.blogs?.[0]?.blogPost;
+        if (blogPost) {
+          blog = blogPost;
+        }
+      }
+    }
+
     return {
-      data,
+      products: Array.from(productMap.values()),
+      blog,
+      subCategory,
       meta: {
         total,
         page,

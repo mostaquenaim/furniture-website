@@ -23,7 +23,6 @@ generator client {
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -205,7 +204,8 @@ model Product {
   slug             String  @unique
   sku              String?
   description      String?
-  basePrice        Float
+  basePrice        Int
+  price            Int?
   hasColorVariants Boolean @default(true)
   showColor        Boolean @default(true)
 

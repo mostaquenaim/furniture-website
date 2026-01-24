@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { DiscountType } from './roles.enum';
 
 @Injectable()
 export class ProductService {
@@ -52,6 +53,22 @@ export class ProductService {
       }
     }
 
+    const basePrice = dto.basePrice;
+    let price = basePrice;
+
+    if (dto.discount && dto.discount > 0) {
+      if (dto.discountType === DiscountType.PERCENT) {
+        price = Math.round(basePrice - (basePrice * dto.discount) / 100);
+      }
+
+      if (dto.discountType === DiscountType.FIXED) {
+        price = basePrice - dto.discount;
+      }
+    }
+
+    // safety guard
+    if (price < 0) price = 0;
+
     // Use transaction to ensure all operations succeed or fail together
     return await this.prisma.$transaction(async (tx) => {
       // First, create the main product
@@ -62,6 +79,7 @@ export class ProductService {
           sku: dto.sku,
           description: dto.description,
           basePrice: dto.basePrice,
+          price,
           hasColorVariants: dto.hasColorVariants ?? true,
           showColor: dto.showColor ?? true,
           discountType: dto.discountType,
@@ -377,6 +395,22 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
+    const basePrice = dto.basePrice;
+    let price = basePrice;
+
+    if (dto.discount && dto.discount > 0 && basePrice) {
+      if (dto.discountType === DiscountType.PERCENT) {
+        price = Math.round(basePrice - (basePrice * dto.discount) / 100);
+      }
+
+      if (dto.discountType === DiscountType.FIXED) {
+        price = basePrice - dto.discount;
+      }
+    }
+
+    // safety guard
+    if (price && price < 0) price = 0;
+
     return this.prisma.$transaction(async (tx) => {
       // 1️⃣ Update Product Core Fields
       await tx.product.update({
@@ -387,6 +421,7 @@ export class ProductService {
           sku: dto.sku,
           description: dto.description,
           basePrice: dto.basePrice,
+          price,
           hasColorVariants: dto.hasColorVariants,
           showColor: dto.showColor,
           discountType: dto.discountType,
@@ -509,5 +544,27 @@ export class ProductService {
         },
       });
     });
+  }
+
+  async syncAllProductPrices() {
+    const products = await this.prisma.product.findMany();
+    for (const product of products) {
+      const basePrice = product.basePrice;
+      let price = basePrice;
+      if (product.discount && product.discount > 0) {
+        if (product.discountType === DiscountType.PERCENT) {
+          price = Math.round(basePrice - (basePrice * product.discount) / 100);
+        }
+        if (product.discountType === DiscountType.FIXED) {
+          price = basePrice - product.discount;
+        }
+      }
+      if (price < 0) price = 0;
+      await this.prisma.product.update({
+        where: { id: product.id },
+        data: { price },
+      });
+    }
+    return { message: 'Product prices synchronized successfully' };
   }
 }

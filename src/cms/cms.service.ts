@@ -15,6 +15,7 @@ import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
 import { CreateColorDto } from './dto/create-color.dto';
 import { CreateSizeDto } from './dto/create-size-dto.dto';
 import { CreateVariantDto } from './dto/create-variant.dto';
+import { CreateMaterialDto } from './dto/create-material.dto';
 
 @Injectable()
 export class CmsService {
@@ -207,6 +208,27 @@ export class CmsService {
       data: {
         name: dto.name,
         sortOrder: dto.sortOrder ?? 0,
+        isActive: dto.isActive ?? true,
+      },
+    });
+  }
+
+  // MATERIAL ATTRIBUTE
+  async addMaterial(dto: CreateMaterialDto) {
+    // Check uniqueness by name
+    const existing = await this.prisma.material.findFirst({
+      where: { name: dto.name },
+    });
+
+    if (existing) {
+      throw new ConflictException('Material with this name already exists');
+    }
+
+    return this.prisma.material.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        order: dto.order ?? 0,
         isActive: dto.isActive ?? true,
       },
     });

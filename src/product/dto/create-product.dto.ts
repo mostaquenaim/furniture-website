@@ -11,11 +11,7 @@ import {
 import { Type } from 'class-transformer';
 import { CreateProductColorDto } from './CreateProductColorDto.dto';
 import { CreateProductImageDto } from './CreateProductImageDto.dto';
-
-export enum DiscountType {
-  PERCENT = 'PERCENT',
-  FIXED = 'FIXED',
-}
+import { DiscountType } from '../roles.enum';
 
 export class CreateProductDto {
   @IsString()
@@ -38,6 +34,10 @@ export class CreateProductDto {
 
   @IsNumber()
   basePrice: number;
+
+  // @IsOptional()
+  // @IsNumber()
+  // price: number;
 
   @IsBoolean()
   hasColorVariants: boolean;
@@ -89,7 +89,7 @@ export class CreateProductDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateProductImageDto)
-  images: CreateProductImageDto[]; 
+  images: CreateProductImageDto[];
 
   // ✅ SubCategories
   @IsArray()
