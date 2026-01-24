@@ -307,9 +307,10 @@ model Color {
 model ProductSize {
   id Int @id @default(autoincrement())
 
-  sku      String?
-  price    Float?
-  quantity Int     @default(0)
+  sku       String?
+  basePrice Int?
+  price     Int?
+  quantity  Int     @default(0)
 
   sizeId Int
   size   Size @relation(fields: [sizeId], references: [id])

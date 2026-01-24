@@ -154,20 +154,34 @@ export class ProductService {
             );
 
             if (validSizes.length > 0) {
-              const sizeData = validSizes.map((size) => ({
-                sizeId: size.sizeId,
-                colorId: productColor.id,
-                sku: size.sku || null,
-                price:
-                  size.price !== undefined && size.price !== null
-                    ? //  && size.price !== ''
-                      Number(size.price)
-                    : null,
-                quantity: Number(size.quantity),
-              }));
-
               await tx.productSize.createMany({
-                data: sizeData,
+                data: validSizes.map((size) => {
+                  let price: number | null = null;
+
+                  if (dto.discount && dto.discount > 0 && basePrice) {
+                    if (dto.discountType === DiscountType.PERCENT) {
+                      price = Math.round(
+                        basePrice - (basePrice * dto.discount) / 100,
+                      );
+                    }
+
+                    if (dto.discountType === DiscountType.FIXED) {
+                      price = basePrice - dto.discount;
+                    }
+                  }
+
+                  return {
+                    colorId: productColor.id,
+                    sizeId: size.sizeId,
+                    sku: size.sku || null,
+                    basePrice:
+                      size.price !== undefined && size.price !== null
+                        ? Number(size.price)
+                        : null,
+                    price: price,
+                    quantity: Number(size.quantity),
+                  };
+                }),
               });
             }
           }
@@ -412,7 +426,7 @@ export class ProductService {
     if (price && price < 0) price = 0;
 
     return this.prisma.$transaction(async (tx) => {
-      // 1️⃣ Update Product Core Fields
+      // Update Product Core Fields
       await tx.product.update({
         where: { id: product.id },
         data: {
@@ -438,7 +452,7 @@ export class ProductService {
         },
       });
 
-      // 2️⃣ Replace Images
+      // Replace Images
       if (dto.images) {
         await tx.productImage.deleteMany({
           where: { productId: product.id },
@@ -453,7 +467,7 @@ export class ProductService {
         });
       }
 
-      // 3️⃣ Replace SubCategories
+      // Replace SubCategories
       if (dto.subCategories) {
         await tx.productSubCategory.deleteMany({
           where: { productId: product.id },
@@ -467,9 +481,9 @@ export class ProductService {
         });
       }
 
-      // 4️⃣ Replace Colors & Sizes
+      // Replace Colors & Sizes
       if (dto.colors) {
-        // 1️⃣ Clear old data
+        // Clear old data
         await tx.productColorImage.deleteMany({
           where: { productColor: { productId: product.id } },
         });
@@ -482,7 +496,7 @@ export class ProductService {
           where: { productId: product.id },
         });
 
-        // 2️⃣ Re-create like create flow
+        // Re-create like create flow
         for (const colorVariant of dto.colors) {
           const productColor = await tx.productColor.create({
             data: {
@@ -492,7 +506,7 @@ export class ProductService {
             },
           });
 
-          // 3️⃣ Create color images (only if NOT default)
+          // Create color images (only if NOT default)
           if (
             !colorVariant.useDefaultImages &&
             colorVariant.images &&
@@ -507,7 +521,7 @@ export class ProductService {
             });
           }
 
-          // 4️⃣ Create sizes (quantity > 0 only)
+          // Create sizes (quantity > 0 only)
           if (colorVariant.sizes && colorVariant.sizes.length > 0) {
             const validSizes = colorVariant.sizes.filter(
               (size) => size.sku != '',
@@ -515,16 +529,33 @@ export class ProductService {
 
             if (validSizes.length > 0) {
               await tx.productSize.createMany({
-                data: validSizes.map((size) => ({
-                  colorId: productColor.id,
-                  sizeId: size.sizeId,
-                  sku: size.sku || null,
-                  price:
-                    size.price !== undefined && size.price !== null
-                      ? Number(size.price)
-                      : null,
-                  quantity: Number(size.quantity),
-                })),
+                data: validSizes.map((size) => {
+                  let price: number | null = null;
+
+                  if (dto.discount && dto.discount > 0 && basePrice) {
+                    if (dto.discountType === DiscountType.PERCENT) {
+                      price = Math.round(
+                        basePrice - (basePrice * dto.discount) / 100,
+                      );
+                    }
+
+                    if (dto.discountType === DiscountType.FIXED) {
+                      price = basePrice - dto.discount;
+                    }
+                  }
+
+                  return {
+                    colorId: productColor.id,
+                    sizeId: size.sizeId,
+                    sku: size.sku || null,
+                    basePrice:
+                      size.price !== undefined && size.price !== null
+                        ? Number(size.price)
+                        : null,
+                    price: price,
+                    quantity: Number(size.quantity),
+                  };
+                }),
               });
             }
           }
@@ -547,24 +578,61 @@ export class ProductService {
   }
 
   async syncAllProductPrices() {
-    const products = await this.prisma.product.findMany();
+    // Fetch all products with their color variants and sizes
+    const products = await this.prisma.product.findMany({
+      include: {
+        colors: {
+          include: {
+            sizes: true,
+          },
+        },
+      },
+    });
+
     for (const product of products) {
       const basePrice = product.basePrice;
       let price = basePrice;
+
+      // Update main product price
       if (product.discount && product.discount > 0) {
         if (product.discountType === DiscountType.PERCENT) {
           price = Math.round(basePrice - (basePrice * product.discount) / 100);
-        }
-        if (product.discountType === DiscountType.FIXED) {
+        } else if (product.discountType === DiscountType.FIXED) {
           price = basePrice - product.discount;
         }
       }
       if (price < 0) price = 0;
+
       await this.prisma.product.update({
         where: { id: product.id },
         data: { price },
       });
+
+      // Update sizes for each color variant
+      for (const color of product.colors) {
+        for (const size of color.sizes) {
+          const sizeBasePrice = size.price ?? basePrice; // fallback to product basePrice
+          let sizePrice = sizeBasePrice;
+
+          if (product.discount && product.discount > 0) {
+            if (product.discountType === DiscountType.PERCENT) {
+              sizePrice = Math.round(
+                sizeBasePrice - (sizeBasePrice * product.discount) / 100,
+              );
+            } else if (product.discountType === DiscountType.FIXED) {
+              sizePrice = sizeBasePrice - product.discount;
+            }
+          }
+          if (sizePrice < 0) sizePrice = 0;
+
+          await this.prisma.productSize.update({
+            where: { id: size.id },
+            data: { price: sizePrice },
+          });
+        }
+      }
     }
+
     return { message: 'Product prices synchronized successfully' };
   }
 }
