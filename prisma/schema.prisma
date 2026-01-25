@@ -348,8 +348,9 @@ model Size {
 // =====================
 model Cart {
   id        Int        @id @default(autoincrement())
-  user      User       @relation(fields: [userId], references: [id])
-  userId    Int        @unique
+  user      User?       @relation(fields: [userId], references: [id])
+  userId    Int?        @unique
+  userEmail String?
   items     CartItem[]
   status    CartStatus @default(ACTIVE)
   createdAt DateTime   @default(now())

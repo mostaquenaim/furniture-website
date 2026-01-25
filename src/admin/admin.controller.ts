@@ -135,11 +135,11 @@ export class AdminController {
     return this.productService.updateProduct(productId, dto);
   }
 
-  @Get('product-sync-prices')
-  async syncAllProductPrices() {
-    console.log('admin');
-    return this.productService.syncAllProductPrices();
-  }
+  // @Get('product-sync-prices')
+  // async syncAllProductPrices() {
+  //   console.log('admin');
+  //   return this.productService.syncAllProductPrices();
+  // }
 
   //////////////////////
   ////// BLOG //////

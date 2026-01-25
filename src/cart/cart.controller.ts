@@ -26,4 +26,10 @@ export class CartController {
     // console.log('DTO received:', dto);
     return this.cartService.addItemToCart(req.user.userId, dto);
   }
+
+  // Add an item to cart
+  @Post('count')
+  async countCartItems(@Req() req) {
+    return this.cartService.countCartItems(req.user.userId);
+  }
 }

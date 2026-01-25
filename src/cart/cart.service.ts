@@ -107,4 +107,17 @@ export class CartService {
       },
     });
   }
+
+  async countCartItems(userId: number) {
+    const cart = await this.prisma.cart.findUnique({ where: { userId } });
+
+    if (!cart) {
+      return 0;
+    }
+
+    const itemCount = await this.prisma.cartItem.count({
+      where: { cartId: cart.id },
+    });
+    return itemCount;
+  }
 }
