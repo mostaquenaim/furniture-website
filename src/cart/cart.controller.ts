@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
   ValidationPipe,
+  Get,
 } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/addCartItem.dto';
@@ -25,6 +26,12 @@ export class CartController {
   ) {
     // console.log('DTO received:', dto);
     return this.cartService.addItemToCart(req.user.userId, dto);
+  }
+
+  // Get cart
+  @Get('items')
+  getCartItems(@Req() req) {
+    return this.cartService.getCartItems(req.user.userId);
   }
 
   // Add an item to cart

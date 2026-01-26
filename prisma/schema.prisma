@@ -46,7 +46,7 @@ model User {
   orders       Order[]
   reviews      Review[]
   otps         OTP[]
-  cart         Cart?
+  cart         Cart[]
   productViews ProductView[]
 }
 
@@ -347,14 +347,17 @@ model Size {
 // Cart
 // =====================
 model Cart {
-  id        Int        @id @default(autoincrement())
-  user      User?       @relation(fields: [userId], references: [id])
-  userId    Int?        @unique
+  id     Int   @id @default(autoincrement())
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
+
   userEmail String?
   items     CartItem[]
   status    CartStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+
+  @@index([userId, status])
 }
 
 model CartItem {
@@ -385,25 +388,44 @@ enum CartStatus {
 // Orders
 // =====================
 model Order {
-  id        Int         @id @default(autoincrement())
-  user      User        @relation(fields: [userId], references: [id])
-  userId    Int
-  items     OrderItem[]
+  id Int @id @default(autoincrement())
+
+  userId        Int?
+  customerName  String
+  customerPhone String
+  customerEmail String?
+
+  shippingAddress String
+
+  deliveryMethod String?
+  deliveryCharge Float?
+
   total     Float
   status    OrderStatus @default(PENDING)
   awbNumber String? // courier AWB
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+
+  items OrderItem[]
+  user  User?       @relation(fields: [userId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  payments  Payment[]
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
-  order     Order   @relation(fields: [orderId], references: [id])
+  id        Int @id @default(autoincrement())
   orderId   Int
-  product   Product @relation(fields: [productId], references: [id])
   productId Int
-  quantity  Int     @default(1)
-  price     Float
+
+  productTitle String // snapshot
+  sku          String?
+  color        String?
+  size         String?
+
+  quantity Int
+  price    Float // price at purchase time
+  product  Product @relation(fields: [productId], references: [id])
+  order    Order   @relation(fields: [orderId], references: [id])
 }
 
 enum OrderStatus {
@@ -414,6 +436,39 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   RETURNED
+}
+
+model Payment {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  method   PaymentMethod
+  status   PaymentStatus
+  amount   Float
+  currency String        @default("BDT")
+  trxId    String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+enum PaymentMethod {
+  COD
+  SSL
+  BKASH
+  NAGAD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
 }
 
 // =====================

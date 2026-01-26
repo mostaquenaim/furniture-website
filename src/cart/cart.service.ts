@@ -11,6 +11,29 @@ import { AddCartItemDto } from './dto/addCartItem.dto';
 export class CartService {
   constructor(private prisma: PrismaService) {}
 
+  // get all carts
+  async getCartItems(userId: number) {
+    const cart = await this.prisma.cart.findUnique({
+      where: { userId },
+      include: {
+        items: {
+          include: {
+            productSize: {
+              include: {
+                color: { include: { product: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!cart) {
+      throw new NotFoundException('Cart not found');
+    }
+    console.log(cart.items, 'cartitems');
+    return cart.items;
+  }
+
   // create cart
   async createCart(userId: number) {
     // ensure user has only one active cart
@@ -108,6 +131,7 @@ export class CartService {
     });
   }
 
+  // count cart items for a user
   async countCartItems(userId: number) {
     const cart = await this.prisma.cart.findUnique({ where: { userId } });
 

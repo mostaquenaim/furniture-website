@@ -577,6 +577,7 @@ export class ProductService {
     });
   }
 
+  // sync all products prices
   async syncAllProductPrices() {
     // Fetch all products with their color variants and sizes
     const products = await this.prisma.product.findMany({
