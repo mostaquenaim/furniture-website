@@ -13,8 +13,11 @@ export class CartService {
 
   // get all carts
   async getCartItems(userId: number) {
-    const cart = await this.prisma.cart.findUnique({
-      where: { userId },
+    const cart = await this.prisma.cart.findFirst({
+      where: {
+        userId,
+        status: 'ACTIVE',
+      },
       include: {
         items: {
           include: {
@@ -30,7 +33,7 @@ export class CartService {
     if (!cart) {
       throw new NotFoundException('Cart not found');
     }
-    console.log(cart.items, 'cartitems');
+    // console.log(cart.items, 'cartitems');
     return cart.items;
   }
 
