@@ -208,7 +208,7 @@ export class AuthService {
       return { user: safeUser, token };
     }
 
-    // customer 
+    // customer
     /*  */
     const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
 
@@ -219,7 +219,17 @@ export class AuthService {
 
   // get profile
   async profile(userId: number) {
-    return this.prisma.user.findUnique({ where: { id: userId } });
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+      },
+    });
   }
 
   async updateProfile(userId: number, data: any) {

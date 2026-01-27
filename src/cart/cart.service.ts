@@ -40,8 +40,11 @@ export class CartService {
   // create cart
   async createCart(userId: number) {
     // ensure user has only one active cart
-    const existingCart = await this.prisma.cart.findUnique({
-      where: { userId },
+    const existingCart = await this.prisma.cart.findFirst({
+      where: {
+        userId,
+        status: 'ACTIVE',
+      },
     });
 
     if (existingCart) {
@@ -58,7 +61,12 @@ export class CartService {
   // get or create cart
   async getOrCreateCart(userId: number) {
     console.log(userId, 'userId');
-    let cart = await this.prisma.cart.findUnique({ where: { userId } });
+    let cart = await this.prisma.cart.findFirst({
+      where: {
+        userId,
+        status: 'ACTIVE',
+      },
+    });
     if (!cart) {
       cart = await this.prisma.cart.create({ data: { userId } });
     }
@@ -68,6 +76,8 @@ export class CartService {
   // add item to cart
   async addItemToCart(userId: number, dto: AddCartItemDto) {
     console.log(userId, 'userId');
+    console.log('DTO received:', dto);
+
     const cart = await this.getOrCreateCart(userId);
 
     const productSize = await this.prisma.productSize.findUnique({
@@ -117,8 +127,11 @@ export class CartService {
 
   // checkout cart
   async checkoutCart(userId: number) {
-    const cart = await this.prisma.cart.findUnique({
-      where: { userId },
+    const cart = await this.prisma.cart.findFirst({
+      where: {
+        userId,
+        status: 'ACTIVE',
+      },
       include: { items: true },
     });
 
@@ -136,7 +149,12 @@ export class CartService {
 
   // count cart items for a user
   async countCartItems(userId: number) {
-    const cart = await this.prisma.cart.findUnique({ where: { userId } });
+    const cart = await this.prisma.cart.findFirst({
+      where: {
+        userId,
+        status: 'ACTIVE',
+      },
+    });
 
     if (!cart) {
       return 0;
