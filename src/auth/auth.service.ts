@@ -233,7 +233,19 @@ export class AuthService {
   }
 
   async updateProfile(userId: number, data: any) {
-    return this.prisma.user.update({ where: { id: userId }, data });
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+      },
+    });
+
+    return updatedUser;
   }
 
   // Store blacklisted token in the database

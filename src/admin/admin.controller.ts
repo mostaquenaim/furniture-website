@@ -29,6 +29,7 @@ import { CreateBlogDto } from 'src/blog/dto/create-blog.dto';
 import { BlogsService } from 'src/blog/blog.service';
 import { CreateBlogCategoryDto } from 'src/blog/dto/create-blog-category.dto';
 import { CreateMaterialDto } from 'src/cms/dto/create-material.dto';
+import { CreateProductDto } from 'src/product/dto/create-product.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -77,6 +78,7 @@ export class AdminController {
 
   @Get('cloudinary-signature')
   getCloudinarySignature() {
+    // console.log('cloudinary-signature');
     const timestamp = Math.round(Date.now() / 1000);
 
     const signature = cloudinary.utils.api_sign_request(
@@ -121,8 +123,9 @@ export class AdminController {
   ////// PRODUCT //////
   ////////////////////
   @Post('products')
-  async createProduct(@Body() dto) {
-    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+  async createProduct(@Body() dto: CreateProductDto) {
+    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    // return true
     return this.productService.createProduct(dto);
   }
 

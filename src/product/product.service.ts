@@ -17,6 +17,7 @@ export class ProductService {
 
   // create a product
   async createProduct(dto: CreateProductDto) {
+    console.log('product create shuru');
     // Validate that at least one image exists
     if (!dto.images || dto.images.length === 0) {
       throw new BadRequestException('At least one product image is required');

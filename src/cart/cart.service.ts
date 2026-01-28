@@ -7,12 +7,18 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AddCartItemDto } from './dto/addCartItem.dto';
 
+interface CartFilter {
+  productId?: number;
+  colorId?: number;
+  sizeId?: number;
+}
+
 @Injectable()
 export class CartService {
   constructor(private prisma: PrismaService) {}
 
   // get all carts
-  async getCartItems(userId: number) {
+  async getCartItems(userId: number, filter: CartFilter) {
     const cart = await this.prisma.cart.findFirst({
       where: {
         userId,
@@ -20,6 +26,24 @@ export class CartService {
       },
       include: {
         items: {
+          where: {
+            // apply optional filters
+            ...(filter.productId && {
+              productSize: {
+                color: {
+                  productId: filter.productId,
+                },
+              },
+            }),
+            ...(filter.colorId && {
+              productSize: {
+                colorId: filter.colorId,
+              },
+            }),
+            ...(filter.sizeId && {
+              productSizeId: filter.sizeId,
+            }),
+          },
           include: {
             productSize: {
               include: {
@@ -30,10 +54,11 @@ export class CartService {
         },
       },
     });
+
     if (!cart) {
       throw new NotFoundException('Cart not found');
     }
-    // console.log(cart.items, 'cartitems');
+
     return cart.items;
   }
 
@@ -75,39 +100,48 @@ export class CartService {
 
   // add item to cart
   async addItemToCart(userId: number, dto: AddCartItemDto) {
-    console.log(userId, 'userId');
-    console.log('DTO received:', dto);
-
     const cart = await this.getOrCreateCart(userId);
 
     const productSize = await this.prisma.productSize.findUnique({
       where: { id: dto.productSizeId },
       include: {
-        color: { include: { product: true } },
+        color: { include: { product: true, color: true } },
+        size: true,
       },
     });
 
     if (!productSize) throw new NotFoundException('Product variant not found');
 
-    if (productSize.quantity <= 0)
-      throw new BadRequestException('This product variant is out of stock');
+    // console.log(productSize, 'productSize');
+
+    const colorName = productSize.color.color.name;
+    const sizeName = productSize.size.name;
 
     const quantityToAdd = dto.quantity ?? 1;
 
+    if (productSize.quantity < quantityToAdd)
+      throw new BadRequestException('Not enough stock');
+
+    const unitPrice = productSize.price ?? productSize.color.product.basePrice;
+
     const existingItem = await this.prisma.cartItem.findFirst({
-      where: { cartId: cart.id, productSizeId: productSize.id },
+      where: {
+        cartId: cart.id,
+        productSizeId: productSize.id,
+      },
     });
 
     if (existingItem) {
+      const newQty = existingItem.quantity + quantityToAdd;
+
+      if (newQty > productSize.quantity)
+        throw new BadRequestException('Stock limit exceeded');
+
       return this.prisma.cartItem.update({
         where: { id: existingItem.id },
         data: {
-          quantity: { increment: quantityToAdd },
-          subtotal: {
-            increment:
-              (productSize.price ?? productSize.color.product.basePrice) *
-              quantityToAdd,
-          },
+          quantity: newQty,
+          subtotal: newQty * existingItem.priceAtAdd,
         },
       });
     }
@@ -117,10 +151,10 @@ export class CartService {
         cartId: cart.id,
         productSizeId: productSize.id,
         quantity: quantityToAdd,
-        priceAtAdd: productSize.price ?? productSize.color.product.basePrice,
-        subtotal:
-          (productSize.price ?? productSize.color.product.basePrice) *
-          quantityToAdd,
+        priceAtAdd: unitPrice,
+        subtotal: unitPrice * quantityToAdd,
+        color: colorName,
+        size: sizeName,
       },
     });
   }
@@ -128,17 +162,14 @@ export class CartService {
   // checkout cart
   async checkoutCart(userId: number) {
     const cart = await this.prisma.cart.findFirst({
-      where: {
-        userId,
-        status: 'ACTIVE',
-      },
+      where: { userId, status: 'ACTIVE' },
       include: { items: true },
     });
 
-    if (!cart || cart.items.length === 0) {
+    if (!cart || cart.items.length === 0)
       throw new BadRequestException('Cart is empty');
-    }
 
+    // mark cart as checked out
     return this.prisma.cart.update({
       where: { id: cart.id },
       data: {
@@ -150,19 +181,13 @@ export class CartService {
   // count cart items for a user
   async countCartItems(userId: number) {
     const cart = await this.prisma.cart.findFirst({
-      where: {
-        userId,
-        status: 'ACTIVE',
-      },
+      where: { userId, status: 'ACTIVE' },
     });
 
-    if (!cart) {
-      return 0;
-    }
+    if (!cart) return 0;
 
-    const itemCount = await this.prisma.cartItem.count({
+    return this.prisma.cartItem.count({
       where: { cartId: cart.id },
     });
-    return itemCount;
   }
 }

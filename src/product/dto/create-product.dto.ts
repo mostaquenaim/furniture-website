@@ -14,40 +14,25 @@ import { CreateProductImageDto } from './CreateProductImageDto.dto';
 import { DiscountType } from '../roles.enum';
 
 export class CreateProductDto {
-  @IsString()
-  title: string;
+  @IsNumber()
+  basePrice: number;
 
-  @IsString()
-  slug: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductColorDto)
+  colors: CreateProductColorDto[];
 
   @IsOptional()
   @IsString()
-  sku?: string;
+  deliveryEstimate?: string;
 
   @IsOptional()
   @IsString()
   description?: string;
 
   @IsOptional()
-  @IsNumber()
-  materialId?: number;
-
-  @IsNumber()
-  basePrice: number;
-
-  // @IsOptional()
-  // @IsNumber()
-  // price: number;
-
-  @IsBoolean()
-  hasColorVariants: boolean;
-
-  @IsBoolean()
-  showColor: boolean;
-
-  @IsOptional()
-  @IsEnum(DiscountType)
-  discountType?: DiscountType;
+  @IsString()
+  dimension?: string;
 
   @IsOptional()
   @IsNumber()
@@ -56,12 +41,31 @@ export class CreateProductDto {
   @IsOptional()
   @Type(() => Date)
   @IsDate()
-  discountStart?: Date;
+  discountEnd?: Date;
 
   @IsOptional()
   @Type(() => Date)
   @IsDate()
-  discountEnd?: Date;
+  discountStart?: Date;
+
+  @IsOptional()
+  @IsEnum(DiscountType)
+  discountType?: DiscountType;
+
+  @IsBoolean()
+  hasColorVariants: boolean;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductImageDto)
+  images: CreateProductImageDto[];
+
+  @IsBoolean()
+  isActive: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  materialId?: number;
 
   @IsOptional()
   @IsString()
@@ -69,37 +73,25 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
-  deliveryEstimate?: string;
-
-  @IsOptional()
-  @IsString()
   productDetails?: string;
 
-  @IsOptional()
-  @IsString()
-  dimension?: string;
+  @IsBoolean()
+  showColor: boolean;
 
   @IsOptional()
   @IsString()
   shippingReturn?: string;
 
-  @IsBoolean()
-  isActive: boolean;
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsString()
+  slug: string;
 
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateProductImageDto)
-  images: CreateProductImageDto[];
-
-  // ✅ SubCategories
-  @IsArray()
-  // @ValidateNested({ each: true })
-  // @Type(() => CreateProductSubCategoryDto)
   subCategories: number[];
 
-  // ✅ Color Variants
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateProductColorDto)
-  colors: CreateProductColorDto[];
+  @IsString()
+  title: string;
 }
