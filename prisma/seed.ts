@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { PrismaClient } from '@prisma/client';
+import districtsData from 'src/cms/data/districtData';
 
 const prisma = new PrismaClient();
 
@@ -812,6 +813,8 @@ const sampleData = [
   },
 ];
 
+console.log('Districts seeding completed!');
+
 async function main() {
   console.log('🌱 Seeding Sakigai catalog...');
 
@@ -874,6 +877,30 @@ async function main() {
   }
 
   console.log('✅ Sakigai catalog seeded successfully');
+
+  console.log('Seeding districts...');
+
+  for (const district of districtsData) {
+    // Remove trailing spaces from names
+    const cleanName = district.name.trim();
+
+    // Check if district already exists
+    const existingDistrict = await prisma.district.findUnique({
+      where: { name: cleanName },
+    });
+
+    if (!existingDistrict) {
+      await prisma.district.create({
+        data: {
+          name: cleanName,
+          isActive: true,
+        },
+      });
+      console.log(`Created district: ${cleanName}`);
+    } else {
+      console.log(`District already exists: ${cleanName}`);
+    }
+  }
 }
 
 main()

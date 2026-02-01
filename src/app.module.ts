@@ -12,7 +12,6 @@ import { OrderModule } from './order/order.module';
 import { PaymentModule } from './payment/payment.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { ReviewModule } from './review/review.module';
-import { CouponModule } from './coupon/coupon.module';
 import { FlashSalesModule } from './flash-sales/flash-sales.module';
 import { CmsModule } from './cms/cms.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -47,7 +46,6 @@ import { CartModule } from './cart/cart.module';
     PaymentModule,
     WishlistModule,
     ReviewModule,
-    CouponModule,
     FlashSalesModule,
     BlogsModule,
     CmsModule,

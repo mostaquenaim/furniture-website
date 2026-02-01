@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { CreateAboutDto } from './dto/create-about.dto';
@@ -18,6 +19,7 @@ import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
 import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
 import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller()
 export class CmsController {
@@ -120,5 +122,12 @@ export class CmsController {
   @Get('materials')
   getAllMaterials() {
     return this.cmsService.getAllMaterials();
+  }
+
+  //DISTRICTS
+  @UseGuards(JwtAuthGuard)
+  @Get('districts')
+  async getDistricts() {
+    return this.cmsService.getDistricts();
   }
 }

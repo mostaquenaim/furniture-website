@@ -347,11 +347,17 @@ model Size {
 // Cart
 // =====================
 model Cart {
-  id     Int   @id @default(autoincrement())
-  user   User? @relation(fields: [userId], references: [id])
-  userId Int?
-
+  id        Int     @id @default(autoincrement())
+  user      User?   @relation(fields: [userId], references: [id])
+  userId    Int?
   userEmail String?
+
+  baseSubtotalAtAdd Int @default(0)
+  subtotalAtAdd     Int @default(0)
+
+  coupon   Coupon? @relation(fields: [couponId], references: [id])
+  couponId Int?
+
   items     CartItem[]
   status    CartStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
@@ -365,15 +371,22 @@ model CartItem {
   cart   Cart @relation(fields: [cartId], references: [id])
   cartId Int
 
-  quantity   Int   @default(1)
-  priceAtAdd Float
-  subtotal   Float
+  quantity Int @default(1)
+
+  basePriceAtAdd    Int
+  baseSubtotalAtAdd Int
+
+  priceAtAdd    Int
+  subtotalAtAdd Int
 
   color String?
   size  String?
 
   productSize   ProductSize @relation(fields: [productSizeId], references: [id])
   productSizeId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([cartId, productSizeId])
 }
@@ -390,15 +403,19 @@ enum CartStatus {
 model Order {
   id Int @id @default(autoincrement())
 
-  userId        Int?
-  customerName  String
-  customerPhone String
-  customerEmail String?
-
+  userId          Int?
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
   shippingAddress String
+  districtId      Int?
+  district        District? @relation(fields: [districtId], references: [id])
 
   deliveryMethod String?
   deliveryCharge Float?
+
+  couponCode String?
+  discount   Float?
 
   total     Float
   status    OrderStatus @default(PENDING)
@@ -436,6 +453,39 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   RETURNED
+}
+
+model District {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Coupon {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+
+  discountType  CouponDiscountType
+  discountValue Float? // percentage or fixed amount or null for free delivery
+  minOrderValue Float? // minimum order value to apply coupon
+  maxDiscount   Float? // maximum discount amount for percentage type
+  expiryDate    DateTime
+  startDate     DateTime           @default(now())
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  carts     Cart[]
+}
+
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_DELIVERY
 }
 
 model Payment {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -30,6 +31,8 @@ import { BlogsService } from 'src/blog/blog.service';
 import { CreateBlogCategoryDto } from 'src/blog/dto/create-blog-category.dto';
 import { CreateMaterialDto } from 'src/cms/dto/create-material.dto';
 import { CreateProductDto } from 'src/product/dto/create-product.dto';
+import { AdminService } from './admin.service';
+import { CreateCouponDto } from 'src/cms/dto/create-coupon.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -158,4 +161,23 @@ export class AdminController {
     // console.log('DTO:', dto);
     return this.blogService.createBlogCategory(dto);
   }
+
+  //////////////////////
+  ////// ORDER //////
+  ////////////////////
+  @Post('create-districts')
+  async createDistrict() {
+    return this.cmsService.createDistrict();
+  }
+
+  //create coupons
+  @Post('create-coupon')
+  async createCoupon(@Body() dto: CreateCouponDto) {
+    return await this.cmsService.createCoupon(dto);
+  }
+
+  // @Post('create-mock-coupons')
+  // async createMockCoupons() {
+  //   return this.cmsService.createMockCoupons();
+  // }
 }

@@ -2,7 +2,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { CreateAboutDto } from './dto/create-about.dto';
 import { UpdateAboutDto } from './dto/update-about.dto';
 import { CreateTnCDto } from './dto/create-tnc.dto';
@@ -16,6 +20,10 @@ import { CreateColorDto } from './dto/create-color.dto';
 import { CreateSizeDto } from './dto/create-size-dto.dto';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { CreateMaterialDto } from './dto/create-material.dto';
+import districtsData from 'src/cms/data/districtData';
+import couponsData from './data/couponData';
+import { CreateCouponDto } from './dto/create-coupon.dto';
+import { CouponDiscountType, Prisma } from '@prisma/client';
 
 @Injectable()
 export class CmsService {
@@ -265,5 +273,97 @@ export class CmsService {
       orderBy: { order: 'asc' },
       // include: { links: true },
     });
+  }
+
+  // create district data
+  async createDistrict() {
+    for (const district of districtsData) {
+      // Remove trailing spaces from names
+      const cleanName = district.name.trim();
+
+      // Check if district already exists
+      const existingDistrict = await this.prisma.district.findUnique({
+        where: { name: cleanName },
+      });
+
+      if (!existingDistrict) {
+        await this.prisma.district.create({
+          data: {
+            name: cleanName,
+          },
+        });
+        console.log(`Created district: ${cleanName}`);
+      } else {
+        console.log(`District already exists: ${cleanName}`);
+      }
+    }
+  }
+
+  // get all districts
+  async getDistricts() {
+    return await this.prisma.district.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  //create coupons mock
+  async createMockCoupons() {
+    for (const couponData of couponsData) {
+      await this.prisma.coupon.create({
+        data: couponData,
+      });
+    }
+  }
+
+  // create a coupon
+  async createCoupon(dto: CreateCouponDto) {
+    // Validate discountValue for percentage/fixed coupons
+    if (
+      (dto.discountType === CouponDiscountType.PERCENTAGE ||
+        dto.discountType === CouponDiscountType.FIXED_AMOUNT) &&
+      (dto.discountValue === undefined || dto.discountValue === null)
+    ) {
+      throw new BadRequestException(
+        'discountValue is required for PERCENTAGE or FIXED coupon type',
+      );
+    }
+
+    const start = dto.startDate ?? new Date();
+    if (dto.expiryDate <= start) {
+      throw new BadRequestException('expiryDate must be after startDate');
+    }
+
+    try {
+      const coupon = await this.prisma.coupon.create({
+        data: {
+          code: dto.code,
+          discountType: dto.discountType,
+          discountValue: dto.discountValue ?? null,
+          minOrderValue: dto.minOrderValue ?? null,
+          maxDiscount: dto.maxDiscount ?? null,
+          startDate: start,
+          expiryDate: dto.expiryDate,
+          isActive: dto.isActive ?? true,
+        },
+      });
+
+      return coupon;
+    } catch (error) {
+      // Prisma unique constraint violation error
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          `Coupon code "${dto.code}" already exists`,
+        );
+      }
+      throw error;
+    }
   }
 }
