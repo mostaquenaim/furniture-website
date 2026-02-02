@@ -173,13 +173,29 @@ export class CategoryService {
     search,
     isActive = true,
     slug,
+
+    colorIds,
+    materialIds,
+    subCategoryIds,
+    minPrice,
+    maxPrice,
+    orderBy,
   }: {
     page?: number;
     limit?: number;
     search?: string;
     isActive?: boolean;
     slug?: string;
+
+    colorIds?: number[];
+    materialIds?: number[];
+    subCategoryIds?: number[];
+    minPrice?: number;
+    maxPrice?: number;
+    orderBy?: Record<string, 'asc' | 'desc'>;
   }) {
+    // find series
+    console.log(orderBy);
     const selectedSeries = await this.prisma.series.findFirst({
       where: { slug },
       select: { id: true, name: true },
@@ -196,13 +212,55 @@ export class CategoryService {
 
     const skip = (page - 1) * limit;
 
+    const productWhere: any = {
+      isActive,
+
+      ...(search && {
+        name: { contains: search, mode: 'insensitive' },
+      }),
+
+      ...(minPrice || maxPrice
+        ? {
+            price: {
+              ...(minPrice && { gte: minPrice }),
+              ...(maxPrice && { lte: maxPrice }),
+            },
+          }
+        : {}),
+
+      ...(materialIds?.length && {
+        materialId: {
+          in: materialIds,
+        },
+      }),
+
+      ...(colorIds?.length && {
+        colors: {
+          some: {
+            colorId: { in: colorIds },
+          },
+        },
+      }),
+    };
+
+    const subCategoryWhere: any = {
+      isActive,
+
+      ...(subCategoryIds?.length && {
+        id: {
+          in: subCategoryIds,
+        },
+      }),
+    };
+
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.productSubCategory.findMany({
         skip,
         take: limit,
         where: {
-          product: { isActive },
+          product: productWhere,
           subCategory: {
+            ...subCategoryWhere,
             isActive,
             category: {
               isActive,
@@ -211,6 +269,11 @@ export class CategoryService {
             },
           },
         },
+        // order by
+        orderBy: orderBy
+          ? { product: orderBy }
+          : { product: { createdAt: 'desc' } },
+
         include: {
           product: {
             include: {
@@ -245,9 +308,9 @@ export class CategoryService {
 
       this.prisma.productSubCategory.count({
         where: {
-          product: { isActive },
+          product: productWhere,
           subCategory: {
-            isActive,
+            ...subCategoryWhere,
             category: {
               isActive,
               seriesId: selectedSeries.id,
@@ -303,6 +366,47 @@ export class CategoryService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  // get series wise subcategories
+  async getSeriesWiseSubcategories(slug: string) {
+    // Find the series by slug and include its categories and subcategories
+    const seriesWithSubcategories = await this.prisma.series.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        categories: {
+          where: { isActive: true }, // optional: only active categories
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            subCategories: {
+              where: { isActive: true }, // optional: only active subcategories
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                image: true,
+              },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    // Flatten all subcategories into a single array if needed
+    const subcategories =
+      seriesWithSubcategories?.categories.flatMap((cat) => cat.subCategories) ||
+      [];
+
+    console.log(subcategories, 'subcatszz');
+
+    return subcategories;
   }
 
   // =====================

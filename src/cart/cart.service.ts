@@ -127,6 +127,7 @@ export class CartService {
       throw new NotFoundException('Cart not found');
     }
 
+    // console.log('cartfound', cart, 'cartfound');
     // console.log(' itemzz', cart, 'itemzz');
     // console.log('dtoooo', JSON.stringify(cart, null, 2), 'dtoooo');
 

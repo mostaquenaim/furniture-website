@@ -27,21 +27,53 @@ export class CategoryController {
   @Get('series/:slug/products')
   getSeriesWiseProducts(
     @Param('slug') slug: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
+
+    @Query('colorIds') colorIds?: string,
+    @Query('materialIds') materialIds?: string,
+    @Query('subCategoryIds') subCategoryIds?: string,
+
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('order') order: 'asc' | 'desc' = 'asc',
   ) {
-    console.log('getSeriesWiseProducts');
+    console.log(
+      'in bruh',
+      colorIds,
+      materialIds,
+      subCategoryIds,
+      minPrice,
+      maxPrice,
+    );
+
     return this.categoryService.getSeriesWiseProducts({
+      slug,
       page: Number(page) || 1,
       limit: Number(limit) || 10,
       search,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
-      slug,
+
+      colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
+      materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
+      subCategoryIds: subCategoryIds
+        ? subCategoryIds.split(',').map(Number)
+        : undefined,
+
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      orderBy: sortBy ? { [sortBy]: order } : { createdAt: 'desc' },
     });
   }
 
+  @Get('series/:slug/subcategories')
+  getSeriesWiseSubcategories(@Param('slug') slug: string) {
+    return this.categoryService.getSeriesWiseSubcategories(slug);
+  }
   // =====================
   // CATEGORY
   // =====================
