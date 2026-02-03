@@ -213,7 +213,6 @@ model Product {
   discount      Int      @default(0)
   discountEnd   DateTime @default(now())
   discountStart DateTime @default(now())
-  viewCount     Int      @default(0)
 
   note             String?
   deliveryEstimate String?
@@ -221,6 +220,11 @@ model Product {
   dimension        String?
   shippingReturn   String?
   isActive         Boolean @default(true)
+  featured         Boolean @default(false)
+  viewCount        Int     @default(0)
+  sold             Int     @default(0)
+  rating           Decimal @default(0.0) @db.Decimal(3, 2)
+  sortOrder        Int     @default(0)
 
   material      Material?            @relation(fields: [materialId], references: [id])
   materialId    Int?

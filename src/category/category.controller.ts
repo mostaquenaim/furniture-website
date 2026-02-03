@@ -66,7 +66,7 @@ export class CategoryController {
 
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      orderBy: sortBy ? { [sortBy]: order } : { createdAt: 'desc' },
+      orderBy: sortBy ? { [sortBy]: order } : undefined,
     });
   }
 

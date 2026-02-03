@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
@@ -192,7 +195,7 @@ export class CategoryService {
     subCategoryIds?: number[];
     minPrice?: number;
     maxPrice?: number;
-    orderBy?: Record<string, 'asc' | 'desc'>;
+    orderBy?: Record<string, 'asc' | 'desc'> | undefined;
   }) {
     // find series
     console.log(orderBy);
@@ -272,7 +275,7 @@ export class CategoryService {
         // order by
         orderBy: orderBy
           ? { product: orderBy }
-          : { product: { createdAt: 'desc' } },
+          : { product: { sortOrder: 'desc' } },
 
         include: {
           product: {
