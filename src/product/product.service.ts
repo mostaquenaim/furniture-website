@@ -293,11 +293,13 @@ export class ProductService {
     limit = 10,
     search,
     isActive,
+    orderBy,
   }: {
     page?: number;
     limit?: number;
     search?: string;
     isActive?: boolean;
+    orderBy?: Record<string, 'asc' | 'desc'> | undefined;
   }) {
     const skip = (page - 1) * limit;
 
@@ -320,9 +322,7 @@ export class ProductService {
         where,
         skip,
         take: limit,
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: orderBy ? orderBy : { sortOrder: 'asc' },
         include: {
           // --------------------
           // Material
@@ -636,5 +636,287 @@ export class ProductService {
     }
 
     return { message: 'Product prices synchronized successfully' };
+  }
+
+  // you may also like
+  async youMayAlsoLike(productSlug: string) {
+    // Find the source product with its subcategories and material
+    const sourceProduct = await this.prisma.product.findUnique({
+      where: { slug: productSlug, isActive: true },
+      select: {
+        id: true,
+        materialId: true,
+        subCategories: {
+          select: {
+            subCategoryId: true,
+            subCategory: {
+              select: {
+                categoryId: true,
+                category: {
+                  select: {
+                    seriesId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!sourceProduct) {
+      return [];
+    }
+
+    const subCategoryIds = sourceProduct.subCategories.map(
+      (sc) => sc.subCategoryId,
+    );
+    const categoryIds = [
+      ...new Set(
+        sourceProduct.subCategories.map((sc) => sc.subCategory.categoryId),
+      ),
+    ];
+    const seriesIds = [
+      ...new Set(
+        sourceProduct.subCategories.map(
+          (sc) => sc.subCategory.category.seriesId,
+        ),
+      ),
+    ];
+
+    // Step 1: Find products from same subcategories or material
+    let relatedProducts = await this.prisma.product.findMany({
+      where: {
+        isActive: true,
+        id: { not: sourceProduct.id },
+        OR: [
+          {
+            subCategories: {
+              some: {
+                subCategoryId: { in: subCategoryIds },
+              },
+            },
+          },
+          ...(sourceProduct.materialId
+            ? [{ materialId: sourceProduct.materialId }]
+            : []),
+        ],
+      },
+      take: 8,
+      orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        images: {
+          select: {
+            id: true,
+            image: true,
+            serialNo: true,
+          },
+        },
+      },
+    });
+
+    // Step 2: If less than 6, fetch from same categories
+    if (relatedProducts.length < 6 && categoryIds.length > 0) {
+      const existingIds = relatedProducts.map((p) => p.id);
+
+      const categoryProducts = await this.prisma.product.findMany({
+        where: {
+          isActive: true,
+          id: { not: sourceProduct.id, notIn: existingIds },
+          subCategories: {
+            some: {
+              subCategory: {
+                categoryId: { in: categoryIds },
+              },
+            },
+          },
+        },
+        take: 8 - relatedProducts.length,
+        orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          images: {
+            select: {
+              id: true,
+              image: true,
+              serialNo: true,
+            },
+          },
+        },
+      });
+
+      relatedProducts = [...relatedProducts, ...categoryProducts];
+    }
+
+    // Step 3: If still less than 6, fetch from same series
+    if (relatedProducts.length < 6 && seriesIds.length > 0) {
+      const existingIds = relatedProducts.map((p) => p.id);
+
+      const seriesProducts = await this.prisma.product.findMany({
+        where: {
+          isActive: true,
+          id: { not: sourceProduct.id, notIn: existingIds },
+          subCategories: {
+            some: {
+              subCategory: {
+                category: {
+                  seriesId: { in: seriesIds },
+                },
+              },
+            },
+          },
+        },
+        take: 8 - relatedProducts.length,
+        orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          images: {
+            select: {
+              id: true,
+              image: true,
+              serialNo: true,
+            },
+          },
+        },
+      });
+
+      relatedProducts = [...relatedProducts, ...seriesProducts];
+    }
+
+    // Step 4: If still less than 6, fetch any popular products
+    if (relatedProducts.length < 6) {
+      const existingIds = relatedProducts.map((p) => p.id);
+
+      const popularProducts = await this.prisma.product.findMany({
+        where: {
+          isActive: true,
+          id: { not: sourceProduct.id, notIn: existingIds },
+        },
+        take: 8 - relatedProducts.length,
+        orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          images: {
+            select: {
+              id: true,
+              image: true,
+              serialNo: true,
+            },
+          },
+        },
+      });
+
+      relatedProducts = [...relatedProducts, ...popularProducts];
+    }
+
+    return relatedProducts;
+  }
+
+  // set trendscore
+  async setTrendScore() {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Fetch all active products
+    const products = await this.prisma.product.findMany({
+      where: { isActive: true },
+      select: { id: true },
+    });
+
+    for (const product of products) {
+      // Sales in last 7 days
+      const salesLast7Days = await this.prisma.orderItem.count({
+        where: {
+          productId: product.id,
+          order: {
+            createdAt: { gte: sevenDaysAgo },
+            status: { in: ['CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED'] },
+          },
+        },
+      });
+
+      // Views in last 7 days
+      const viewsLast7DaysAgg = await this.prisma.productView.aggregate({
+        where: {
+          productId: product.id,
+          createdAt: { gte: sevenDaysAgo },
+        },
+        _sum: { viewCount: true },
+      });
+      const viewsLast7Days = viewsLast7DaysAgg._sum.viewCount ?? 0;
+
+      // Wishlist adds in last 7 days
+      const wishlistAddsLast7Days = await this.prisma.wishlist.count({
+        where: {
+          productId: product.id,
+          createdAt: { gte: sevenDaysAgo },
+          isActive: true,
+        },
+      });
+
+      // Calculate trendScore
+      const trendScore =
+        salesLast7Days * 5 + viewsLast7Days * 1 + wishlistAddsLast7Days * 2;
+
+      // Update product
+      await this.prisma.product.update({
+        where: { id: product.id },
+        data: { trendScore },
+      });
+    }
+
+    console.log('Trend scores updated for all products!');
+  }
+
+  // get product's all reviews
+  async getProductReviews(slug: string) {
+    // First, find the product by slug
+    const product = await this.prisma.product.findUnique({
+      where: { slug },
+      select: {
+        id: true, // we just need the id
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    // Fetch reviews for this product
+    const reviews = await this.prisma.review.findMany({
+      where: {
+        productId: product.id,
+        isHidden: false, // only show visible reviews
+      },
+      include: {
+        user: true, // include user info
+      },
+      orderBy: {
+        createdAt: 'desc', // newest first
+      },
+    });
+
+    // Optionally calculate average rating
+    const ratingCount = reviews.length;
+    const averageRating =
+      ratingCount > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / ratingCount
+        : 0;
+
+    console.log(reviews, ratingCount, Number(averageRating.toFixed(1)));
+    return {
+      reviews,
+      ratingCount,
+      averageRating: Number(averageRating.toFixed(1)),
+    };
   }
 }

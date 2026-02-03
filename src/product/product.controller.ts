@@ -11,13 +11,31 @@ export class ProductController {
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('order') order: 'asc' | 'desc' = 'asc',
   ) {
+    console.log(sortBy, order, 'sortBy', 'order');
     return this.productService.getAllProducts({
       page: Number(page) || 1,
       limit: Number(limit) || 10,
       search,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      orderBy: sortBy ? { [sortBy]: order } : undefined,
     });
+  }
+
+  // you may also like / recommended / related products
+  @Get('you-may-also-like/:productSlug')
+  async youMayAlsoLike(@Param('productSlug') productSlug: string) {
+    console.log(productSlug, 'slugg');
+    return this.productService.youMayAlsoLike(productSlug);
+  }
+
+  // product reviews
+  @Get('review/:slug')
+  async getProductReviews(@Param('slug') slug: string) {
+    console.log('slug/review');
+    return this.productService.getProductReviews(slug);
   }
 
   @Get(':slug')

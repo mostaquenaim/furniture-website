@@ -275,7 +275,7 @@ export class CategoryService {
         // order by
         orderBy: orderBy
           ? { product: orderBy }
-          : { product: { sortOrder: 'desc' } },
+          : { product: { sortOrder: 'asc' } },
 
         include: {
           product: {
