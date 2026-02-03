@@ -309,21 +309,26 @@ export class CategoryService {
         },
       }),
 
-      this.prisma.productSubCategory.count({
+      this.prisma.product.count({
         where: {
-          product: productWhere,
-          subCategory: {
-            ...subCategoryWhere,
-            category: {
-              isActive,
-              seriesId: selectedSeries.id,
-              series: { isActive },
+          ...productWhere,
+          subCategories: {
+            some: {
+              subCategory: {
+                ...subCategoryWhere,
+                category: {
+                  isActive,
+                  seriesId: selectedSeries.id,
+                  series: { isActive },
+                },
+              },
             },
           },
         },
       }),
     ]);
 
+    // console.log(total,'totaaal');
     // ---------------------------
     // NORMALIZATION
     // ---------------------------
