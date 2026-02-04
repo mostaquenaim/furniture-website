@@ -14,6 +14,7 @@ import {
   Param,
   ParseIntPipe,
   Delete,
+  Headers,
 } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/addCartItem.dto';
@@ -43,16 +44,9 @@ export class CartController {
     @Query('sizeId') sizeId?: string,
     @Query('summary') isSummary?: boolean,
   ) {
-    console.log('cart items');
-    // if (process.env.NODE_ENV === 'development') {
-    //   console.log(
-    //     req?.user?.userId,
-    //     { productSlug, colorId, sizeId },
-    //     'productSlug, colorId, sizeId',
-    //   );
-    // }
+    // console.log('cart items', req.user.userId);
 
-    return await this.cartService.getCartItems(req.user.userId, {
+    return await this.cartService.getCartItems(req.user.userId, null, {
       productSlug: productSlug ? productSlug : undefined,
       colorId: colorId ? +colorId : undefined,
       sizeId: sizeId ? +sizeId : undefined,
@@ -60,23 +54,11 @@ export class CartController {
     });
   }
 
-  // get cart by product size id
-  @Get('items/:productSizeId')
-  async getCartItemByProductSizeId(
-    @Req() req,
-    @Query('productSizeId') productSizeId: string,
-  ) {
-    console.log('cart item by product size id');
-    return await this.cartService.getCartItemByProductSizeId(req.user.userId, {
-      sizeId: productSizeId ? +productSizeId : undefined,
-    });
-  }
-
   // Add an item to cart
   @Get('count')
   async countCartItems(@Req() req) {
     console.log('found');
-    return this.cartService.countCartItems(req.user.userId);
+    return this.cartService.countCartItems(req.user.userId, null);
   }
 
   // apply coupon
@@ -84,8 +66,9 @@ export class CartController {
   async applyCoupon(
     @Param('cartId', ParseIntPipe) cartId: number,
     @Body('code') code: string,
+    @Req() req: any,
   ) {
-    return this.cartService.applyCoupon(cartId, code);
+    return this.cartService.applyCoupon(req.user.id, null, cartId, code);
   }
 
   // update cart item quantity
@@ -95,12 +78,12 @@ export class CartController {
     @Body('quantity', ParseIntPipe) quantity: number,
     @Req() req: any,
   ) {
-    return this.cartService.updateItemQuantity(req.user.id, id, quantity);
+    return this.cartService.updateItemQuantity(req.user.id, null, id, quantity);
   }
 
   // delete cart item
   @Delete('items/:id')
   async removeCartItem(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.cartService.removeItem(req.user.id, id);
+    return this.cartService.removeItem(req.user.id, null, id);
   }
 }

@@ -290,6 +290,7 @@ export class CmsService {
         await this.prisma.district.create({
           data: {
             name: cleanName,
+            deliveryFee: Number(process.env.DEFAULT_DELIVERY_FEE) || 120,
           },
         });
         console.log(`Created district: ${cleanName}`);
@@ -306,6 +307,7 @@ export class CmsService {
       select: {
         id: true,
         name: true,
+        deliveryFee: true,
       },
       orderBy: { name: 'asc' },
     });

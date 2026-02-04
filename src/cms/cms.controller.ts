@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Controller,
@@ -9,6 +11,8 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  Query,
+  ValidationPipe,
 } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { CreateAboutDto } from './dto/create-about.dto';
@@ -20,10 +24,14 @@ import { UpdateBannerDto } from './dto/update-banner.dto';
 import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
 import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { CartService } from 'src/cart/cart.service';
 
 @Controller()
 export class CmsController {
-  constructor(private readonly cmsService: CmsService) {}
+  constructor(
+    private readonly cmsService: CmsService,
+    private readonly cartService: CartService,
+  ) {}
 
   // About
   @Get('about')

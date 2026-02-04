@@ -31,7 +31,6 @@ import { BlogsService } from 'src/blog/blog.service';
 import { CreateBlogCategoryDto } from 'src/blog/dto/create-blog-category.dto';
 import { CreateMaterialDto } from 'src/cms/dto/create-material.dto';
 import { CreateProductDto } from 'src/product/dto/create-product.dto';
-import { AdminService } from './admin.service';
 import { CreateCouponDto } from 'src/cms/dto/create-coupon.dto';
 
 @Controller()

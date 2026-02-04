@@ -10,6 +10,8 @@ import {
   Put,
   UseGuards,
   Req,
+  Query,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -81,5 +83,13 @@ export class AuthController {
     await this.authService.addToBlacklist(tokenJti, exp);
 
     return { message: 'Logged out successfully' };
+  }
+
+  // merge user
+  @UseGuards(JwtAuthGuard)
+  @Patch('merge-user')
+  async mergeUser(@Req() req: any, @Query('visitorId') visitorId: string) {
+    console.log(visitorId, 'vistoriffs');
+    await this.authService.mergeGuestData(visitorId, req.user.userId);
   }
 }

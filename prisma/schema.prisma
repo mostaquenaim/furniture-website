@@ -48,6 +48,7 @@ model User {
   otps         OTP[]
   cart         Cart[]
   productViews ProductView[]
+  visitors     Visitor[]
 }
 
 enum UserRole {
@@ -56,6 +57,17 @@ enum UserRole {
   ORDERMANAGER
   SUPPORT
   CUSTOMER
+}
+
+model Visitor {
+  id     String @id @default(cuid())
+  user   User?  @relation(fields: [userId], references: [id])
+  userId Int?
+
+  carts     Cart[]
+  views     ProductView[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
 
 // =====================
@@ -242,14 +254,22 @@ model Product {
 }
 
 model ProductView {
-  id        Int      @id @default(autoincrement())
-  product   Product  @relation(fields: [productId], references: [id])
+  id        Int     @id @default(autoincrement())
+  product   Product @relation(fields: [productId], references: [id])
   productId Int
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  viewCount Int
+
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
+
+  visitor   Visitor? @relation(fields: [visitorId], references: [id])
+  visitorId String?
+
+  viewCount Int @default(1)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([productId, userId, visitorId])
 }
 
 model Material {
@@ -367,6 +387,8 @@ model Cart {
   status    CartStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  visitor   Visitor?   @relation(fields: [visitorId], references: [id])
+  visitorId String?
 
   @@index([userId, status])
 }
@@ -461,12 +483,13 @@ enum OrderStatus {
 }
 
 model District {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  isActive    Boolean  @default(true)
+  deliveryFee Int      @default(120)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
 }
 
 model Coupon {

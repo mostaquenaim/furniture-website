@@ -912,7 +912,7 @@ export class ProductService {
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / ratingCount
         : 0;
 
-    console.log(reviews, ratingCount, Number(averageRating.toFixed(1)));
+    // console.log(reviews, ratingCount, Number(averageRating.toFixed(1)));
     return {
       reviews,
       ratingCount,

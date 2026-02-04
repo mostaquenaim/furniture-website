@@ -32,6 +32,7 @@ import { AdminModule } from './admin/admin.module';
 import { ProductModule } from './product/product.module';
 import { MaterialModule } from './material/material.module';
 import { CartModule } from './cart/cart.module';
+import { GuestModule } from './guest/guest.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { CartModule } from './cart/cart.module';
     ProductModule,
     MaterialModule,
     CartModule,
+    GuestModule,
   ],
   controllers: [AppController],
   providers: [AppService],
