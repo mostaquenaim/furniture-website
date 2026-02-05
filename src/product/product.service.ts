@@ -639,7 +639,7 @@ export class ProductService {
   }
 
   // you may also like
-  async youMayAlsoLike(productSlug: string) {
+  async youMayAlsoLike(productSlug: string, productIds: number[]) {
     // Find the source product with its subcategories and material
     const sourceProduct = await this.prisma.product.findUnique({
       where: { slug: productSlug, isActive: true },
@@ -668,14 +668,21 @@ export class ProductService {
       return [];
     }
 
+    const excludeIds = [
+      sourceProduct.id,
+      ...(productIds?.length ? productIds : []),
+    ];
+
     const subCategoryIds = sourceProduct.subCategories.map(
       (sc) => sc.subCategoryId,
     );
+
     const categoryIds = [
       ...new Set(
         sourceProduct.subCategories.map((sc) => sc.subCategory.categoryId),
       ),
     ];
+
     const seriesIds = [
       ...new Set(
         sourceProduct.subCategories.map(
@@ -688,7 +695,7 @@ export class ProductService {
     let relatedProducts = await this.prisma.product.findMany({
       where: {
         isActive: true,
-        id: { not: sourceProduct.id },
+        id: { notIn: excludeIds },
         OR: [
           {
             subCategories: {
@@ -725,7 +732,9 @@ export class ProductService {
       const categoryProducts = await this.prisma.product.findMany({
         where: {
           isActive: true,
-          id: { not: sourceProduct.id, notIn: existingIds },
+          id: {
+            notIn: [...excludeIds, ...existingIds],
+          },
           subCategories: {
             some: {
               subCategory: {
@@ -760,7 +769,9 @@ export class ProductService {
       const seriesProducts = await this.prisma.product.findMany({
         where: {
           isActive: true,
-          id: { not: sourceProduct.id, notIn: existingIds },
+          id: {
+            notIn: [...excludeIds, ...existingIds],
+          },
           subCategories: {
             some: {
               subCategory: {
@@ -797,7 +808,9 @@ export class ProductService {
       const popularProducts = await this.prisma.product.findMany({
         where: {
           isActive: true,
-          id: { not: sourceProduct.id, notIn: existingIds },
+          id: {
+            notIn: [...excludeIds, ...existingIds],
+          },
         },
         take: 8 - relatedProducts.length,
         orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],

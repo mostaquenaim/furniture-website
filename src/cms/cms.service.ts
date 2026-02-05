@@ -308,6 +308,7 @@ export class CmsService {
         id: true,
         name: true,
         deliveryFee: true,
+        isCODAvailable: true,
       },
       orderBy: { name: 'asc' },
     });

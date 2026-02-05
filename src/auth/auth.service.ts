@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -135,10 +136,10 @@ export class AuthService {
     if (existingUser) {
       // Determine which field is taken
       if (existingUser.email === dto.email) {
-        throw new Error('Email is already registered.');
+        throw new ConflictException('Email is already registered.');
       }
       if (existingUser.phone === dto.phone) {
-        throw new Error('Phone number is already registered.');
+        throw new ConflictException('Phone number is already registered.');
       }
     }
 

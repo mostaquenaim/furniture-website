@@ -1,19 +1,16 @@
-import { IsArray, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsString, ValidateNested, IsIn } from 'class-validator';
+import { Type } from 'class-transformer';
+import { OrderAddressDto } from './order-address.dto';
 
 export class CreateOrderDto {
   @IsInt()
-  userId: number;
+  cartId: number;
 
-  @IsArray()
-  items: { productId: number; variantId?: number; quantity: number; price: number }[];
+  @ValidateNested()
+  @Type(() => OrderAddressDto)
+  address: OrderAddressDto;
 
   @IsString()
+  @IsIn(['COD', 'ONLINE'])
   paymentMethod: string;
-
-  @IsNumber()
-  totalAmount: number;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
 }

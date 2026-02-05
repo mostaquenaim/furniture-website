@@ -430,6 +430,7 @@ enum CartStatus {
 model Order {
   id Int @id @default(autoincrement())
 
+  user            User?     @relation(fields: [userId], references: [id])
   userId          Int?
   customerName    String
   customerPhone   String
@@ -437,6 +438,7 @@ model Order {
   shippingAddress String
   districtId      Int?
   district        District? @relation(fields: [districtId], references: [id])
+  districtName    String?
 
   deliveryMethod String?
   deliveryCharge Float?
@@ -448,28 +450,31 @@ model Order {
   status    OrderStatus @default(PENDING)
   awbNumber String? // courier AWB
 
-  items OrderItem[]
-  user  User?       @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  payments  Payment[]
+  items    OrderItem[]
+  payments Payment[]
 }
 
 model OrderItem {
-  id        Int @id @default(autoincrement())
-  orderId   Int
-  productId Int
+  id      Int @id @default(autoincrement())
+  orderId Int
 
+  product      Product @relation(fields: [productId], references: [id])
+  productId    Int
   productTitle String // snapshot
   sku          String?
-  color        String?
-  size         String?
 
-  quantity Int
-  price    Float // price at purchase time
-  product  Product @relation(fields: [productId], references: [id])
-  order    Order   @relation(fields: [orderId], references: [id])
+  color String?
+  size  String?
+
+  quantity             Int
+  priceAtPurchase      Int
+  basePriceAtPurchase  Int
+  totalPriceAtPurchase Int
+
+  order Order @relation(fields: [orderId], references: [id])
 }
 
 enum OrderStatus {
@@ -483,13 +488,14 @@ enum OrderStatus {
 }
 
 model District {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  isActive    Boolean  @default(true)
-  deliveryFee Int      @default(120)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orders      Order[]
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  isActive       Boolean  @default(true)
+  deliveryFee    Int      @default(120)
+  isCODAvailable Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orders         Order[]
 }
 
 model Coupon {

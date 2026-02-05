@@ -1,6 +1,7 @@
+/* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -12,23 +13,125 @@ import { RefundDto } from './dto/refund.dto';
 export class OrderService {
   constructor(private prisma: PrismaService) {}
 
-  // User orders
-  getUserOrders(userId: number) {
-    return this.prisma.order.findMany({ where: { userId } });
-  }
+  async createOrder(userId: number, dto: CreateOrderDto) {
+    console.log(userId, 'userId');
+    // 1. Validate district (especially for COD)
+    const district = await this.prisma.district.findUnique({
+      where: { id: dto.address.districtId },
+    });
 
-  // Admin
-  getAllOrders() {
-    return this.prisma.order.findMany();
-  }
+    if (!district) {
+      throw new BadRequestException('Invalid district selected');
+    }
 
-  createOrder(dto: CreateOrderDto) {
-    // return this.prisma.order.create({
-    //   data: {
-    //     ...dto,
-    //     status: 'PENDING',
-    //   },
-    // });
+    // COD check
+    if (dto.paymentMethod === 'COD' && !district.isCODAvailable) {
+      throw new BadRequestException(
+        'Cash on Delivery is not available for this district',
+      );
+    }
+
+    // 2. Fetch user's cart items
+    const cart = await this.prisma.cart.findUnique({
+      where: { id: dto.cartId },
+      include: {
+        items: {
+          include: {
+            productSize: { include: { color: { include: { product: true } } } },
+          },
+        },
+        coupon: true,
+      },
+    });
+
+    if (!cart || cart.items.length === 0) {
+      throw new BadRequestException('Cart is empty');
+    }
+
+    // 2a. Check for price changes
+    const priceChangedItems: string[] = [];
+    for (const item of cart.items) {
+      const productPrice = item?.productSize?.color?.product?.price ?? 0;
+      if (productPrice > Number(item.priceAtAdd)) {
+        // Update cart subtotalAtAdd for this item
+        await this.prisma.cartItem.update({
+          where: { id: item.id },
+          data: {
+            priceAtAdd: productPrice,
+            subtotalAtAdd: productPrice * item.quantity,
+          },
+        });
+
+        priceChangedItems.push(item?.productSize?.color?.product?.title);
+      }
+    }
+
+    if (priceChangedItems.length > 0) {
+      throw new BadRequestException(
+        `The price of the following product(s) has increased: ${priceChangedItems.join(
+          ', ',
+        )}. Your cart has been updated with the new price.`,
+      );
+    }
+
+    // 3. Calculate totals
+    let subtotal = 0;
+    for (const item of cart.items) {
+      subtotal += Number(item.subtotalAtAdd);
+    }
+
+    let customerPhone = dto.address.phone;
+
+    // Ensure it starts with '+880'
+    if (!customerPhone.startsWith('+880')) {
+      if (customerPhone.startsWith('0')) {
+        customerPhone = '+880' + customerPhone.slice(1);
+      } else if (customerPhone.startsWith('1')) {
+        customerPhone = '+880' + customerPhone;
+      }
+    }
+
+    const deliveryCharge =
+      district.deliveryFee ?? Number(process.env.DEFAULT_DELIVERY_FEE) ?? 120;
+    const total = subtotal + deliveryCharge;
+
+    // 4. Create order
+    const order = await this.prisma.order.create({
+      data: {
+        userId,
+        customerName: dto.address.name,
+        customerPhone: customerPhone,
+        shippingAddress: dto.address.fullAddress,
+        districtId: dto.address.districtId,
+        districtName: district.name,
+        deliveryMethod: dto.paymentMethod === 'COD' ? 'COD' : 'ONLINE',
+        couponCode: cart?.coupon?.code,
+        total,
+        items: {
+          create: cart.items.map((item) => ({
+            productId: item?.productSize?.color?.productId,
+            productTitle: item?.productSize?.color?.product?.title,
+            sku: item?.productSize?.sku,
+            color: item?.color,
+            size: item?.size,
+            quantity: item?.quantity,
+            priceAtPurchase: item?.productSize?.color?.product?.price ?? 0,
+            basePriceAtPurchase:
+              item?.productSize?.color?.product?.basePrice ?? 0,
+            totalPriceAtPurchase:
+              (item?.productSize?.color?.product?.price ?? 0) * item?.quantity,
+          })),
+        },
+      },
+    });
+
+    // 5. Optionally clear cart
+    await this.prisma.cart.update({
+      where: { id: cart.id },
+      data: { status: 'CHECKED_OUT' },
+    });
+
+    return order;
   }
 
   getOrderById(id: number) {

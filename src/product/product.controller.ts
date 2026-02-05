@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ProductService } from './product.service';
 
 @Controller('product')
@@ -26,9 +26,15 @@ export class ProductController {
 
   // you may also like / recommended / related products
   @Get('you-may-also-like/:productSlug')
-  async youMayAlsoLike(@Param('productSlug') productSlug: string) {
-    console.log(productSlug, 'slugg');
-    return this.productService.youMayAlsoLike(productSlug);
+  async youMayAlsoLike(
+    @Param('productSlug') productSlug: string,
+    @Query('productIds') productIds?: string,
+  ) {
+    const ids = productIds ? productIds.split(',').map(Number) : [];
+
+    console.log(ids);
+
+    return this.productService.youMayAlsoLike(productSlug, ids);
   }
 
   // product reviews

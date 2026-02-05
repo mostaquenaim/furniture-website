@@ -1,9 +1,19 @@
-import { Controller, Get, Post, Put, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
-import { CancelOrderDto } from './dto/cancel-order.dto';
 import { ReturnOrderDto } from './dto/return-order.dto';
 import { RefundDto } from './dto/refund.dto';
 
@@ -12,35 +22,15 @@ import { RefundDto } from './dto/refund.dto';
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @Get()
-  getUserOrders(@Param('userId') userId: number) {
-    return this.orderService.getUserOrders(userId);
+  @Post('create')
+  create(@Req() req, @Body() dto: CreateOrderDto) {
+    // console.log(req?.user?.userId);
+    return this.orderService.createOrder(req?.user?.userId, dto);
   }
 
-  @Get('all')
-  getAllOrders() {
-    return this.orderService.getAllOrders();
-  }
-
-  @Post()
-  create(@Body() dto: CreateOrderDto) {
-    return this.orderService.createOrder(dto);
-  }
-
-  @Get(':id')
-  getOrder(@Param('id', ParseIntPipe) id: number) {
-    return this.orderService.getOrderById(id);
-  }
-
-  @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateOrderDto) {
-    return this.orderService.updateOrder(id, dto);
-  }
-
-  @Post(':id/cancel')
-  cancel(@Param('id', ParseIntPipe) id: number, @Body() dto: CancelOrderDto) {
-    return this.orderService.cancelOrder(id, dto);
-  }
+  ////////////////////////////
+  //////OTHERS////////////
+  ///////////////////////////
 
   @Post(':id/return')
   return(@Param('id', ParseIntPipe) id: number, @Body() dto: ReturnOrderDto) {
