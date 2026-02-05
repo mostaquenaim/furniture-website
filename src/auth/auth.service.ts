@@ -46,6 +46,13 @@ export class AuthService {
       console.log(`Send SMS OTP to user: ${code}`);
     }
 
+    if (
+      process.env.NODE_ENV === 'vercel' ||
+      process.env.NODE_ENV === 'development'
+    ) {
+      return code;
+    }
+
     return { message: `OTP sent to your ${type}` };
   }
 
@@ -158,9 +165,14 @@ export class AuthService {
 
     // Send OTP
     const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
-    await this.sendOtp(user.id, otpType, dto.email, dto.phone);
+    const otpDetails = await this.sendOtp(
+      user.id,
+      otpType,
+      dto.email,
+      dto.phone,
+    );
 
-    return { userId: user.id, otpSentTo: otpType }; // frontend switches to OTP view
+    return { userId: user.id, otpSentTo: otpType, otpDetails }; // frontend switches to OTP view
   }
 
   async login(dto: LoginDto) {
@@ -213,9 +225,14 @@ export class AuthService {
     /*  */
     const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
 
-    await this.sendOtp(user.id, otpType, dto.email, dto.phone);
+    const otpDetails = await this.sendOtp(
+      user.id,
+      otpType,
+      dto.email,
+      dto.phone,
+    );
 
-    return { userId: user.id, otpSentTo: otpType };
+    return { userId: user.id, otpSentTo: otpType, otpDetails };
   }
 
   // get profile
