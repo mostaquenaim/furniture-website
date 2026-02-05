@@ -198,7 +198,7 @@ export class CategoryService {
     orderBy?: Record<string, 'asc' | 'desc'> | undefined;
   }) {
     // find series
-    console.log(orderBy);
+    // console.log(orderBy);
     const selectedSeries = await this.prisma.series.findFirst({
       where: { slug },
       select: { id: true, name: true },
@@ -256,50 +256,49 @@ export class CategoryService {
       }),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.productSubCategory.findMany({
+    const [products, total] = await this.prisma.$transaction([
+      this.prisma.product.findMany({
         skip,
         take: limit,
         where: {
-          product: productWhere,
-          subCategory: {
-            ...subCategoryWhere,
-            isActive,
-            category: {
-              isActive,
-              seriesId: selectedSeries.id,
-              series: { isActive },
-            },
-          },
-        },
-        // order by
-        orderBy: orderBy
-          ? { product: orderBy }
-          : { product: { sortOrder: 'asc' } },
-
-        include: {
-          product: {
-            include: {
-              images: true,
-              colors: {
-                include: { color: true },
+          ...productWhere,
+          subCategories: {
+            some: {
+              subCategory: {
+                ...subCategoryWhere,
+                category: {
+                  isActive,
+                  seriesId: selectedSeries.id,
+                  series: { isActive },
+                },
               },
             },
           },
-          subCategory: {
+        },
+        orderBy: orderBy ?? { sortOrder: 'asc' },
+        include: {
+          images: true,
+          colors: {
+            include: { color: true },
+          },
+          subCategories: {
             include: {
-              blogs: {
-                where: {
-                  blogPost: { published: true },
-                },
-                take: 1,
+              subCategory: {
                 include: {
-                  blogPost: {
-                    select: {
-                      id: true,
-                      title: true,
-                      slug: true,
-                      content: true,
+                  blogs: {
+                    where: {
+                      blogPost: { published: true },
+                    },
+                    take: 1,
+                    include: {
+                      blogPost: {
+                        select: {
+                          id: true,
+                          title: true,
+                          slug: true,
+                          content: true,
+                        },
+                      },
                     },
                   },
                 },
@@ -334,36 +333,32 @@ export class CategoryService {
     // ---------------------------
 
     const productMap = new Map<number, any>();
+
     const subCategoryMap = new Map<number, any>();
     let blog: any = null;
 
-    for (const row of rows) {
-      // Products (deduplicated)
-      if (!productMap.has(row.product.id)) {
-        productMap.set(row.product.id, row.product);
-      }
+    for (const product of products) {
+      for (const ps of product.subCategories) {
+        const sc = ps.subCategory;
 
-      // Subcategories (deduplicated)
-      if (!subCategoryMap.has(row.subCategory.id)) {
-        subCategoryMap.set(row.subCategory.id, {
-          id: row.subCategory.id,
-          name: row.subCategory.name,
-          slug: row.subCategory.slug,
-          categoryId: row.subCategory.categoryId,
-        });
-      }
+        if (!subCategoryMap.has(sc.id)) {
+          subCategoryMap.set(sc.id, {
+            id: sc.id,
+            name: sc.name,
+            slug: sc.slug,
+            categoryId: sc.categoryId,
+          });
+        }
 
-      // Single blog (pick first published only)
-      if (!blog) {
-        const blogPost = row.subCategory.blogs?.[0]?.blogPost;
-        if (blogPost) {
-          blog = blogPost;
+        if (!blog) {
+          const blogPost = sc.blogs?.[0]?.blogPost;
+          if (blogPost) blog = blogPost;
         }
       }
     }
 
     return {
-      products: Array.from(productMap.values()),
+      products,
       subcategories: Array.from(subCategoryMap.values()),
       blog,
       series: selectedSeries.name,

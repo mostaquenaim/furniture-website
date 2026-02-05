@@ -180,8 +180,8 @@ export class AdminController {
     return await this.cmsService.createCoupon(dto);
   }
 
-  // @Post('create-mock-coupons')
-  // async createMockCoupons() {
-  //   return this.cmsService.createMockCoupons();
-  // }
+  @Post('create-mock-coupons')
+  async createMockCoupons() {
+    return this.cmsService.createMockCoupons();
+  }
 }
