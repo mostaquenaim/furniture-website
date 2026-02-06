@@ -45,23 +45,46 @@ export class WishlistService {
     };
   }
 
-  add(userId: string, productId: string) {
-    if (!this.wishlist[userId]) this.wishlist[userId] = [];
-    if (!this.wishlist[userId].includes(productId)) {
-      this.wishlist[userId].push(productId);
+  // toggle wishlist
+  async toggleWishlist(userId: number, productId: number) {
+    const existing = await this.prisma.wishlist.findUnique({
+      where: {
+        userId_productId: { userId, productId },
+      },
+    });
+
+    if (!existing) {
+      await this.prisma.wishlist.create({
+        data: { userId, productId },
+      });
+      return { isWished: true };
     }
-    return { message: 'Added to wishlist', wishlist: this.wishlist[userId] };
+
+    const updated = await this.prisma.wishlist.update({
+      where: { id: existing.id },
+      data: { isActive: !existing.isActive },
+    });
+
+    return { isWished: updated.isActive };
   }
 
-  remove(userId: string, productId: string) {
-    if (!this.wishlist[userId]) return [];
-    this.wishlist[userId] = this.wishlist[userId].filter(
-      (id) => id !== productId,
-    );
+  // check if wished
+  async getIsWished(userId: number, productSlug: string) {
+    const wishlist = await this.prisma.wishlist.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        product: {
+          slug: productSlug,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
 
     return {
-      message: 'Removed from wishlist',
-      wishlist: this.wishlist[userId],
+      isWished: !!wishlist,
     };
   }
 }

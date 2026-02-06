@@ -10,10 +10,13 @@ import {
   Param,
   Req,
   Query,
+  UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { WishlistService } from './wishlist.service';
-import { AddWishlistDto } from './dto/add-wishlist.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('wishlist')
 export class WishlistController {
   constructor(private readonly wishlistService: WishlistService) {}
@@ -25,19 +28,20 @@ export class WishlistController {
     @Query('limit') limit = '8',
   ) {
     return this.wishlistService.getWishlist(
-      req.user.id,
+      req?.user?.userId,
       Number(page),
       Number(limit),
     );
   }
 
-  @Post()
-  addToWishlist(@Body() dto: AddWishlistDto, @Req() req) {
-    return this.wishlistService.add(req.user.id, dto.productId);
+  @Get('isWIshed/:productSlug')
+  getIsWished(@Req() req: any, @Param('productSlug') productSlug: string) {
+    return this.wishlistService.getIsWished(req?.user?.userId, productSlug);
   }
 
-  @Delete(':productId')
-  removeFromWishlist(@Param('productId') productId: string, @Req() req) {
-    return this.wishlistService.remove(req.user.id, productId);
+  // toggle product wish
+  @Patch('toggle/:productId')
+  addToWishlist(@Param('productId') productId: number, @Req() req) {
+    return this.wishlistService.toggleWishlist(req?.user?.userId, productId);
   }
 }
