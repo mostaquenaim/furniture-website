@@ -32,10 +32,6 @@ export class OrderController {
   //////OTHERS////////////
   ///////////////////////////
 
-  @Post(':id/return')
-  return(@Param('id', ParseIntPipe) id: number, @Body() dto: ReturnOrderDto) {
-    return this.orderService.returnOrder(id, dto);
-  }
 
   @Get(':id/invoice')
   invoice(@Param('id', ParseIntPipe) id: number) {
@@ -50,10 +46,5 @@ export class OrderController {
   @Get(':id/tracking')
   tracking(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.getTracking(id);
-  }
-
-  @Post(':id/refund')
-  refund(@Param('id', ParseIntPipe) id: number, @Body() dto: RefundDto) {
-    return this.orderService.refundPayment(id, dto);
   }
 }

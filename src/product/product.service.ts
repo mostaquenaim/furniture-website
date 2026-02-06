@@ -710,7 +710,11 @@ export class ProductService {
         ],
       },
       take: 8,
-      orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+      orderBy: [
+        { featured: 'desc' },
+        { rating: 'desc' },
+        { soldCount: 'desc' },
+      ],
       select: {
         id: true,
         title: true,
@@ -744,7 +748,11 @@ export class ProductService {
           },
         },
         take: 8 - relatedProducts.length,
-        orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+        orderBy: [
+          { featured: 'desc' },
+          { rating: 'desc' },
+          { soldCount: 'desc' },
+        ],
         select: {
           id: true,
           title: true,
@@ -783,7 +791,11 @@ export class ProductService {
           },
         },
         take: 8 - relatedProducts.length,
-        orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+        orderBy: [
+          { featured: 'desc' },
+          { rating: 'desc' },
+          { soldCount: 'desc' },
+        ],
         select: {
           id: true,
           title: true,
@@ -813,7 +825,11 @@ export class ProductService {
           },
         },
         take: 8 - relatedProducts.length,
-        orderBy: [{ featured: 'desc' }, { rating: 'desc' }, { sold: 'desc' }],
+        orderBy: [
+          { featured: 'desc' },
+          { rating: 'desc' },
+          { soldCount: 'desc' },
+        ],
         select: {
           id: true,
           title: true,

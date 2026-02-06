@@ -231,13 +231,14 @@ model Product {
   productDetails   String?
   dimension        String?
   shippingReturn   String?
-  isActive         Boolean @default(true)
-  featured         Boolean @default(false)
-  viewCount        Int     @default(0)
-  sold             Int     @default(0)
-  rating           Decimal @default(0.0) @db.Decimal(3, 2)
-  trendScore       Decimal @default(0.0) @db.Decimal(3, 2)
-  sortOrder        Int     @default(0)
+
+  isActive   Boolean @default(true)
+  featured   Boolean @default(false)
+  viewCount  Int     @default(0)
+  soldCount  Int     @default(0)
+  rating     Decimal @default(0.0) @db.Decimal(3, 2)
+  trendScore Decimal @default(0.0) @db.Decimal(3, 2)
+  sortOrder  Int     @default(0)
 
   material      Material?            @relation(fields: [materialId], references: [id])
   materialId    Int?
@@ -336,6 +337,8 @@ model ProductSize {
   basePrice Int?
   price     Int?
   quantity  Int     @default(0)
+
+  soldCount Int @default(0)
 
   sizeId Int
   size   Size @relation(fields: [sizeId], references: [id])

@@ -1,13 +1,13 @@
 /* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
-import { CancelOrderDto } from './dto/cancel-order.dto';
-import { ReturnOrderDto } from './dto/return-order.dto';
-import { RefundDto } from './dto/refund.dto';
 
 @Injectable()
 export class OrderService {
@@ -46,6 +46,10 @@ export class OrderService {
 
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
+    }
+
+    if (cart.userId !== userId || cart.status !== 'ACTIVE') {
+      throw new ForbiddenException('Invalid cart');
     }
 
     // 2a. Check for price changes
@@ -95,40 +99,71 @@ export class OrderService {
       district.deliveryFee ?? Number(process.env.DEFAULT_DELIVERY_FEE) ?? 120;
     const total = subtotal + deliveryCharge;
 
-    // 4. Create order
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        customerName: dto.address.name,
-        customerPhone: customerPhone,
-        shippingAddress: dto.address.fullAddress,
-        districtId: dto.address.districtId,
-        districtName: district.name,
-        deliveryMethod: dto.paymentMethod === 'COD' ? 'COD' : 'ONLINE',
-        couponCode: cart?.coupon?.code,
-        total,
-        items: {
-          create: cart.items.map((item) => ({
-            productId: item?.productSize?.color?.productId,
-            productTitle: item?.productSize?.color?.product?.title,
-            sku: item?.productSize?.sku,
-            color: item?.color,
-            size: item?.size,
-            quantity: item?.quantity,
-            priceAtPurchase: item?.productSize?.color?.product?.price ?? 0,
-            basePriceAtPurchase:
-              item?.productSize?.color?.product?.basePrice ?? 0,
-            totalPriceAtPurchase:
-              (item?.productSize?.color?.product?.price ?? 0) * item?.quantity,
-          })),
-        },
-      },
-    });
+    const order = await this.prisma.$transaction(async (tx) => {
+      for (const item of cart.items) {
+        const updated = await tx.productSize.updateMany({
+          where: {
+            id: item.productSizeId,
+            quantity: { gte: item.quantity },
+          },
+          data: {
+            quantity: { decrement: item.quantity },
+            soldCount: { increment: item.quantity },
+          },
+        });
 
-    // 5. Optionally clear cart
-    await this.prisma.cart.update({
-      where: { id: cart.id },
-      data: { status: 'CHECKED_OUT' },
+        if (updated.count === 0) {
+          throw new BadRequestException(
+            `Insufficient stock for ${item.productSize.color.product.title}`,
+          );
+        }
+
+        await tx.product.update({
+          where: { id: item.productSize.color.productId },
+          data: {
+            soldCount: { increment: item.quantity },
+          },
+        });
+      }
+
+      // 4. Create order
+      const order = await tx.order.create({
+        data: {
+          userId,
+          customerName: dto.address.name,
+          customerPhone: customerPhone,
+          shippingAddress: dto.address.fullAddress,
+          districtId: dto.address.districtId,
+          districtName: district.name,
+          deliveryMethod: dto.paymentMethod === 'COD' ? 'COD' : 'ONLINE',
+          couponCode: cart?.coupon?.code,
+          total,
+          items: {
+            create: cart.items.map((item) => ({
+              productId: item?.productSize?.color?.productId,
+              productTitle: item?.productSize?.color?.product?.title,
+              sku: item?.productSize?.sku,
+              color: item?.color,
+              size: item?.size,
+              quantity: item?.quantity,
+              priceAtPurchase: item?.productSize?.color?.product?.price ?? 0,
+              basePriceAtPurchase:
+                item?.productSize?.color?.product?.basePrice ?? 0,
+              totalPriceAtPurchase:
+                (item?.productSize?.color?.product?.price ?? 0) *
+                item?.quantity,
+            })),
+          },
+        },
+      });
+
+      // 5. Optionally clear cart
+      await tx.cart.update({
+        where: { id: cart.id },
+        data: { status: 'CHECKED_OUT' },
+      });
+
+      return order;
     });
 
     return order;
@@ -136,27 +171,6 @@ export class OrderService {
 
   getOrderById(id: number) {
     return this.prisma.order.findUnique({ where: { id } });
-  }
-
-  updateOrder(id: number, dto: UpdateOrderDto) {
-    // return this.prisma.order.update({
-    //   where: { id },
-    //   data: dto,
-    // });
-  }
-
-  cancelOrder(id: number, dto: CancelOrderDto) {
-    // return this.prisma.order.update({
-    //   where: { id },
-    //   data: { status: 'CANCELLED', cancelReason: dto.reason },
-    // });
-  }
-
-  returnOrder(id: number, dto: ReturnOrderDto) {
-    // return this.prisma.order.update({
-    //   where: { id },
-    //   data: { status: 'RETURN_REQUESTED', returnReason: dto.reason },
-    // });
   }
 
   generateInvoice(id: number) {
@@ -172,12 +186,5 @@ export class OrderService {
 
   getTracking(id: number) {
     return { tracking: `Tracking info for order ${id}` };
-  }
-
-  refundPayment(id: number, dto: RefundDto) {
-    // return this.prisma.order.update({
-    //   where: { id },
-    //   data: { refundAmount: dto.amount, status: 'REFUNDED' },
-    // });
   }
 }
