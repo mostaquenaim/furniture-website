@@ -232,13 +232,14 @@ model Product {
   dimension        String?
   shippingReturn   String?
 
-  isActive   Boolean @default(true)
-  featured   Boolean @default(false)
-  viewCount  Int     @default(0)
-  soldCount  Int     @default(0)
-  rating     Decimal @default(0.0) @db.Decimal(3, 2)
-  trendScore Decimal @default(0.0) @db.Decimal(3, 2)
-  sortOrder  Int     @default(0)
+  totalProductQuantity Int     @default(0)
+  isActive             Boolean @default(true)
+  featured             Boolean @default(false)
+  viewCount            Int     @default(0)
+  soldCount            Int     @default(0)
+  rating               Decimal @default(0.0) @db.Decimal(3, 2)
+  trendScore           Decimal @default(0.0) @db.Decimal(3, 2)
+  sortOrder            Int     @default(0)
 
   material      Material?            @relation(fields: [materialId], references: [id])
   materialId    Int?
@@ -432,6 +433,9 @@ enum CartStatus {
 // =====================
 model Order {
   id Int @id @default(autoincrement())
+
+  orderId       String @unique
+  trackingToken String @unique
 
   user            User?     @relation(fields: [userId], references: [id])
   userId          Int?

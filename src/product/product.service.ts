@@ -267,6 +267,9 @@ export class ProductService {
             color: true,
             images: true,
             sizes: {
+              where: {
+                quantity: { gt: 0 },
+              },
               include: {
                 size: {
                   include: {

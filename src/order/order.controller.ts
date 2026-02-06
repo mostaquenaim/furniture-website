@@ -10,17 +10,42 @@ import {
   ParseIntPipe,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ReturnOrderDto } from './dto/return-order.dto';
 import { RefundDto } from './dto/refund.dto';
+import { OrderStatus } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
+
+  @Get('all')
+  getAllOrders(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: OrderStatus,
+    @Query('sortBy') sortBy?: 'createdAt' | 'total' | 'status',
+    @Query('order') order: 'asc' | 'desc' = 'desc',
+    @Query('thumb') thumb?: boolean,
+  ) {
+    console.log(page, 'page');
+
+    return this.orderService.getAllOrders(req.user.userId, {
+      page: Number(page) || 1,
+      limit: Number(limit) || 5,
+      search,
+      status,
+      orderBy: sortBy ? { [sortBy]: order } : undefined,
+      thumb,
+    });
+  }
 
   @Post('create')
   create(@Req() req, @Body() dto: CreateOrderDto) {
@@ -31,7 +56,6 @@ export class OrderController {
   ////////////////////////////
   //////OTHERS////////////
   ///////////////////////////
-
 
   @Get(':id/invoice')
   invoice(@Param('id', ParseIntPipe) id: number) {

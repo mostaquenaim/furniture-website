@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -8,11 +10,31 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { OrderStatus, Prisma } from '@prisma/client';
+import { nanoid } from 'nanoid';
 
 @Injectable()
 export class OrderService {
   constructor(private prisma: PrismaService) {}
 
+  private async generateOrderId(tx: Prisma.TransactionClient) {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+
+    const countToday = await tx.order.count({
+      where: {
+        createdAt: {
+          gte: new Date(today.setHours(0, 0, 0, 0)),
+        },
+      },
+    });
+
+    const sequence = String(countToday + 1).padStart(6, '0');
+
+    return `ORD-${dateStr}-${sequence}`;
+  }
+
+  // create a order
   async createOrder(userId: number, dto: CreateOrderDto) {
     console.log(userId, 'userId');
     // 1. Validate district (especially for COD)
@@ -126,10 +148,15 @@ export class OrderService {
         });
       }
 
+      const orderId = await this.generateOrderId(tx);
+      const trackingToken = nanoid(10); // generate 10-char token
+
       // 4. Create order
       const order = await tx.order.create({
         data: {
           userId,
+          orderId,
+          trackingToken,
           customerName: dto.address.name,
           customerPhone: customerPhone,
           shippingAddress: dto.address.fullAddress,
@@ -167,6 +194,133 @@ export class OrderService {
     });
 
     return order;
+  }
+
+  // get all orders
+  async getAllOrders(
+    userId: number,
+    {
+      page = 1,
+      limit = 5,
+      search,
+      status,
+      orderBy,
+      thumb,
+    }: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: OrderStatus;
+      orderBy?: Record<string, 'asc' | 'desc'>;
+      thumb?: boolean;
+    },
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: any = { userId };
+
+    // Search logic
+    if (search) {
+      where.OR = [
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerPhone: { contains: search, mode: 'insensitive' } },
+        { customerEmail: { contains: search, mode: 'insensitive' } },
+        { awbNumber: { contains: search, mode: 'insensitive' } },
+      ];
+
+      if (!isNaN(Number(search))) {
+        where.OR.push({ id: Number(search) });
+      }
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    let data: any[];
+    let total: number;
+    const statusCounts: Record<OrderStatus, number> | undefined = undefined;
+
+    if (thumb) {
+      const [dataRaw, totalRaw, statusGroups] = await this.prisma.$transaction([
+        this.prisma.order.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: orderBy ?? { createdAt: 'desc' },
+          select: {
+            id: true,
+            orderId: true,
+            createdAt: true,
+            status: true,
+            total: true,
+            items: { select: { quantity: true } },
+          },
+        }),
+        this.prisma.order.count({ where }),
+        this.prisma.order.groupBy({
+          by: ['status'],
+          where,
+          orderBy: { status: 'asc' }, // required by Prisma now
+          _count: { status: true },
+        }),
+      ]);
+
+      const statusCounts: Record<OrderStatus, number> = {
+        PENDING: 0,
+        CONFIRMED: 0,
+        PACKED: 0,
+        SHIPPED: 0,
+        DELIVERED: 0,
+        CANCELLED: 0,
+        RETURNED: 0,
+      };
+
+      statusGroups.forEach((g) => {
+        if (g._count && typeof g._count === 'object' && 'status' in g._count) {
+          statusCounts[g.status] = g._count.status ?? 0;
+        }
+      });
+
+      data = dataRaw.map((order) => ({
+        id: order.id,
+        orderId: order.orderId,
+        createdAt: order.createdAt,
+        status: order.status,
+        total: order.total,
+        itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+      }));
+
+      total = totalRaw;
+    } else {
+      // Full order with items & payments
+      [data, total] = await this.prisma.$transaction([
+        this.prisma.order.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: orderBy ?? { createdAt: 'desc' },
+          include: {
+            items: {
+              include: { product: { select: { id: true, slug: true } } },
+            },
+            payments: { orderBy: { createdAt: 'desc' } },
+          },
+        }),
+        this.prisma.order.count({ where }),
+      ]);
+    }
+
+    return {
+      data,
+      statusCounts: statusCounts ?? undefined, // only present if thumb=true
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   getOrderById(id: number) {
