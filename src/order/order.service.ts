@@ -239,10 +239,29 @@ export class OrderService {
 
     let data: any[];
     let total: number;
-    const statusCounts: Record<OrderStatus, number> | undefined = undefined;
+
+    const statusGroups = await this.prisma.order.groupBy({
+      by: ['status'],
+      where: { userId }, // IMPORTANT: no pagination filters
+      _count: { _all: true },
+    });
+
+    const statusCounts: Record<OrderStatus, number> = {
+      PENDING: 0,
+      CONFIRMED: 0,
+      PACKED: 0,
+      SHIPPED: 0,
+      DELIVERED: 0,
+      CANCELLED: 0,
+      RETURNED: 0,
+    };
+
+    statusGroups.forEach((g) => {
+      statusCounts[g.status] = g._count._all;
+    });
 
     if (thumb) {
-      const [dataRaw, totalRaw, statusGroups] = await this.prisma.$transaction([
+      const [dataRaw, totalRaw] = await this.prisma.$transaction([
         this.prisma.order.findMany({
           where,
           skip,
@@ -258,29 +277,7 @@ export class OrderService {
           },
         }),
         this.prisma.order.count({ where }),
-        this.prisma.order.groupBy({
-          by: ['status'],
-          where,
-          orderBy: { status: 'asc' }, // required by Prisma now
-          _count: { status: true },
-        }),
       ]);
-
-      const statusCounts: Record<OrderStatus, number> = {
-        PENDING: 0,
-        CONFIRMED: 0,
-        PACKED: 0,
-        SHIPPED: 0,
-        DELIVERED: 0,
-        CANCELLED: 0,
-        RETURNED: 0,
-      };
-
-      statusGroups.forEach((g) => {
-        if (g._count && typeof g._count === 'object' && 'status' in g._count) {
-          statusCounts[g.status] = g._count.status ?? 0;
-        }
-      });
 
       data = dataRaw.map((order) => ({
         id: order.id,
@@ -313,7 +310,7 @@ export class OrderService {
 
     return {
       data,
-      statusCounts: statusCounts ?? undefined, // only present if thumb=true
+      statusCounts,
       meta: {
         total,
         page,
