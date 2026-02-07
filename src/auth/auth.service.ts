@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -15,6 +16,8 @@ import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
+import { UpdateUserDto } from 'src/user/dto/update-user.dto';
+import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_TIME_MINUTES = 15;
@@ -62,6 +65,8 @@ export class AuthService {
     type: 'email' | 'phone',
     keepSignedIn: boolean,
   ) {
+    console.log(emailOrPhone, code, type);
+
     // Find the user first
     const user = await this.prisma.user.findFirst({
       where:
@@ -85,7 +90,7 @@ export class AuthService {
 
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
-    await this.prisma.oTP.update({
+    const otpUpdate = await this.prisma.oTP.update({
       where: { id: otpData.id },
       data: { verified: true },
     });
@@ -105,6 +110,50 @@ export class AuthService {
     const { password, ...safeUser } = user;
 
     return { user: safeUser, token };
+  }
+
+  async verifyUpdateOtp(userId: number, code: string, type: 'email' | 'phone') {
+    console.log(userId, code, type);
+    // console.log(userId, code, type);
+
+    // Find the user first
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+      },
+    });
+
+    console.log(user);
+
+    if (!user) throw new UnauthorizedException('User is not found');
+
+    // console.log(emailOrPhone, code, type, user);
+
+    const otpData = await this.prisma.oTP.findFirst({
+      where: {
+        userId: user.id,
+        code,
+        type,
+        verified: false,
+        expiresAt: { gte: new Date() },
+      },
+    });
+
+    console.log('otpData', otpData);
+
+    if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
+
+    // const otpUpdate =
+    await this.prisma.oTP.update({
+      where: { id: otpData.id },
+      data: { verified: true },
+    });
+
+    return user;
   }
 
   async verifyEmailOrPhone(emailOrPhone: string, type: 'email' | 'phone') {
@@ -129,6 +178,7 @@ export class AuthService {
     );
   }
 
+  // register
   async register(dto: RegisterDto) {
     // Check if email or phone already exists
     const existingUser = await this.prisma.user.findFirst({
@@ -175,6 +225,7 @@ export class AuthService {
     return { userId: user.id, otpSentTo: otpType, otpDetails }; // frontend switches to OTP view
   }
 
+  // login
   async login(dto: LoginDto) {
     // Use clientIp from DTO, fallback to empty string
     const identifier = dto?.clientIp || dto?.email || dto?.phone;
@@ -213,7 +264,7 @@ export class AuthService {
       };
 
       const token = await this.jwtService.signAsync(payload, {
-        expiresIn: '1d',
+        expiresIn: '2d',
       });
 
       const { password, ...safeUser } = user;
@@ -398,5 +449,100 @@ export class AuthService {
 
       return { merged: true };
     });
+  }
+
+  // update profile
+  async update(userId: number, dto: UpdateUserDto) {
+    console.log(userId, dto, 'dtoooo');
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Determine if email or phone is being updated
+    const emailChanging = dto.email && dto.email !== user.email;
+    const phoneChanging = dto.phone && dto.phone !== user.phone;
+
+    if (emailChanging && phoneChanging) {
+      throw new BadRequestException(
+        'Please update email or phone one at a time',
+      );
+    }
+
+    if (emailChanging || phoneChanging) {
+      // Type of OTP needed
+      const type: 'email' | 'phone' = emailChanging ? 'email' : 'phone';
+      const newValue = type === 'email' ? dto.email : dto.phone;
+
+      if (!dto.otp) {
+        // Send OTP if not provided
+        return {
+          status: 'OTP_REQUIRED',
+          otp: await this.sendOtp(
+            user.id,
+            type,
+            emailChanging ? dto.email : undefined,
+            phoneChanging ? dto.phone : undefined,
+          ),
+        };
+        // throw new BadRequestException(`OTP required for ${type} change`);
+      } else {
+        // Verify OTP
+        if (newValue) {
+          const user = await this.verifyUpdateOtp(userId, dto.otp, type);
+
+          console.log(user, 'founduser');
+        }
+
+        console.log('new value nai');
+      }
+    }
+
+    // Update only provided fields
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: dto.name ?? user.name,
+        email: dto.email ?? user.email,
+        phone: dto.phone ?? user.phone,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+      },
+    });
+
+    return {
+      success: true,
+      user: updatedUser,
+    };
+  }
+
+  // change password
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const isOldValid = await bcrypt.compare(dto.oldPassword, user.password);
+
+    if (!isOldValid) {
+      throw new BadRequestException('Old password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return {
+      success: true,
+      message: 'Password changed successfully',
+    };
   }
 }

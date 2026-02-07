@@ -19,14 +19,6 @@ export class UserService {
     return user;
   }
 
-  // Update user
-  update(id: number, dto: UpdateUserDto) {
-    return this.prisma.user.update({
-      where: { id },
-      data: dto,
-    });
-  }
-
   // Delete user
   async remove(id: number) {
     await this.findOne(id); // check existence
@@ -35,17 +27,26 @@ export class UserService {
 
   // Get user orders
   getOrders(userId: number) {
-    return this.prisma.order.findMany({ where: { userId }, include: { items: true } });
+    return this.prisma.order.findMany({
+      where: { userId },
+      include: { items: true },
+    });
   }
 
   // Get user wishlist
   getWishlist(userId: number) {
-    return this.prisma.wishlist.findMany({ where: { userId }, include: { product: true } });
+    return this.prisma.wishlist.findMany({
+      where: { userId },
+      include: { product: true },
+    });
   }
 
   // Get user reviews
   getReviews(userId: number) {
-    return this.prisma.review.findMany({ where: { userId }, include: { product: true } });
+    return this.prisma.review.findMany({
+      where: { userId },
+      include: { product: true },
+    });
   }
 
   // Hide/Select user reviews

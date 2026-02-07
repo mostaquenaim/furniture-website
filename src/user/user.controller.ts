@@ -1,27 +1,46 @@
-import { Controller, Get, Put, Delete, Param, Body, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+import {
+  Controller,
+  Get,
+  Put,
+  Delete,
+  Param,
+  Body,
+  ParseIntPipe,
+  Post,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
+
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthService } from 'src/auth/auth.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Get()
   findAll() {
     return this.userService.findAll();
   }
 
+  @Put('update')
+  update(@Req() req, @Body() dto: UpdateUserDto) {
+    console.log(req.user.id, 'requserid');
+    return this.authService.update(req?.user?.userId, dto);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.userService.findOne(id);
-  }
-
-  @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
-    return this.userService.update(id, dto);
   }
 
   @Delete(':id')
@@ -45,7 +64,11 @@ export class UserController {
   }
 
   @Put(':id/reviews')
-  hideReviews(@Param('id', ParseIntPipe) id: number, @Body('reviewIds') reviewIds: number[], @Body('hide') hide = true) {
+  hideReviews(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('reviewIds') reviewIds: number[],
+    @Body('hide') hide = true,
+  ) {
     return this.userService.hideReviews(id, reviewIds, hide);
   }
 

@@ -17,6 +17,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,6 +36,12 @@ export class AuthController {
     return this.authService.verifyEmailOrPhone(body.emailOrPhone, body.type);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Put('change-password')
+  changePassword(@Req() req, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req?.user?.userId, dto);
+  }
+
   @Post('verify-otp')
   verifyOtp(
     @Body()
@@ -45,7 +52,7 @@ export class AuthController {
       keepSignedIn: boolean;
     },
   ) {
-    console.log(body);
+    // console.log(body);
     return this.authService.verifyOtp(
       body.emailOrPhone,
       body.code,
