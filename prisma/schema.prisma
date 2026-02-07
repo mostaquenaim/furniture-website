@@ -460,8 +460,9 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items    OrderItem[]
-  payments Payment[]
+  items                OrderItem[]
+  payments             Payment[]
+  orderStatusHistories OrderStatusHistory[]
 }
 
 model OrderItem {
@@ -492,6 +493,18 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
   RETURNED
+}
+
+model OrderStatusHistory {
+  id        Int         @id @default(autoincrement())
+  orderId   Int
+  status    OrderStatus
+  note      String? // optional admin note
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
 
 model District {

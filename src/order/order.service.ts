@@ -7,6 +7,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -320,22 +321,153 @@ export class OrderService {
     };
   }
 
-  getOrderById(id: number) {
-    return this.prisma.order.findUnique({ where: { id } });
-  }
-
-  generateInvoice(id: number) {
-    return { message: `PDF generated for order ${id}` };
-  }
-
-  shipOrder(id: number) {
-    return this.prisma.order.update({
-      where: { id },
-      data: { status: 'SHIPPED' },
+  async trackOrder(userId: number, orderId: string) {
+    // Find the order with all related data
+    const order = await this.prisma.order.findFirst({
+      where: {
+        userId: userId,
+        OR: [{ orderId: orderId }, { trackingToken: orderId }],
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                images: {
+                  take: 1,
+                  orderBy: {
+                    serialNo: 'asc',
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderStatusHistories: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+        district: true,
+      },
     });
-  }
 
-  getTracking(id: number) {
-    return { tracking: `Tracking info for order ${id}` };
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Map OrderStatus enum to user-friendly tracking events
+    const statusMapping = {
+      PENDING: 'Order Placed',
+      CONFIRMED: 'Order Confirmed',
+      PACKED: 'Packed',
+      SHIPPED: 'Shipped',
+      DELIVERED: 'Delivered',
+      CANCELLED: 'Cancelled',
+      RETURNED: 'Returned',
+    };
+
+    // Define the expected flow of statuses
+    const expectedFlow = [
+      'PENDING',
+      'CONFIRMED',
+      'PACKED',
+      'SHIPPED',
+      'DELIVERED',
+    ];
+
+    // Get all status changes from history
+    const completedStatuses = new Set(
+      order.orderStatusHistories.map((h) => h.status),
+    );
+
+    // Build tracking events
+    const trackingEvents = expectedFlow.map((status, index) => {
+      const statusHistory = order.orderStatusHistories.find(
+        (h) => h.status === status,
+      );
+      const isCompleted = completedStatuses.has(status as OrderStatus);
+      const isCurrent = order.status === status;
+
+      console.log(statusHistory?.createdAt);
+
+      return {
+        status: statusMapping[status],
+        date: statusHistory
+          ? new Date(statusHistory.createdAt).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: 'UTC',
+            })
+          : '',
+        completed: isCompleted,
+        current: isCurrent,
+      };
+    });
+
+    // Calculate estimated delivery (7 days from order date for example)
+    const estimatedDeliveryDate = new Date(order.createdAt);
+    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
+
+    // Format order date
+    const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+
+    // Format estimated delivery
+    const estimatedDelivery = estimatedDeliveryDate.toLocaleDateString(
+      'en-US',
+      {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      },
+    );
+
+    // Parse shipping address
+    const addressParts = order.shippingAddress.split('\n');
+    const shippingAddress = {
+      name: order.customerName,
+      street: addressParts[0] || order.shippingAddress,
+      city:
+        order.districtName || addressParts[addressParts.length - 1] || 'N/A',
+    };
+
+    // Map order items
+    const items = order.items.map((item) => ({
+      id: item.id,
+      name: item.productTitle,
+      image: item.product.images[0]?.image || '/placeholder-product.jpg',
+      quantity: item.quantity,
+      price: item.priceAtPurchase,
+      color: item.color,
+      size: item.size,
+      sku: item.sku,
+    }));
+
+    console.log(trackingEvents, 'trackingEvents');
+
+    // Return formatted order data
+    return {
+      orderNumber: order.orderId,
+      orderDate,
+      estimatedDelivery,
+      status: order.status.toLowerCase(),
+      awbNumber: order.awbNumber,
+      deliveryMethod: order.deliveryMethod,
+      deliveryCharge: order.deliveryCharge,
+      discount: order.discount,
+      total: order.total,
+      items,
+      trackingEvents,
+      shippingAddress,
+    };
   }
 }

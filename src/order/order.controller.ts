@@ -53,22 +53,8 @@ export class OrderController {
     return this.orderService.createOrder(req?.user?.userId, dto);
   }
 
-  ////////////////////////////
-  //////OTHERS////////////
-  ///////////////////////////
-
-  @Get(':id/invoice')
-  invoice(@Param('id', ParseIntPipe) id: number) {
-    return this.orderService.generateInvoice(id);
-  }
-
-  @Post(':id/ship')
-  ship(@Param('id', ParseIntPipe) id: number) {
-    return this.orderService.shipOrder(id);
-  }
-
-  @Get(':id/tracking')
-  tracking(@Param('id', ParseIntPipe) id: number) {
-    return this.orderService.getTracking(id);
+  @Get('/track/:orderId')
+  trackOrder(@Req() req, @Param('orderId') orderId: string) {
+    return this.orderService.trackOrder(req.user.userId, orderId);
   }
 }
