@@ -4,7 +4,6 @@
 import {
   Controller,
   Get,
-  Post,
   Delete,
   Body,
   Param,
@@ -24,14 +23,13 @@ export class WishlistController {
   @Get()
   getWishlist(
     @Req() req,
-    @Query('page') page = '1',
-    @Query('limit') limit = '8',
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.wishlistService.getWishlist(
-      req?.user?.userId,
-      Number(page),
-      Number(limit),
-    );
+    return this.wishlistService.getWishlist(req.user.userId, {
+      page: Number(page) || 1,
+      limit: Number(limit) || 8,
+    });
   }
 
   @Get('isWIshed/:productSlug')
@@ -43,5 +41,17 @@ export class WishlistController {
   @Patch('toggle/:productId')
   addToWishlist(@Param('productId') productId: number, @Req() req) {
     return this.wishlistService.toggleWishlist(req?.user?.userId, productId);
+  }
+
+  // delete wish
+  @Delete('delete/:productId')
+  deleteWishItem(@Param('productId') productId: number, @Req() req: any) {
+    return this.wishlistService.removeItem(productId, req?.user?.userId);
+  }
+
+  // Handles: DELETE /wishlist (with body { ids: [1, 2, 3] })
+  @Delete('bulk-delete')
+  async removeMany(@Body('ids') ids: number[], @Req() req: any) {
+    return this.wishlistService.removeManyItems(ids, req?.user?.userId);
   }
 }
