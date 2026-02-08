@@ -163,6 +163,7 @@ export class OrderService {
           shippingAddress: dto.address.fullAddress,
           districtId: dto.address.districtId,
           districtName: district.name,
+          deliveryCharge: deliveryCharge,
           deliveryMethod: dto.paymentMethod === 'COD' ? 'COD' : 'ONLINE',
           couponCode: cart?.coupon?.code,
           total,
@@ -321,12 +322,15 @@ export class OrderService {
     };
   }
 
-  async trackOrder(userId: number, orderId: string) {
-    // Find the order with all related data
+  async trackOrder(
+    userId: number,
+    orderId: string,
+    { details = false }: { details?: boolean },
+  ) {
     const order = await this.prisma.order.findFirst({
       where: {
-        userId: userId,
-        OR: [{ orderId: orderId }, { trackingToken: orderId }],
+        userId,
+        OR: [{ orderId }, { trackingToken: orderId }],
       },
       include: {
         items: {
@@ -335,20 +339,26 @@ export class OrderService {
               include: {
                 images: {
                   take: 1,
-                  orderBy: {
-                    serialNo: 'asc',
-                  },
+                  orderBy: { serialNo: 'asc' },
                 },
               },
             },
           },
         },
         orderStatusHistories: {
-          orderBy: {
-            createdAt: 'asc',
-          },
+          orderBy: { createdAt: 'asc' },
         },
-        district: true,
+        // Conditional includes based on detailed view
+        ...(details && {
+          district: true,
+          user: {
+            select: { id: true, email: true },
+          },
+          payments: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          },
+        }),
       },
     });
 
@@ -356,8 +366,7 @@ export class OrderService {
       throw new NotFoundException('Order not found');
     }
 
-    // Map OrderStatus enum to user-friendly tracking events
-    const statusMapping = {
+    const statusMapping: Record<OrderStatus, string> = {
       PENDING: 'Order Placed',
       CONFIRMED: 'Order Confirmed',
       PACKED: 'Packed',
@@ -367,107 +376,108 @@ export class OrderService {
       RETURNED: 'Returned',
     };
 
-    // Define the expected flow of statuses
-    const expectedFlow = [
-      'PENDING',
-      'CONFIRMED',
-      'PACKED',
-      'SHIPPED',
-      'DELIVERED',
-    ];
+    const isSpecialStatus = ['CANCELLED', 'RETURNED'].includes(order.status);
+    const expectedFlow = isSpecialStatus
+      ? ['PENDING', order.status]
+      : ['PENDING', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED'];
 
-    // Get all status changes from history
-    const completedStatuses = new Set(
-      order.orderStatusHistories.map((h) => h.status),
-    );
-
-    // Build tracking events
-    const trackingEvents = expectedFlow.map((status, index) => {
-      const statusHistory = order.orderStatusHistories.find(
+    const trackingEvents = expectedFlow.map((status) => {
+      const history = order.orderStatusHistories.find(
         (h) => h.status === status,
       );
-      const isCompleted = completedStatuses.has(status as OrderStatus);
-      const isCurrent = order.status === status;
-
-      console.log(statusHistory?.createdAt);
 
       return {
-        status: statusMapping[status],
-        date: statusHistory
-          ? new Date(statusHistory.createdAt).toLocaleString('en-US', {
+        status: statusMapping[status as OrderStatus],
+        date: history
+          ? new Date(history.createdAt).toLocaleString('en-US', {
               month: 'short',
               day: 'numeric',
               year: 'numeric',
               hour: 'numeric',
               minute: '2-digit',
               hour12: true,
-              timeZone: 'UTC',
             })
           : '',
-        completed: isCompleted,
-        current: isCurrent,
+        completed: !!history,
+        current: order.status === status,
       };
     });
 
-    // Calculate estimated delivery (7 days from order date for example)
-    const estimatedDeliveryDate = new Date(order.createdAt);
-    estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 7);
-
-    // Format order date
-    const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-
-    // Format estimated delivery
-    const estimatedDelivery = estimatedDeliveryDate.toLocaleDateString(
-      'en-US',
-      {
+    const baseResponse = {
+      orderNumber: order.orderId,
+      trackingToken: order.trackingToken,
+      orderDate: new Date(order.createdAt).toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
-      },
-    );
-
-    // Parse shipping address
-    const addressParts = order.shippingAddress.split('\n');
-    const shippingAddress = {
-      name: order.customerName,
-      street: addressParts[0] || order.shippingAddress,
-      city:
-        order.districtName || addressParts[addressParts.length - 1] || 'N/A',
+      }),
+      estimatedDelivery: new Date(
+        new Date(order.createdAt).setDate(
+          new Date(order.createdAt).getDate() + 7,
+        ),
+      ).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      status: order.status,
+      trackingEvents,
     };
 
-    // Map order items
-    const items = order.items.map((item) => ({
-      id: item.id,
-      name: item.productTitle,
-      image: item.product.images[0]?.image || '/placeholder-product.jpg',
-      quantity: item.quantity,
-      price: item.priceAtPurchase,
-      color: item.color,
-      size: item.size,
-      sku: item.sku,
-    }));
+    if (!details) {
+      return {
+        ...baseResponse,
+        items: order.items.map((item) => ({
+          name: item.productTitle,
+          image: item.product.images[0]?.image || '/placeholder-product.jpg',
+          quantity: item.quantity,
+        })),
+      };
+    }
 
-    console.log(trackingEvents, 'trackingEvents');
+    const latestPayment = order.payments?.[0] || null;
 
-    // Return formatted order data
     return {
-      orderNumber: order.orderId,
-      orderDate,
-      estimatedDelivery,
-      status: order.status.toLowerCase(),
+      ...baseResponse,
       awbNumber: order.awbNumber,
       deliveryMethod: order.deliveryMethod,
-      deliveryCharge: order.deliveryCharge,
-      discount: order.discount,
+      deliveryCharge: order.deliveryCharge || 0,
+      discount: order.discount || 0,
+      subtotal:
+        order.total - (order.deliveryCharge || 0) + (order.discount || 0),
       total: order.total,
-      items,
-      trackingEvents,
-      shippingAddress,
+
+      payment: latestPayment
+        ? {
+            method: order.deliveryMethod,
+            status: latestPayment.status, // Assuming Payment model has status
+            transactionId: latestPayment.trxId,
+          }
+        : null,
+
+      shippingAddress: {
+        name: order.customerName,
+        phone: order.customerPhone,
+        address: order.shippingAddress,
+        district: order.district?.name || order.districtName,
+      },
+
+      items: order.items.map((item) => ({
+        id: item.id,
+        name: item.productTitle,
+        image: item.product.images[0]?.image || '/placeholder-product.jpg',
+        quantity: item.quantity,
+        price: item.priceAtPurchase,
+        color: item.color,
+        size: item.size,
+        sku: item.sku,
+        subtotal: item.totalPriceAtPurchase,
+      })),
+
+      customer: {
+        id: order.user?.id,
+        email: order.customerEmail || order.user?.email,
+      },
     };
   }
 }

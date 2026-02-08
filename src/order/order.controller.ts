@@ -4,10 +4,8 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Body,
   Param,
-  ParseIntPipe,
   UseGuards,
   Req,
   Query,
@@ -15,8 +13,6 @@ import {
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { ReturnOrderDto } from './dto/return-order.dto';
-import { RefundDto } from './dto/refund.dto';
 import { OrderStatus } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard)
@@ -54,7 +50,11 @@ export class OrderController {
   }
 
   @Get('/track/:orderId')
-  trackOrder(@Req() req, @Param('orderId') orderId: string) {
-    return this.orderService.trackOrder(req.user.userId, orderId);
+  trackOrder(
+    @Req() req,
+    @Param('orderId') orderId: string,
+    @Query('details') details: boolean,
+  ) {
+    return this.orderService.trackOrder(req.user.userId, orderId, { details });
   }
 }
