@@ -33,6 +33,7 @@ import { ProductModule } from './product/product.module';
 import { MaterialModule } from './material/material.module';
 import { CartModule } from './cart/cart.module';
 import { GuestModule } from './guest/guest.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { GuestModule } from './guest/guest.module';
     MaterialModule,
     CartModule,
     GuestModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -42,13 +42,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  wishlist     Wishlist[]
-  orders       Order[]
-  reviews      Review[]
-  otps         OTP[]
-  cart         Cart[]
-  productViews ProductView[]
-  visitors     Visitor[]
+  wishlist       Wishlist[]
+  orders         Order[]
+  reviews        Review[]
+  otps           OTP[]
+  cart           Cart[]
+  productViews   ProductView[]
+  visitors       Visitor[]
+  supportTickets SupportTicket[]
 }
 
 enum UserRole {
@@ -611,6 +612,37 @@ model Wishlist {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, productId])
+}
+
+// =====================
+// HELP / SUPPORT
+// =====================
+model SupportTicket {
+  id      Int    @id @default(autoincrement())
+  subject String
+  message String
+
+  status   SupportStatus   @default(OPEN)
+  priority SupportPriority @default(NORMAL)
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportPriority {
+  LOW
+  NORMAL
+  HIGH
 }
 
 // =====================
