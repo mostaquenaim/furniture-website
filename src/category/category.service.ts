@@ -529,12 +529,24 @@ export class CategoryService {
     search,
     isActive = true,
     slug,
+
+    colorIds,
+    materialIds,
+    minPrice,
+    maxPrice,
+    orderBy,
   }: {
     page?: number;
     limit?: number;
     search?: string;
     isActive?: boolean;
     slug?: string;
+
+    colorIds?: number[];
+    materialIds?: number[];
+    minPrice?: number;
+    maxPrice?: number;
+    orderBy?: Record<string, 'asc' | 'desc'> | undefined;
   }) {
     const subCategory = await this.prisma.subCategory.findFirst({
       where: {
@@ -574,48 +586,78 @@ export class CategoryService {
 
     const skip = (page - 1) * limit;
 
+    const productWhere: any = {
+      isActive,
+
+      ...(search && {
+        name: { contains: search, mode: 'insensitive' },
+      }),
+
+      ...(minPrice || maxPrice
+        ? {
+            price: {
+              ...(minPrice && { gte: minPrice }),
+              ...(maxPrice && { lte: maxPrice }),
+            },
+          }
+        : {}),
+
+      ...(materialIds?.length && {
+        materialId: {
+          in: materialIds,
+        },
+      }),
+
+      ...(colorIds?.length && {
+        colors: {
+          some: {
+            colorId: { in: colorIds },
+          },
+        },
+      }),
+    };
+
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.productSubCategory.findMany({
+      this.prisma.product.findMany({
         skip,
         take: limit,
         where: {
-          subCategoryId: subCategory.id,
-          subCategory: { isActive },
-          product: { isActive },
-        },
-        include: {
-          product: {
-            include: {
-              images: true,
-              colors: {
-                include: { color: true },
+          ...productWhere,
+          subCategories: {
+            some: {
+              subCategory: {
+                isActive: true,
+                id: subCategory.id,
               },
             },
           },
-          subCategory: {
+        },
+        orderBy: orderBy ?? { sortOrder: 'asc' },
+        include: {
+          images: true,
+          colors: {
+            include: { color: true },
+          },
+          subCategories: {
             include: {
-              blogs: {
-                where: {
-                  blogPost: { published: true },
-                },
-                take: 1,
+              subCategory: {
                 include: {
-                  blogPost: {
-                    select: {
-                      id: true,
-                      title: true,
-                      slug: true,
-                      content: true,
+                  blogs: {
+                    where: {
+                      blogPost: { published: true },
+                    },
+                    take: 1,
+                    include: {
+                      blogPost: {
+                        select: {
+                          id: true,
+                          title: true,
+                          slug: true,
+                          content: true,
+                        },
+                      },
                     },
                   },
-                },
-              },
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                  series: true,
                 },
               },
             },
@@ -623,11 +665,17 @@ export class CategoryService {
         },
       }),
 
-      this.prisma.productSubCategory.count({
+      this.prisma.product.count({
         where: {
-          subCategoryId: subCategory.id,
-          subCategory: { isActive },
-          product: { isActive },
+          ...productWhere,
+          subCategories: {
+            some: {
+              subCategory: {
+                isActive: true,
+                id: subCategory.id,
+              },
+            },
+          },
         },
       }),
     ]);
@@ -638,24 +686,24 @@ export class CategoryService {
 
     const productMap = new Map<number, any>();
     let blog: any = null;
+    let found = false;
 
     for (const row of rows) {
-      // Deduplicate products
-      if (!productMap.has(row.product.id)) {
-        productMap.set(row.product.id, row.product);
-      }
+      for (const ps of row.subCategories) {
+        const blogPost = ps.subCategory.blogs?.[0]?.blogPost;
 
-      // Pick single published blog
-      if (!blog) {
-        const blogPost = row.subCategory.blogs?.[0]?.blogPost;
         if (blogPost) {
           blog = blogPost;
+          found = true;
+          break; // break inner loop
         }
       }
+
+      if (found) break; // break outer loop
     }
 
     return {
-      products: Array.from(productMap.values()),
+      products: rows,
       blog,
       subCategory,
       meta: {

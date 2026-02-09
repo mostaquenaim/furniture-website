@@ -36,6 +36,7 @@ model User {
   name      String?
   phone     String   @unique
   email     String?  @unique
+  isVerified Boolean @default(false)
   password  String?
   role      UserRole @default(CUSTOMER)
   isActive  Boolean  @default(true)
@@ -98,8 +99,9 @@ model BackendPermission {
 model OTP {
   id        Int      @id @default(autoincrement())
   code      String
-  type      String // 'email' | 'phone'
   email     String?
+  type      String // email | phone
+  // purpose   String // REGISTER | ADMIN_LOGIN | UPDATE_EMAIL | UPDATE_PHONE
   phone     String?
   expiresAt DateTime
   verified  Boolean  @default(false)

@@ -14,7 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
@@ -32,9 +32,20 @@ export class AuthService {
   async sendOtp(
     userId: number,
     type: 'email' | 'phone' | '',
+    // purpose: 'REGISTER' | 'ADMIN_LOGIN' | 'UPDATE_EMAIL' | 'UPDATE_PHONE',
     email?: string,
     phone?: string,
   ) {
+    await this.prisma.oTP.updateMany({
+      where: {
+        userId,
+        type,
+        // purpose,
+        verified: false,
+      },
+      data: { expiresAt: new Date() },
+    });
+
     const code = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -57,6 +68,24 @@ export class AuthService {
     }
 
     return { message: `OTP sent to your ${type}` };
+  }
+
+  // issue token
+  private async issueToken(user: any, expiresIn: JwtSignOptions['expiresIn']) {
+    const jti = crypto.randomUUID();
+
+    const payload = {
+      userId: user.id,
+      role: user.role,
+      jti,
+    };
+
+    const token = await this.jwtService.signAsync(payload, {
+      expiresIn,
+    });
+
+    const { password, ...safeUser } = user;
+    return { user: safeUser, token };
   }
 
   async verifyOtp(
@@ -90,26 +119,18 @@ export class AuthService {
 
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
-    const otpUpdate = await this.prisma.oTP.update({
-      where: { id: otpData.id },
-      data: { verified: true },
-    });
+    await this.prisma.$transaction([
+      this.prisma.oTP.update({
+        where: { id: otpData.id },
+        data: { verified: true },
+      }),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { isVerified: true },
+      }),
+    ]);
 
-    const jti = crypto.randomUUID();
-
-    const payload = {
-      userId: user.id,
-      role: user.role,
-      jti,
-    };
-
-    const token = await this.jwtService.signAsync(payload, {
-      expiresIn: keepSignedIn ? '30d' : '1d',
-    });
-
-    const { password, ...safeUser } = user;
-
-    return { user: safeUser, token };
+    return this.issueToken(user, keepSignedIn ? '2d' : '30d');
   }
 
   async verifyUpdateOtp(userId: number, code: string, type: 'email' | 'phone') {
@@ -210,11 +231,14 @@ export class AuthService {
         phone: dto.phone,
         email: dto.email,
         password: hashedPassword,
+        isVerified: false,
+        role: 'CUSTOMER',
       },
     });
 
     // Send OTP
     const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
+
     const otpDetails = await this.sendOtp(
       user.id,
       otpType,
@@ -222,14 +246,18 @@ export class AuthService {
       dto.phone,
     );
 
-    return { userId: user.id, otpSentTo: otpType, otpDetails }; // frontend switches to OTP view
+    return {
+      status: 'OTP_REQUIRED',
+      otpSentTo: otpType,
+      userId: user.id,
+      otpDetails,
+    }; // frontend switches to OTP view
   }
 
   // login
   async login(dto: LoginDto) {
     // Use clientIp from DTO, fallback to empty string
-    const identifier = dto?.clientIp || dto?.email || dto?.phone;
-    // console.log(identifier, 'identifier');
+    const identifier = dto?.email || dto?.phone;
 
     // Check brute force before processing
     await this.checkBruteForce(identifier);
@@ -252,38 +280,24 @@ export class AuthService {
     // Reset attempts on successful login
     await this.resetAttempts(identifier);
 
-    // let otpType: 'email' | 'phone' | '' = '';
+    if (user.role === 'CUSTOMER') {
+      if (!user.isVerified) {
+        throw new UnauthorizedException('Account not verified');
+      }
 
-    if (user.role !== 'CUSTOMER') {
-      const jti = crypto.randomUUID();
-
-      const payload = {
-        userId: user.id,
-        role: user.role,
-        jti,
-      };
-
-      const token = await this.jwtService.signAsync(payload, {
-        expiresIn: '2d',
-      });
-
-      const { password, ...safeUser } = user;
-
-      return { user: safeUser, token };
+      return this.issueToken(user, '1d');
     }
 
-    // customer
-    /*  */
     const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
+    /*  */
+    const otpDetails = await this.sendOtp(user.id, 'email', dto.email);
 
-    const otpDetails = await this.sendOtp(
-      user.id,
-      otpType,
-      dto.email,
-      dto.phone,
-    );
-
-    return { userId: user.id, otpSentTo: otpType, otpDetails };
+    return {
+      status: 'OTP_REQUIRED',
+      otpSentTo: otpType,
+      userId: user.id,
+      otpDetails,
+    };
   }
 
   // get profile
@@ -319,8 +333,7 @@ export class AuthService {
 
   // Store blacklisted token in the database
   async addToBlacklist(jti: string, exp: number) {
-    const expiryDate = Date.now() + exp * 1000; // convert seconds to ms
-
+    const expiryDate = exp * 1000; // convert seconds to ms
     await this.prisma.blackListToken.create({
       data: {
         jti,
@@ -342,7 +355,7 @@ export class AuthService {
       const remainingMinutes = Math.ceil(
         (record.blockedUntil.getTime() - Date.now()) / (60 * 1000),
       );
-      throw new Error(
+      throw new UnauthorizedException(
         `Too many attempts. Try again after ${remainingMinutes} minutes`,
       );
     }
