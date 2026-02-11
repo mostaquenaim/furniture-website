@@ -86,6 +86,9 @@ export class CreateProductDto {
   @IsString()
   sku?: string;
 
+  @IsOptional()
+  tags?: number[];
+
   @IsString()
   slug: string;
 

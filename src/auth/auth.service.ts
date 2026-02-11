@@ -466,7 +466,7 @@ export class AuthService {
 
   // update profile
   async update(userId: number, dto: UpdateUserDto) {
-    console.log(userId, dto, 'dtoooo');
+    // console.log(userId, dto, 'dtoooo');
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');

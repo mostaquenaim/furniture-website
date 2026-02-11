@@ -32,16 +32,16 @@ datasource db {
 // User
 // =====================
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  phone     String   @unique
-  email     String?  @unique
-  isVerified Boolean @default(false)
-  password  String?
-  role      UserRole @default(CUSTOMER)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  name       String?
+  phone      String   @unique
+  email      String?  @unique
+  isVerified Boolean  @default(false)
+  password   String?
+  role       UserRole @default(CUSTOMER)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   wishlist       Wishlist[]
   orders         Order[]
@@ -221,6 +221,7 @@ model Product {
   description      String?
   basePrice        Int
   price            Int?
+  brand            String?
   hasColorVariants Boolean @default(true)
   showColor        Boolean @default(true)
 
@@ -237,7 +238,7 @@ model Product {
 
   totalProductQuantity Int     @default(0)
   isActive             Boolean @default(true)
-  featured             Boolean @default(false)
+  isFeatured             Boolean @default(false)
   viewCount            Int     @default(0)
   soldCount            Int     @default(0)
   rating               Decimal @default(0.0) @db.Decimal(3, 2)
@@ -256,6 +257,30 @@ model Product {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   productViews ProductView[]
+  productTags  ProductTag[]
+}
+
+model Tag {
+  id       Int     @id @default(autoincrement())
+  name     String @unique
+  // slug     String  @unique
+  isActive Boolean @default(true)
+
+  products ProductTag[]
+  blogs    BlogPostTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductTag {
+  productId Int
+  tagId     Int
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
 }
 
 model ProductView {
@@ -675,9 +700,19 @@ model BlogPost {
   categoryId Int
   category   BlogCategory @relation(fields: [categoryId], references: [id])
 
+  tags          BlogPostTag[]
   subCategories SubCategoryBlogs[]
 }
 
+model BlogPostTag {
+  blogPostId Int
+  tagId      Int
+
+  blogPost BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogPostId, tagId])
+}
 model Banner {
   id     Int     @id @default(autoincrement())
   title  String?
@@ -734,4 +769,26 @@ model ActivityLog {
   adminId   Int
   action    String
   createdAt DateTime @default(now())
+}
+
+// =====================
+// SEO
+// =====================
+model SEO {
+  id Int @id @default(autoincrement())
+
+  title       String?
+  description String?
+  keywords    String?
+  canonical   String?
+
+  ogTitle       String?
+  ogDescription String?
+  ogImage       String?
+
+  noIndex  Boolean @default(false)
+  noFollow Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

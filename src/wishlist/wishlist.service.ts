@@ -142,6 +142,7 @@ export class WishlistService {
     });
   }
 
+  // remove many items / bulk-delete
   async removeManyItems(ids: number[], userId: number) {
     if (!ids || ids.length === 0) return { count: 0 };
 

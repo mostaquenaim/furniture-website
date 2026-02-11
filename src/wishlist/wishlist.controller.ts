@@ -39,7 +39,7 @@ export class WishlistController {
 
   // toggle product wish
   @Patch('toggle/:productId')
-  addToWishlist(@Param('productId') productId: number, @Req() req) {
+  toggleWishlist(@Param('productId') productId: number, @Req() req) {
     return this.wishlistService.toggleWishlist(req?.user?.userId, productId);
   }
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -5,6 +6,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -17,7 +19,15 @@ export class ProductService {
 
   // create a product
   async createProduct(dto: CreateProductDto) {
-    console.log('product create shuru');
+    const existing = await this.prisma.product.findUnique({
+      where: {
+        slug: dto.slug,
+      },
+    });
+
+    if (existing)
+      throw new ConflictException('A product with similar slug exists');
+
     // Validate that at least one image exists
     if (!dto.images || dto.images.length === 0) {
       throw new BadRequestException('At least one product image is required');
@@ -69,6 +79,11 @@ export class ProductService {
 
     // safety guard
     if (price < 0) price = 0;
+
+    // Validate tags
+    if (dto.tags && dto.tags.length > 10) {
+      throw new BadRequestException('Maximum 10 tags allowed');
+    }
 
     // Use transaction to ensure all operations succeed or fail together
     return await this.prisma.$transaction(async (tx) => {
@@ -187,6 +202,17 @@ export class ProductService {
             }
           }
         }
+      }
+
+      // Connect tags
+      if (dto.tags && dto.tags.length > 0) {
+        await tx.productTag.createMany({
+          data: dto.tags.map((tagId) => ({
+            productId: product.id,
+            tagId,
+          })),
+          skipDuplicates: true,
+        });
       }
 
       // Return the complete product with all relations
@@ -714,7 +740,7 @@ export class ProductService {
       },
       take: 8,
       orderBy: [
-        { featured: 'desc' },
+        { isFeatured: 'desc' },
         { rating: 'desc' },
         { soldCount: 'desc' },
       ],
@@ -752,7 +778,7 @@ export class ProductService {
         },
         take: 8 - relatedProducts.length,
         orderBy: [
-          { featured: 'desc' },
+          { isFeatured: 'desc' },
           { rating: 'desc' },
           { soldCount: 'desc' },
         ],
@@ -795,7 +821,7 @@ export class ProductService {
         },
         take: 8 - relatedProducts.length,
         orderBy: [
-          { featured: 'desc' },
+          { isFeatured: 'desc' },
           { rating: 'desc' },
           { soldCount: 'desc' },
         ],
@@ -829,7 +855,7 @@ export class ProductService {
         },
         take: 8 - relatedProducts.length,
         orderBy: [
-          { featured: 'desc' },
+          { isFeatured: 'desc' },
           { rating: 'desc' },
           { soldCount: 'desc' },
         ],

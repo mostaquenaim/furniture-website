@@ -126,7 +126,7 @@ export class AdminController {
   ////////////////////
   @Post('products')
   async createProduct(@Body() dto: CreateProductDto) {
-    console.log(JSON.stringify(dto, null, 2), 'dtoooo');
+    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     // return true
     return this.productService.createProduct(dto);
   }
@@ -183,5 +183,13 @@ export class AdminController {
   @Post('create-mock-coupons')
   async createMockCoupons() {
     return this.cmsService.createMockCoupons();
+  }
+
+  //////////////////////
+  ////// OTHERS //////
+  ////////////////////
+  @Post('tags')
+  async createTags(@Body('name') name: string) {
+    return this.cmsService.createNewTag(name);
   }
 }

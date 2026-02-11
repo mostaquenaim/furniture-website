@@ -33,6 +33,32 @@ export class CmsService {
   private tnc = { content: '' };
   private banners = [];
 
+  // get all tags
+  async getAllTags() {
+    return await this.prisma.tag.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+  }
+
+  // create new tag
+  async createNewTag(name: string) {
+    const existing = await this.prisma.tag.findUnique({
+      where: { name: name.toLowerCase() },
+    });
+
+    if (existing) return existing;
+
+    return this.prisma.tag.create({
+      data: { name: name.toLowerCase() },
+    });
+  }
+
   // About
   getAbout() {
     return this.about;

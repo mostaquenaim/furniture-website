@@ -33,6 +33,12 @@ export class CmsController {
     private readonly cartService: CartService,
   ) {}
 
+  // get tags
+  @Get('tags')
+  getAllTags() {
+    return this.cmsService.getAllTags();
+  }
+
   // About
   @Get('about')
   getAbout() {
