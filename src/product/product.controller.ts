@@ -11,8 +11,15 @@ export class ProductController {
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
+
+    @Query('colorIds') colorIds?: string,
+    @Query('materialIds') materialIds?: string,
+
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
     @Query('sortBy') sortBy?: string,
     @Query('order') order: 'asc' | 'desc' = 'asc',
+    @Query('thumb') thumb?: boolean,
   ) {
     console.log(sortBy, order, 'sortBy', 'order');
     return this.productService.getAllProducts({
@@ -21,6 +28,11 @@ export class ProductController {
       search,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
       orderBy: sortBy ? { [sortBy]: order } : undefined,
+      thumb,
+      colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
+      materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
     });
   }
 
@@ -43,6 +55,11 @@ export class ProductController {
     console.log('slug/review');
     return this.productService.getProductReviews(slug);
   }
+
+  // @Get('trending')
+  // async getTrendingProducts(){
+
+  // }
 
   @Get(':slug')
   getProductById(@Param('slug') slug: string) {

@@ -34,14 +34,19 @@ export class CmsService {
   private banners = [];
 
   // get all tags
-  async getAllTags() {
+  async getAllTags(search?: string, limit?: number) {
     return await this.prisma.tag.findMany({
       where: {
         isActive: true,
+        ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
       },
       select: {
         id: true,
         name: true,
+      },
+      take: limit ?? undefined,
+      orderBy: {
+        name: 'asc',
       },
     });
   }

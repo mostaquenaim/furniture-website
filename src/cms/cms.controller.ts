@@ -35,8 +35,11 @@ export class CmsController {
 
   // get tags
   @Get('tags')
-  getAllTags() {
-    return this.cmsService.getAllTags();
+  getAllTags(@Query('search') search?: string, @Query('limit') limit?: string) {
+    return this.cmsService.getAllTags(
+      search,
+      limit ? parseInt(limit) : undefined,
+    );
   }
 
   // About

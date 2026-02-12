@@ -323,22 +323,40 @@ export class ProductService {
     search,
     isActive,
     orderBy,
+    colorIds,
+    materialIds,
+    minPrice,
+    maxPrice,
+    thumb = false,
   }: {
     page?: number;
     limit?: number;
     search?: string;
     isActive?: boolean;
-    orderBy?: Record<string, 'asc' | 'desc'> | undefined;
+    colorIds?: number[];
+    materialIds?: number[];
+    minPrice?: number;
+    maxPrice?: number;
+    orderBy?: Record<string, 'asc' | 'desc'>;
+    thumb?: boolean;
   }) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
 
-    // if anything in search
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { sku: { contains: search, mode: 'insensitive' } },
+        {
+          productTags: {
+            some: {
+              tag: {
+                name: { contains: search, mode: 'insensitive' },
+              },
+            },
+          },
+        },
       ];
     }
 
@@ -346,49 +364,82 @@ export class ProductService {
       where.isActive = isActive;
     }
 
-    const [data, total] = await this.prisma.$transaction([
-      this.prisma.product.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: orderBy ? orderBy : { sortOrder: 'asc' },
-        include: {
-          // --------------------
-          // Material
-          // --------------------
-          material: true,
-          // --------------------
-          // Images
-          // --------------------
-          images: {
-            orderBy: {
-              serialNo: 'asc',
+    if (materialIds && materialIds?.length) {
+      where.materialId = { in: materialIds };
+    }
+
+    if (colorIds && colorIds?.length) {
+      where.colors = {
+        some: {
+          colorId: { in: colorIds },
+        },
+      };
+    }
+
+    if (minPrice || maxPrice) {
+      where.price = {
+        ...(minPrice && { gte: minPrice }),
+        ...(maxPrice && { lte: maxPrice }),
+      };
+    }
+
+    // --------------------------
+    // Build Query Based on thumb
+    // --------------------------
+    const productQuery = thumb
+      ? {
+          where,
+          skip,
+          take: limit,
+          orderBy: orderBy ?? { sortOrder: 'asc' },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            basePrice: true,
+            price: true,
+            rating: true,
+            soldCount: true,
+            images: {
+              take: 1,
+              orderBy: { serialNo: 'asc' },
+              select: {
+                image: true,
+              },
             },
           },
-          // --------------------
-          // SubCategories
-          // --------------------
-          subCategories: {
-            include: {
-              subCategory: true,
+        }
+      : {
+          where,
+          skip,
+          take: limit,
+          orderBy: orderBy ?? { sortOrder: 'asc' },
+          include: {
+            material: true,
+            images: {
+              orderBy: { serialNo: 'asc' },
             },
-          },
-          // --------------------
-          // Colors
-          // --------------------
-          colors: {
-            include: {
-              color: true,
-              images: true,
-              sizes: {
-                include: {
-                  size: true,
+            subCategories: {
+              include: {
+                subCategory: true,
+              },
+            },
+            colors: {
+              include: {
+                color: true,
+                images: true,
+                sizes: {
+                  include: {
+                    size: true,
+                  },
                 },
               },
             },
           },
-        },
-      }),
+        };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.product.findMany(productQuery as any),
       this.prisma.product.count({ where }),
     ]);
 
