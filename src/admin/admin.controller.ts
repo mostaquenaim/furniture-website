@@ -12,6 +12,7 @@ import {
   Body,
   Patch,
   Param,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -70,6 +71,38 @@ export class AdminController {
   @Post('subcategory')
   createSubCategory(@Body() createSubCategoryDto: CreateSubCategoryDto) {
     return this.categoryService.createSubCategory(createSubCategoryDto);
+  }
+
+  // update series order
+  @Patch('series/reorder')
+  async reorderSeries(
+    @Req() req: any,
+    @Body('orders') orders: { id: number; sortOrder: number }[],
+  ) {
+    return await this.categoryService.reorder(req?.user?.userId, orders);
+  }
+
+  // update categories
+  @Patch('series/:slug')
+  async updateSeries(
+    @Req() req: any,
+    @Param('slug') slug: string,
+    @Body() seriesDto: CreateSeriesDto,
+  ) {
+    const updatedSeries = await this.categoryService.updateSeriesBySlug(
+      req?.user?.userId,
+      slug,
+      seriesDto,
+    );
+
+    // if (!updatedSeries) {
+    //   throw new NotFoundException("Series not found");
+    // }
+
+    return {
+      message: 'Series updated successfully',
+      data: updatedSeries,
+    };
   }
 
   // ADMIN PROFILE

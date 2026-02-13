@@ -9,8 +9,15 @@ export class CategoryController {
   // SERIES
   // =====================
   @Get('series')
-  getAllSeries() {
-    return this.categoryService.getAllSeries(false, true);
+  getAllSeries(@Query('isActive') isActive?: string) {
+    let parsedIsActive: boolean | null | undefined = undefined;
+
+    if (isActive === 'true') parsedIsActive = true;
+    else if (isActive === 'false') parsedIsActive = false;
+    else if (isActive === 'null') parsedIsActive = null;
+    else parsedIsActive = undefined;
+
+    return this.categoryService.getAllSeries(false, parsedIsActive);
   }
 
   @Get('series/with-relations')
@@ -18,9 +25,9 @@ export class CategoryController {
     return this.categoryService.getAllSeries(true, true);
   }
 
-  @Get('series/:id')
-  getSeries(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.getSeriesById(id);
+  @Get('series/:slug')
+  getSeries(@Param('slug') slug: string) {
+    return this.categoryService.getSeriesBySlug(slug);
   }
 
   // subCategoryWise products

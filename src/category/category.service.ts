@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSeriesDto } from './dto/seriesDto.dto';
@@ -98,10 +99,12 @@ export class CategoryService {
   // =====================
   // SERIES
   // =====================
-  getAllSeries(withRelations = false, isActive?: boolean) {
+  getAllSeries(withRelations = false, isActive?: boolean | null) {
+    console.log('check if active', isActive);
+
     return this.prisma.series.findMany({
       where: {
-        ...(isActive !== undefined && { isActive }),
+        ...(isActive !== undefined && isActive !== null && { isActive }),
       },
       orderBy: { sortOrder: 'asc' },
 
@@ -111,11 +114,13 @@ export class CategoryService {
         slug: true,
         image: true,
         notice: true,
+        sortOrder: true,
+        isActive: true,
 
         ...(withRelations && {
           categories: {
             where: {
-              ...(isActive !== undefined && { isActive }),
+              ...(isActive !== undefined && isActive !== null && { isActive }),
             },
             orderBy: { sortOrder: 'asc' },
             select: {
@@ -125,7 +130,8 @@ export class CategoryService {
 
               subCategories: {
                 where: {
-                  ...(isActive !== undefined && { isActive }),
+                  ...(isActive !== undefined &&
+                    isActive !== null && { isActive }),
                 },
                 orderBy: { sortOrder: 'asc' },
                 select: {
@@ -141,9 +147,9 @@ export class CategoryService {
     });
   }
 
-  getSeriesById(id: number) {
+  getSeriesBySlug(slug: string) {
     return this.prisma.series.findUnique({
-      where: { id },
+      where: { slug },
     });
   }
 
@@ -410,6 +416,78 @@ export class CategoryService {
     console.log(subcategories, 'subcatszz');
 
     return subcategories;
+  }
+
+  //update series
+  async updateSeriesBySlug(
+    userId: number,
+    slug: string,
+    seriesDto: CreateSeriesDto,
+  ) {
+    const existingSeries = await this.prisma.series.findUnique({
+      where: { slug },
+    });
+
+    if (!existingSeries) {
+      throw new NotFoundException('Series not found');
+    }
+
+    // check for duplicate name
+    const duplicateName = await this.prisma.series.findFirst({
+      where: {
+        name: seriesDto.name,
+        NOT: {
+          id: existingSeries.id,
+        },
+      },
+    });
+
+    if (duplicateName) {
+      throw new ConflictException('Series name already exists');
+    }
+
+    // Check duplicate SLUG (excluding current series)
+    const duplicateSlug = await this.prisma.series.findFirst({
+      where: {
+        slug: seriesDto.slug,
+        NOT: {
+          id: existingSeries.id,
+        },
+      },
+    });
+
+    if (duplicateSlug) {
+      throw new ConflictException('Series slug already exists');
+    }
+
+    return this.prisma.series.update({
+      where: { slug },
+      data: {
+        name: seriesDto.name,
+        slug: seriesDto.slug,
+        image: seriesDto.image,
+        notice: seriesDto.notice,
+        isActive: seriesDto.isActive,
+        sortOrder: seriesDto.sortOrder,
+      },
+    });
+  }
+
+  // update series order
+  async reorder(userId: number, orders: { id: number; sortOrder: number }[]) {
+    try {
+      // We wrap all updates in a transaction
+      return await this.prisma.$transaction(
+        orders.map((item) =>
+          this.prisma.series.update({
+            where: { id: item.id },
+            data: { sortOrder: item.sortOrder },
+          }),
+        ),
+      );
+    } catch (error) {
+      throw new InternalServerErrorException('Could not update series order');
+    }
   }
 
   // =====================
