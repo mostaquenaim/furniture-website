@@ -149,7 +149,7 @@ model Series {
 model Category {
   id    Int     @id @default(autoincrement())
   name  String?
-  slug  String
+  slug  String  @unique
   image String? // image URL
 
   sortOrder Int     @default(0)
@@ -238,7 +238,7 @@ model Product {
 
   totalProductQuantity Int     @default(0)
   isActive             Boolean @default(true)
-  isFeatured             Boolean @default(false)
+  isFeatured           Boolean @default(false)
   viewCount            Int     @default(0)
   soldCount            Int     @default(0)
   rating               Decimal @default(0.0) @db.Decimal(3, 2)
@@ -262,7 +262,7 @@ model Product {
 
 model Tag {
   id       Int     @id @default(autoincrement())
-  name     String @unique
+  name     String  @unique
   // slug     String  @unique
   isActive Boolean @default(true)
 
@@ -713,6 +713,7 @@ model BlogPostTag {
 
   @@id([blogPostId, tagId])
 }
+
 model Banner {
   id     Int     @id @default(autoincrement())
   title  String?

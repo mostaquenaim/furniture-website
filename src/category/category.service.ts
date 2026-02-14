@@ -474,7 +474,10 @@ export class CategoryService {
   }
 
   // update series order
-  async reorder(userId: number, orders: { id: number; sortOrder: number }[]) {
+  async reorderSeries(
+    userId: number,
+    orders: { id: number; sortOrder: number }[],
+  ) {
     try {
       // We wrap all updates in a transaction
       return await this.prisma.$transaction(
@@ -493,9 +496,11 @@ export class CategoryService {
   // =====================
   // CATEGORY
   // =====================
-  getAllActiveCategories(withRelations = false) {
+  getAllCategories(withRelations = false, isActive?: boolean | null) {
     return this.prisma.category.findMany({
-      where: { isActive: true },
+      where: {
+        ...(isActive !== undefined && isActive !== null && { isActive }),
+      },
       orderBy: { sortOrder: 'asc' },
       include: withRelations
         ? {
@@ -519,9 +524,13 @@ export class CategoryService {
     });
   }
 
-  getCategoryById(id: number) {
+  // get category with series by slug
+  getCategoryBySlug(slug: string) {
     return this.prisma.category.findUnique({
-      where: { id },
+      where: { slug },
+      include: {
+        series: true,
+      },
     });
   }
 
@@ -543,7 +552,7 @@ export class CategoryService {
     }
 
     // Enforce slug uniqueness per series
-    const existing = await this.prisma.category.findFirst({
+    const existing = await this.prisma.category.findUnique({
       where: {
         seriesId: dto.seriesId,
         slug: dto.slug,
@@ -565,6 +574,83 @@ export class CategoryService {
         sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
         seriesId: dto.seriesId,
+      },
+    });
+  }
+
+  // update categories order
+  async reorderCategories(
+    userId: number,
+    orders: { id: number; sortOrder: number }[],
+  ) {
+    try {
+      // We wrap all updates in a transaction
+      return await this.prisma.$transaction(
+        orders.map((item) =>
+          this.prisma.category.update({
+            where: { id: item.id },
+            data: { sortOrder: item.sortOrder },
+          }),
+        ),
+      );
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Could not update categories order',
+      );
+    }
+  }
+
+  //update category
+  async updateCategory(
+    userId: number,
+    slug: string,
+    categoryDto: CreateCategoryDto,
+  ) {
+    const existingCategory = await this.prisma.category.findUnique({
+      where: { slug },
+    });
+
+    if (!existingCategory) {
+      throw new NotFoundException('Category not found');
+    }
+
+    // check for duplicate name
+    const duplicateName = await this.prisma.category.findFirst({
+      where: {
+        name: categoryDto.name,
+        NOT: {
+          id: existingCategory.id,
+        },
+      },
+    });
+
+    if (duplicateName) {
+      throw new ConflictException('Category name already exists');
+    }
+
+    // Check duplicate SLUG (excluding current category)
+    const duplicateSlug = await this.prisma.category.findUnique({
+      where: {
+        slug: categoryDto.slug,
+        NOT: {
+          id: existingCategory.id,
+        },
+      },
+    });
+
+    if (duplicateSlug) {
+      throw new ConflictException('Category slug already exists');
+    }
+
+    return this.prisma.category.update({
+      where: { id: existingCategory.id },
+      data: {
+        name: categoryDto.name,
+        slug: categoryDto.slug,
+        image: categoryDto.image,
+        isActive: categoryDto.isActive,
+        sortOrder: categoryDto.sortOrder,
+        seriesId: categoryDto.seriesId,
       },
     });
   }

@@ -81,17 +81,25 @@ export class CategoryController {
   getSeriesWiseSubcategories(@Param('slug') slug: string) {
     return this.categoryService.getSeriesWiseSubcategories(slug);
   }
+
   // =====================
   // CATEGORY
   // =====================
   @Get('categories')
-  getAllCategories() {
-    return this.categoryService.getAllActiveCategories(false);
+  getAllCategories(@Query('isActive') isActive?: string) {
+    let parsedIsActive: boolean | null | undefined = undefined;
+
+    if (isActive === 'true') parsedIsActive = true;
+    else if (isActive === 'false') parsedIsActive = false;
+    else if (isActive === 'null') parsedIsActive = null;
+    else parsedIsActive = undefined;
+
+    return this.categoryService.getAllCategories(false, parsedIsActive);
   }
 
   @Get('categories/with-relations')
   getAllCategoriesWithRelations() {
-    return this.categoryService.getAllActiveCategories(true);
+    return this.categoryService.getAllCategories(true);
   }
 
   @Get('series/:seriesId/categories')
@@ -99,9 +107,9 @@ export class CategoryController {
     return this.categoryService.getCategoriesBySeries(seriesId);
   }
 
-  @Get('category/:id')
-  getCategory(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.getCategoryById(id);
+  @Get('category/:slug')
+  getCategory(@Param('slug') slug: string) {
+    return this.categoryService.getCategoryBySlug(slug);
   }
 
   @Get('category/:id/parent')

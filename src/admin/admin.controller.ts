@@ -79,7 +79,19 @@ export class AdminController {
     @Req() req: any,
     @Body('orders') orders: { id: number; sortOrder: number }[],
   ) {
-    return await this.categoryService.reorder(req?.user?.userId, orders);
+    return await this.categoryService.reorderSeries(req?.user?.userId, orders);
+  }
+
+  // update category order
+  @Patch('categories/reorder')
+  async reorderCategories(
+    @Req() req: any,
+    @Body('orders') orders: { id: number; sortOrder: number }[],
+  ) {
+    return await this.categoryService.reorderCategories(
+      req?.user?.userId,
+      orders,
+    );
   }
 
   // update categories
@@ -95,9 +107,24 @@ export class AdminController {
       seriesDto,
     );
 
-    // if (!updatedSeries) {
-    //   throw new NotFoundException("Series not found");
-    // }
+    return {
+      message: 'Series updated successfully',
+      data: updatedSeries,
+    };
+  }
+
+  // update categories
+  @Patch('category/:slug')
+  async updateCategory(
+    @Req() req: any,
+    @Param('slug') slug: string,
+    @Body() categoryDto: CreateCategoryDto,
+  ) {
+    const updatedSeries = await this.categoryService.updateCategory(
+      req?.user?.userId,
+      slug,
+      categoryDto,
+    );
 
     return {
       message: 'Series updated successfully',
