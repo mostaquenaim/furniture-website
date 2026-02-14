@@ -120,14 +120,21 @@ export class CategoryController {
   // =====================
   // SUBCATEGORY
   // =====================
-  @Get('subcategory')
-  getAllSubCategories() {
-    return this.categoryService.getAllActiveSubCategories(false);
+  @Get('subcategories')
+  getAllSubCategories(@Query('isActive') isActive?: string) {
+    let parsedIsActive: boolean | null | undefined = undefined;
+
+    if (isActive === 'true') parsedIsActive = true;
+    else if (isActive === 'false') parsedIsActive = false;
+    else if (isActive === 'null') parsedIsActive = null;
+    else parsedIsActive = undefined;
+
+    return this.categoryService.getAllSubCategories(false, parsedIsActive);
   }
 
   @Get('subcategories/with-relations')
   getAllSubCategoriesWithRelations() {
-    return this.categoryService.getAllActiveSubCategories(true);
+    return this.categoryService.getAllSubCategories(true);
   }
 
   @Get('category/:categoryId/subcategories')

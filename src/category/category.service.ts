@@ -496,21 +496,39 @@ export class CategoryService {
   // =====================
   // CATEGORY
   // =====================
-  getAllCategories(withRelations = false, isActive?: boolean | null) {
+  getAllCategories(withRelations: boolean = false, isActive?: boolean | null) {
     return this.prisma.category.findMany({
       where: {
         ...(isActive !== undefined && isActive !== null && { isActive }),
       },
       orderBy: { sortOrder: 'asc' },
-      include: withRelations
-        ? {
-            series: true,
-            // subCategories: {
-            //   where: { isActive: true },
-            //   orderBy: { sortOrder: 'asc' },
-            // },
-          }
-        : undefined,
+
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        image: true,
+        sortOrder: true,
+        isActive: true,
+        seriesId: true,
+
+        // Always send minimal series info
+        series: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+
+        // Only when full relation needed
+        ...(withRelations && {
+          series: true,
+          // subCategories: {
+          //   where: { isActive: true },
+          //   orderBy: { sortOrder: 'asc' },
+          // },
+        }),
+      },
     });
   }
 
@@ -658,20 +676,48 @@ export class CategoryService {
   // =====================
   // SUBCATEGORY
   // =====================
-  getAllActiveSubCategories(withRelations = false) {
+  getAllSubCategories(
+    withRelations: boolean = false,
+    isActive?: boolean | null,
+  ) {
     return this.prisma.subCategory.findMany({
-      where: { isActive: true },
+      where: {
+        ...(isActive !== undefined && isActive !== null && { isActive }),
+      },
       orderBy: { sortOrder: 'asc' },
-      include: withRelations
-        ? {
-            category: true,
-            // {
-            //   include: {
-            //     series: true,
-            //   },
-            // },
-          }
-        : undefined,
+
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        image: true,
+        sortOrder: true,
+        isActive: true,
+        categoryId: true,
+
+        // Always send minimal series info
+        category: {
+          select: {
+            id: true,
+            name: true,
+            series: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+
+        // Only when full relation needed
+        ...(withRelations && {
+          category: true,
+          // subCategories: {
+          //   where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+          // },
+        }),
+      },
     });
   }
 
