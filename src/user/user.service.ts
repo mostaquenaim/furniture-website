@@ -41,22 +41,6 @@ export class UserService {
     });
   }
 
-  // Get user reviews
-  getReviews(userId: number) {
-    return this.prisma.review.findMany({
-      where: { userId },
-      include: { product: true },
-    });
-  }
-
-  // Hide/Select user reviews
-  hideReviews(userId: number, reviewIds: number[], hide = true) {
-    return this.prisma.review.updateMany({
-      where: { id: { in: reviewIds }, userId },
-      data: { comment: hide ? null : undefined }, // null = hidden
-    });
-  }
-
   // Suspend user (fraud)
   suspendUser(dto: SuspendUserDto) {
     return this.prisma.user.update({

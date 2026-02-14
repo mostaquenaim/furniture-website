@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { CreateReviewDto } from 'src/review/dto/create-review.dto';
 
 @Injectable()
 export class OrderService {
@@ -336,7 +337,9 @@ export class OrderService {
         items: {
           include: {
             product: {
-              include: {
+              select: {
+                id: true,
+                slug: true,
                 images: {
                   take: 1,
                   orderBy: { serialNo: 'asc' },
@@ -472,6 +475,9 @@ export class OrderService {
         size: item.size,
         sku: item.sku,
         subtotal: item.totalPriceAtPurchase,
+        isReviewed: item.isReviewed,
+        slug: item.product.slug,
+        productId: item.product.id,
       })),
 
       customer: {

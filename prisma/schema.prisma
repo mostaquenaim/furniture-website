@@ -45,7 +45,7 @@ model User {
 
   wishlist       Wishlist[]
   orders         Order[]
-  reviews        Review[]
+  // reviews        Review[]
   otps           OTP[]
   cart           Cart[]
   productViews   ProductView[]
@@ -169,7 +169,7 @@ model Category {
 model SubCategory {
   id    Int     @id @default(autoincrement())
   name  String
-  slug  String @unique
+  slug  String  @unique
   image String? // image URL
 
   sortOrder Int     @default(0)
@@ -252,7 +252,7 @@ model Product {
   images        ProductImage[]
   subCategories ProductSubCategory[]
   colors        ProductColor[]
-  reviews       Review[]
+  // reviews       Review[]
 
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -502,15 +502,17 @@ model OrderItem {
   productTitle String // snapshot
   sku          String?
 
-  color String?
-  size  String?
+  color      String?
+  size       String?
+  isReviewed Boolean @default(false)
 
   quantity             Int
   priceAtPurchase      Int
   basePriceAtPurchase  Int
   totalPriceAtPurchase Int
 
-  order Order @relation(fields: [orderId], references: [id])
+  order  Order   @relation(fields: [orderId], references: [id])
+  review Review?
 }
 
 enum OrderStatus {
@@ -607,13 +609,15 @@ enum PaymentStatus {
 // Reviews
 // =====================
 model Review {
-  id        Int     @id @default(autoincrement())
-  rating    Int
-  comment   String?
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
-  user      User    @relation(fields: [userId], references: [id])
-  userId    Int
+  id          Int       @id @default(autoincrement())
+  rating      Int
+  comment     String?
+  orderItemId Int       @unique
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  // product   Product @relation(fields: [productId], references: [id])
+  // productId Int
+  // user        User      @relation(fields: [userId], references: [id])
+  // userId      Int
 
   isHidden   Boolean @default(false)
   isFeatured Boolean @default(false)

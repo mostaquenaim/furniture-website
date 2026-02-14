@@ -14,6 +14,7 @@ import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from '@prisma/client';
+import { CreateReviewDto } from 'src/review/dto/create-review.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('orders')

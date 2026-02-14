@@ -58,20 +58,6 @@ export class UserController {
     return this.userService.getWishlist(id);
   }
 
-  @Get(':id/reviews')
-  getReviews(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.getReviews(id);
-  }
-
-  @Put(':id/reviews')
-  hideReviews(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('reviewIds') reviewIds: number[],
-    @Body('hide') hide = true,
-  ) {
-    return this.userService.hideReviews(id, reviewIds, hide);
-  }
-
   @Post('suspend')
   suspendUser(@Body() dto: SuspendUserDto) {
     return this.userService.suspendUser(dto);

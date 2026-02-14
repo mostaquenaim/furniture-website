@@ -1,11 +1,23 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Controller, Get, Post, Put, Delete, Body, Param, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ReviewService } from './review.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('reviews')
 export class ReviewController {
   constructor(private readonly reviewService: ReviewService) {}
@@ -15,9 +27,17 @@ export class ReviewController {
     return this.reviewService.getAll();
   }
 
-  @Post()
-  addReview(@Body() dto: CreateReviewDto, @Req() req) {
-    return this.reviewService.add(req.user.id, dto);
+  @Post('/:orderItemId')
+  createReview(
+    @Req() req: any,
+    @Param('orderItemId') orderItemId: number,
+    @Body() reviewDto: CreateReviewDto,
+  ) {
+    return this.reviewService.createReview(
+      req?.user?.userId,
+      orderItemId,
+      reviewDto,
+    );
   }
 
   @Get('product/:productId')

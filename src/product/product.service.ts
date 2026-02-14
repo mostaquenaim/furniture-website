@@ -279,11 +279,11 @@ export class ProductService {
         // --------------------
         // REVIEWS
         // --------------------
-        reviews: {
-          include: {
-            user: true,
-          },
-        },
+        // reviews: {
+        //   include: {
+        //     user: true,
+        //   },
+        // },
 
         // --------------------
         // COLORS
@@ -987,43 +987,64 @@ export class ProductService {
   }
 
   // get product's all reviews
-  async getProductReviews(slug: string) {
-    // First, find the product by slug
+  async getProductReviews(productSlug: string) {
+    // Find product first
     const product = await this.prisma.product.findUnique({
-      where: { slug },
-      select: {
-        id: true, // we just need the id
-      },
+      where: { slug: productSlug },
+      select: { id: true },
     });
 
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    // Fetch reviews for this product
+    // Fetch reviews through orderItem relation
     const reviews = await this.prisma.review.findMany({
       where: {
-        productId: product.id,
-        isHidden: false, // only show visible reviews
+        isHidden: false,
+        orderItem: {
+          productId: product.id,
+        },
       },
       include: {
-        user: true, // include user info
+        orderItem: {
+          include: {
+            order: {
+              select: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        createdAt: 'desc', // newest first
+        createdAt: 'desc',
       },
     });
 
-    // Optionally calculate average rating
-    const ratingCount = reviews.length;
+    // Transform response (flatten user for frontend)
+    const formattedReviews = reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+      user: r.orderItem.order.user,
+    }));
+
+    const ratingCount = formattedReviews.length;
+
     const averageRating =
       ratingCount > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / ratingCount
+        ? formattedReviews.reduce((sum, r) => sum + r.rating, 0) / ratingCount
         : 0;
 
-    // console.log(reviews, ratingCount, Number(averageRating.toFixed(1)));
     return {
-      reviews,
+      reviews: formattedReviews,
       ratingCount,
       averageRating: Number(averageRating.toFixed(1)),
     };
