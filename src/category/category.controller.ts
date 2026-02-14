@@ -145,9 +145,9 @@ export class CategoryController {
   }
 
   // get subCategory by id
-  @Get('subcategory/:id')
-  getSubCategory(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.getSubCategoryById(id);
+  @Get('subcategory/:slug')
+  getSubCategory(@Param('slug') slug: string) {
+    return this.categoryService.getSubCategoryBySlug(slug);
   }
 
   // get subCategory parent

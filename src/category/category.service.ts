@@ -925,9 +925,23 @@ export class CategoryService {
     };
   }
 
-  getSubCategoryById(id: number) {
+  getSubCategoryBySlug(slug: string) {
     return this.prisma.subCategory.findUnique({
-      where: { id },
+      where: { slug },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            series: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -979,5 +993,82 @@ export class CategoryService {
         categoryId: dto.categoryId,
       },
     });
+  }
+
+  //update subcategory
+  async updatesSubcategory(
+    userId: number,
+    slug: string,
+    categoryDto: CreateSubCategoryDto,
+  ) {
+    const existingCategory = await this.prisma.subCategory.findUnique({
+      where: { slug },
+    });
+
+    if (!existingCategory) {
+      throw new NotFoundException('Category not found');
+    }
+
+    // check for duplicate name
+    const duplicateName = await this.prisma.subCategory.findFirst({
+      where: {
+        name: categoryDto.name,
+        NOT: {
+          id: existingCategory.id,
+        },
+      },
+    });
+
+    if (duplicateName) {
+      throw new ConflictException('Category name already exists');
+    }
+
+    // Check duplicate SLUG (excluding current category)
+    const duplicateSlug = await this.prisma.category.findUnique({
+      where: {
+        slug: categoryDto.slug,
+        NOT: {
+          id: existingCategory.id,
+        },
+      },
+    });
+
+    if (duplicateSlug) {
+      throw new ConflictException('Category slug already exists');
+    }
+
+    return this.prisma.subCategory.update({
+      where: { id: existingCategory.id },
+      data: {
+        name: categoryDto.name,
+        slug: categoryDto.slug,
+        image: categoryDto.image,
+        isActive: categoryDto.isActive,
+        sortOrder: categoryDto.sortOrder,
+        categoryId: categoryDto.categoryId,
+      },
+    });
+  }
+
+  // update subcategories order
+  async reorderSubcategories(
+    userId: number,
+    orders: { id: number; sortOrder: number }[],
+  ) {
+    try {
+      // We wrap all updates in a transaction
+      return await this.prisma.$transaction(
+        orders.map((item) =>
+          this.prisma.subCategory.update({
+            where: { id: item.id },
+            data: { sortOrder: item.sortOrder },
+          }),
+        ),
+      );
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Could not update categories order',
+      );
+    }
   }
 }

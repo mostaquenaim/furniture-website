@@ -12,7 +12,6 @@ import {
   Body,
   Patch,
   Param,
-  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -94,6 +93,18 @@ export class AdminController {
     );
   }
 
+  // update category order
+  @Patch('subcategories/reorder')
+  async reorderSubcategories(
+    @Req() req: any,
+    @Body('orders') orders: { id: number; sortOrder: number }[],
+  ) {
+    return await this.categoryService.reorderSubcategories(
+      req?.user?.userId,
+      orders,
+    );
+  }
+
   // update categories
   @Patch('series/:slug')
   async updateSeries(
@@ -127,7 +138,26 @@ export class AdminController {
     );
 
     return {
-      message: 'Series updated successfully',
+      message: 'Category updated successfully',
+      data: updatedSeries,
+    };
+  }
+
+  // update categories
+  @Patch('subcategory/:slug')
+  async updatesSubcategory(
+    @Req() req: any,
+    @Param('slug') slug: string,
+    @Body() categoryDto: CreateSubCategoryDto,
+  ) {
+    const updatedSeries = await this.categoryService.updatesSubcategory(
+      req?.user?.userId,
+      slug,
+      categoryDto,
+    );
+
+    return {
+      message: 'Category updated successfully',
       data: updatedSeries,
     };
   }

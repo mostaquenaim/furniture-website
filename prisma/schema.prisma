@@ -169,7 +169,7 @@ model Category {
 model SubCategory {
   id    Int     @id @default(autoincrement())
   name  String
-  slug  String
+  slug  String @unique
   image String? // image URL
 
   sortOrder Int     @default(0)
