@@ -176,6 +176,7 @@ model SubCategory {
   isActive          Boolean @default(true)
   isAdvancePayment  Boolean @default(false)
   advancePercentage Int     @default(0)
+  isCODAvailable    Boolean @default(true)
 
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)

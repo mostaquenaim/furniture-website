@@ -1050,6 +1050,7 @@ export class CategoryService {
         categoryId: categoryDto.categoryId,
         advancePercentage: categoryDto.advancePercentage,
         isAdvancePayment: categoryDto.isAdvancePayment,
+        isCODAvailable: categoryDto.isCODAvailable,
       },
     });
   }

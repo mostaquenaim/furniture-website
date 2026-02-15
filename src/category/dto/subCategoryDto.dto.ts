@@ -37,4 +37,7 @@ export class CreateSubCategoryDto {
   @IsInt()
   @IsOptional()
   advancePercentage?: number;
+
+  @IsOptional()
+  isCODAvailable?: boolean;
 }
