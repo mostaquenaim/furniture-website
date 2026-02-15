@@ -12,6 +12,7 @@ import {
   Body,
   Patch,
   Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -32,6 +33,7 @@ import { CreateBlogCategoryDto } from 'src/blog/dto/create-blog-category.dto';
 import { CreateMaterialDto } from 'src/cms/dto/create-material.dto';
 import { CreateProductDto } from 'src/product/dto/create-product.dto';
 import { CreateCouponDto } from 'src/cms/dto/create-coupon.dto';
+import { UpdateDistrictDto } from 'src/cms/dto/update-district.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,7 +47,7 @@ export class AdminController {
 
   // ADMIN DASHBOARD BASIC INFO
   @Get('dashboard')
-  getDashboard(@Req() req) {
+  getDashboard(@Req() req: any) {
     return {
       message: 'Welcome to Admin Dashboard',
     };
@@ -278,8 +280,19 @@ export class AdminController {
   //////////////////////
   ////// OTHERS //////
   ////////////////////
+
+  // tags
   @Post('tags')
   async createTags(@Body('name') name: string) {
     return this.cmsService.createNewTag(name);
+  }
+
+  // district id
+  @Patch('districts/:id')
+  async updateDistrict(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDistrictDto: UpdateDistrictDto,
+  ) {
+    return this.cmsService.updateDistrict(id, updateDistrictDto);
   }
 }

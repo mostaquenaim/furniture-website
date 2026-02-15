@@ -29,7 +29,10 @@ export class CartService {
     visitorId: string | null,
     filter: CartFilter,
   ) {
-    // console.log(filter, 'filterfilter');
+    if (!visitorId && !userId) {
+      throw new BadRequestException('visitorId required');
+    }
+
     const cart = await this.prisma.cart.findFirst({
       where: {
         status: 'ACTIVE',
@@ -40,96 +43,6 @@ export class CartService {
         id: true,
         subtotalAtAdd: true,
         baseSubtotalAtAdd: true,
-        items: !filter.isSummary
-          ? {
-              where: {
-                ...(filter.productSlug && {
-                  productSize: {
-                    color: {
-                      product: {
-                        slug: filter.productSlug,
-                      },
-                    },
-                  },
-                }),
-                ...(filter.colorId && {
-                  productSize: {
-                    colorId: filter.colorId,
-                  },
-                }),
-                ...(filter.sizeId && {
-                  productSizeId: filter.sizeId,
-                }),
-              },
-              select: {
-                id: true,
-                quantity: true,
-                priceAtAdd: true,
-                subtotalAtAdd: true,
-                basePriceAtAdd: true,
-                baseSubtotalAtAdd: true,
-                color: true,
-                size: true,
-                productSizeId: true,
-                productSize: {
-                  select: {
-                    id: true,
-                    quantity: true,
-                    // colorId: true,
-                    // sizeId: true,
-                    price: true,
-                    color: {
-                      select: {
-                        id: true,
-                        product: {
-                          select: {
-                            id: true,
-                            slug: true,
-                            title: true,
-                            basePrice: true,
-                            images: {
-                              select: {
-                                image: true,
-                              },
-                            },
-                            // colors: {
-                            //   select: {
-                            //     images: {
-                            //       select: {
-                            //         id: true,
-                            //         image: true,
-                            //       },
-                            //       take: 1,
-                            //     },
-                            //   },
-                            // },
-                          },
-                        },
-                        // images: {
-                        //   select: {
-                        //     id: true,
-                        //     image: true,
-                        //   },
-                        //   take: 1,
-                        // },
-                      },
-                    },
-                  },
-                },
-              },
-            }
-          : false,
-        couponId: true,
-        coupon: {
-          where: {
-            isActive: true,
-            startDate: { lte: new Date() },
-            expiryDate: { gte: new Date() },
-          },
-          select: {
-            code: true,
-          },
-        },
       },
     });
 
@@ -144,8 +57,92 @@ export class CartService {
       };
     }
 
-    // console.log(cart.items, 'cartitems');
-    return cart;
+    if (filter.isSummary) {
+      return {
+        ...cart,
+        items: [],
+      };
+    }
+
+    const items = await this.prisma.cartItem.findMany({
+      where: {
+        cartId: cart.id,
+        ...(filter.productSlug && {
+          productSize: {
+            color: {
+              product: { slug: filter.productSlug },
+            },
+          },
+        }),
+        ...(filter.colorId && {
+          productSize: { colorId: filter.colorId },
+        }),
+        ...(filter.sizeId && {
+          productSizeId: filter.sizeId,
+        }),
+      },
+      select: {
+        id: true,
+        quantity: true,
+        priceAtAdd: true,
+        subtotalAtAdd: true,
+        basePriceAtAdd: true,
+        baseSubtotalAtAdd: true,
+        color: true,
+        size: true,
+        productSizeId: true,
+        productSize: {
+          select: {
+            id: true,
+            quantity: true,
+            price: true,
+            color: {
+              select: {
+                id: true,
+                product: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    title: true,
+                    basePrice: true,
+                    images: {
+                      select: { image: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    for (const item of items) {
+      const availableStock = item.productSize.quantity;
+
+      if (availableStock <= 0) {
+        await this.prisma.cartItem.delete({
+          where: { id: item.id },
+        });
+        continue;
+      }
+
+      if (item.quantity > availableStock) {
+        await this.prisma.cartItem.update({
+          where: { id: item.id },
+          data: {
+            quantity: availableStock,
+            subtotalAtAdd: availableStock * item.priceAtAdd,
+            baseSubtotalAtAdd: availableStock * item.basePriceAtAdd,
+          },
+        });
+      }
+    }
+
+    return {
+      ...cart,
+      items,
+    };
   }
 
   // guest cart get
@@ -163,68 +160,10 @@ export class CartService {
         id: true,
         subtotalAtAdd: true,
         baseSubtotalAtAdd: true,
-        items: !filter.isSummary
-          ? {
-              where: {
-                ...(filter.productSlug && {
-                  productSize: {
-                    color: {
-                      product: { slug: filter.productSlug },
-                    },
-                  },
-                }),
-                ...(filter.colorId && {
-                  productSize: { colorId: filter.colorId },
-                }),
-                ...(filter.sizeId && {
-                  productSizeId: filter.sizeId,
-                }),
-              },
-              select: {
-                id: true,
-                quantity: true,
-                priceAtAdd: true,
-                subtotalAtAdd: true,
-                basePriceAtAdd: true,
-                baseSubtotalAtAdd: true,
-                color: true,
-                size: true,
-                productSizeId: true,
-                productSize: {
-                  select: {
-                    id: true,
-                    quantity: true,
-                    price: true,
-                    color: {
-                      select: {
-                        id: true,
-                        product: {
-                          select: {
-                            id: true,
-                            slug: true,
-                            title: true,
-                            basePrice: true,
-                          },
-                        },
-                        images: {
-                          select: {
-                            id: true,
-                            image: true,
-                          },
-                          take: 1,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            }
-          : false,
       },
     });
 
     if (!cart) {
-      // Guest carts should NOT throw
       return {
         id: null,
         items: [],
@@ -233,7 +172,92 @@ export class CartService {
       };
     }
 
-    return cart;
+    if (filter.isSummary) {
+      return {
+        ...cart,
+        items: [],
+      };
+    }
+
+    const items = await this.prisma.cartItem.findMany({
+      where: {
+        cartId: cart.id,
+        ...(filter.productSlug && {
+          productSize: {
+            color: {
+              product: { slug: filter.productSlug },
+            },
+          },
+        }),
+        ...(filter.colorId && {
+          productSize: { colorId: filter.colorId },
+        }),
+        ...(filter.sizeId && {
+          productSizeId: filter.sizeId,
+        }),
+      },
+      select: {
+        id: true,
+        quantity: true,
+        priceAtAdd: true,
+        subtotalAtAdd: true,
+        basePriceAtAdd: true,
+        baseSubtotalAtAdd: true,
+        color: true,
+        size: true,
+        productSizeId: true,
+        productSize: {
+          select: {
+            id: true,
+            quantity: true,
+            price: true,
+            color: {
+              select: {
+                id: true,
+                product: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    title: true,
+                    basePrice: true,
+                    images: {
+                      select: { image: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    for (const item of items) {
+      const availableStock = item.productSize.quantity;
+
+      if (availableStock <= 0) {
+        await this.prisma.cartItem.delete({
+          where: { id: item.id },
+        });
+        continue;
+      }
+
+      if (item.quantity > availableStock) {
+        await this.prisma.cartItem.update({
+          where: { id: item.id },
+          data: {
+            quantity: availableStock,
+            subtotalAtAdd: availableStock * item.priceAtAdd,
+            baseSubtotalAtAdd: availableStock * item.basePriceAtAdd,
+          },
+        });
+      }
+    }
+
+    return {
+      ...cart,
+      items,
+    };
   }
 
   // create cart

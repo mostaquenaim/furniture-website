@@ -6,6 +6,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateAboutDto } from './dto/create-about.dto';
 import { UpdateAboutDto } from './dto/update-about.dto';
@@ -24,6 +25,7 @@ import districtsData from 'src/cms/data/districtData';
 import couponsData from './data/couponData';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { CouponDiscountType, Prisma } from '@prisma/client';
+import { UpdateDistrictDto } from './dto/update-district.dto';
 
 @Injectable()
 export class CmsService {
@@ -306,6 +308,20 @@ export class CmsService {
     });
   }
 
+  // get all districts
+  async getDistricts() {
+    return await this.prisma.district.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        deliveryFee: true,
+        isCODAvailable: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   // create district data
   async createDistrict() {
     for (const district of districtsData) {
@@ -331,17 +347,19 @@ export class CmsService {
     }
   }
 
-  // get all districts
-  async getDistricts() {
-    return await this.prisma.district.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        deliveryFee: true,
-        isCODAvailable: true,
-      },
-      orderBy: { name: 'asc' },
+  // update districts
+  async updateDistrict(id: number, data: UpdateDistrictDto) {
+    const existing = await this.prisma.district.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('District not found');
+    }
+
+    return this.prisma.district.update({
+      where: { id },
+      data,
     });
   }
 
