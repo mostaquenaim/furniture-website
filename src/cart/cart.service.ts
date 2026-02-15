@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -108,6 +109,17 @@ export class CartService {
                     images: {
                       select: { image: true },
                     },
+                    subCategories: {
+                      select: {
+                        subCategory: {
+                          select: {
+                            id: true,
+                            name: true,
+                            isCODAvailable: true,
+                          },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -116,6 +128,24 @@ export class CartService {
         },
       },
     });
+
+    // cod check
+    let codAvailable: boolean = true;
+    let codMessage: string | null = null;
+
+    for (const item of items) {
+      const product = item.productSize.color.product;
+
+      const hasNonCodSubcategory = product.subCategories.some(
+        (psc) => !psc.subCategory.isCODAvailable,
+      );
+
+      if (hasNonCodSubcategory) {
+        codAvailable = false;
+        codMessage = `Cash on Delivery is not available for ${product.title}`;
+        break;
+      }
+    }
 
     for (const item of items) {
       const availableStock = item.productSize.quantity;
@@ -142,6 +172,8 @@ export class CartService {
     return {
       ...cart,
       items,
+      codAvailable,
+      codMessage,
     };
   }
 
@@ -220,6 +252,17 @@ export class CartService {
                     slug: true,
                     title: true,
                     basePrice: true,
+                    subCategories: {
+                      select: {
+                        subCategory: {
+                          select: {
+                            id: true,
+                            name: true,
+                            isCODAvailable: true,
+                          },
+                        },
+                      },
+                    },
                     images: {
                       select: { image: true },
                     },
@@ -231,6 +274,24 @@ export class CartService {
         },
       },
     });
+
+    // cod check
+    let codAvailable: boolean = true;
+    let codMessage: string | null = null;
+
+    for (const item of items) {
+      const product = item.productSize.color.product;
+
+      const hasNonCodSubcategory = product.subCategories.some(
+        (psc) => !psc.subCategory.isCODAvailable,
+      );
+
+      if (hasNonCodSubcategory) {
+        codAvailable = false;
+        codMessage = `Cash on Delivery is not available for ${product.title}`;
+        break;
+      }
+    }
 
     for (const item of items) {
       const availableStock = item.productSize.quantity;
@@ -257,6 +318,8 @@ export class CartService {
     return {
       ...cart,
       items,
+      codAvailable,
+      codMessage,
     };
   }
 

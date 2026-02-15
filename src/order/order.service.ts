@@ -13,7 +13,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
-import { CreateReviewDto } from 'src/review/dto/create-review.dto';
 
 @Injectable()
 export class OrderService {
@@ -48,20 +47,29 @@ export class OrderService {
       throw new BadRequestException('Invalid district selected');
     }
 
-    // COD check
-    if (dto.paymentMethod === 'COD' && !district.isCODAvailable) {
-      throw new BadRequestException(
-        'Cash on Delivery is not available for this district',
-      );
-    }
-
     // 2. Fetch user's cart items
     const cart = await this.prisma.cart.findUnique({
       where: { id: dto.cartId },
       include: {
         items: {
           include: {
-            productSize: { include: { color: { include: { product: true } } } },
+            productSize: {
+              include: {
+                color: {
+                  include: {
+                    product: {
+                      include: {
+                        subCategories: {
+                          include: {
+                            subCategory: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         coupon: true,
@@ -70,6 +78,29 @@ export class OrderService {
 
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
+    }
+
+    if (dto.paymentMethod === 'COD') {
+      // District check
+      if (!district.isCODAvailable) {
+        throw new BadRequestException(
+          'Cash on Delivery is not available for this district',
+        );
+      }
+
+      // Subcategory check
+      for (const item of cart.items) {
+        const productSubCategories =
+          item.productSize?.color?.product?.subCategories ?? [];
+
+        for (const ps of productSubCategories) {
+          if (!ps.subCategory.isCODAvailable) {
+            throw new BadRequestException(
+              `Cash on Delivery is not available for product "${item.productSize?.color?.product?.title}"`,
+            );
+          }
+        }
+      }
     }
 
     if (cart.userId !== userId || cart.status !== 'ACTIVE') {
