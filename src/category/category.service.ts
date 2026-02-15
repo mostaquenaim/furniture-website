@@ -694,6 +694,8 @@ export class CategoryService {
         sortOrder: true,
         isActive: true,
         categoryId: true,
+        // isAdvancePayment: true,
+        // advancePercentage: true,
 
         // Always send minimal series info
         category: {
@@ -1046,6 +1048,8 @@ export class CategoryService {
         isActive: categoryDto.isActive,
         sortOrder: categoryDto.sortOrder,
         categoryId: categoryDto.categoryId,
+        advancePercentage: categoryDto.advancePercentage,
+        isAdvancePayment: categoryDto.isAdvancePayment,
       },
     });
   }

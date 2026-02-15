@@ -172,8 +172,10 @@ model SubCategory {
   slug  String  @unique
   image String? // image URL
 
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
+  sortOrder         Int     @default(0)
+  isActive          Boolean @default(true)
+  isAdvancePayment  Boolean @default(false)
+  advancePercentage Int     @default(0)
 
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
