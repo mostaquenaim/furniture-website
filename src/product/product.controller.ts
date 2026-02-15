@@ -1,5 +1,20 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ProductService } from './product.service';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
 
 @Controller('product')
 export class ProductController {
@@ -47,6 +62,54 @@ export class ProductController {
     console.log(ids);
 
     return this.productService.youMayAlsoLike(productSlug, ids);
+  }
+
+  // product.controller.ts
+  @Post('/view/:id')
+  @UseGuards(OptionalJwtAuthGuard)
+  async addProductView(
+    @Param('id') id: number,
+    @Req() req: any,
+    @Body('visitorId') visitorId?: string,
+  ) {
+    const userId = req?.user?.userId ?? null;
+
+    console.log(userId, id, visitorId);
+
+    return this.productService.addProductView(id, userId, visitorId ?? null);
+  }
+
+  // recommended products
+  @Get('recommended')
+  @UseGuards(OptionalJwtAuthGuard)
+  async recommendedProducts(@Req() req: any, @Query('limit') limit?: string) {
+    // User may or may not be logged in
+    const userId = req?.user?.userId ?? null;
+
+    // Parse limit, default to 10 if missing or invalid
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+
+    console.log(userId, parsedLimit);
+    // Call the service with safe values
+    return this.productService.recommendedProducts(userId, parsedLimit);
+  }
+
+  // recommended products
+  @Get('recently-viewed')
+  @UseGuards(OptionalJwtAuthGuard)
+  async recentlyViewed(
+    @Req() req: any,
+    @Query('limit') limit?: string,
+    @Query('visitorId') visitorId?: string,
+  ) {
+    const userId = req?.user?.userId ?? null;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+
+    return this.productService.recentlyViewed(
+      userId,
+      visitorId ?? null,
+      parsedLimit,
+    );
   }
 
   // product reviews

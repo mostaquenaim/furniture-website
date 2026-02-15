@@ -454,14 +454,6 @@ export class ProductService {
     };
   }
 
-  // delete a product
-  async deleteProduct(id: number) {
-    // Delete product (cascade will handle related records)
-    return await this.prisma.product.delete({
-      where: { id },
-    });
-  }
-
   // toggle product status
   async toggleProductStatusBySlug(slug: string) {
     const product = await this.prisma.product.findUnique({
@@ -718,6 +710,42 @@ export class ProductService {
     return { message: 'Product prices synchronized successfully' };
   }
 
+  async addProductView(
+    productId: number,
+    userId: number | null,
+    visitorId: string | null,
+  ) {
+    if (!userId && !visitorId) return;
+
+    const existing = await this.prisma.productView.findFirst({
+      where: {
+        productId,
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(visitorId ? [{ visitorId }] : []),
+        ],
+      },
+    });
+
+    if (existing) {
+      return this.prisma.productView.update({
+        where: { id: existing.id },
+        data: {
+          viewCount: { increment: 1 },
+        },
+      });
+    }
+
+    return this.prisma.productView.create({
+      data: {
+        productId,
+        userId,
+        visitorId,
+        viewCount: 1,
+      },
+    });
+  }
+
   // you may also like
   async youMayAlsoLike(productSlug: string, productIds: number[]) {
     // Find the source product with its subcategories and material
@@ -928,6 +956,192 @@ export class ProductService {
     }
 
     return relatedProducts;
+  }
+
+  // get recommended products
+  async recommendedProducts(userId: number | null, limit: number = 10) {
+    let allInteractedIds: number[] = [];
+    let subCategoryIds: number[] = [];
+    let categoryIds: number[] = [];
+
+    if (userId) {
+      const [orders, cartItems, wishlist, views] = await Promise.all([
+        this.prisma.order.findMany({
+          where: { userId },
+          take: 5,
+          select: { items: { select: { productId: true } } },
+        }),
+        this.prisma.cartItem.findMany({
+          where: { cart: { userId } },
+          select: {
+            productSize: { select: { color: { select: { productId: true } } } },
+          },
+        }),
+        this.prisma.wishlist.findMany({
+          where: { userId },
+          select: { productId: true },
+        }),
+        this.prisma.productView.findMany({
+          where: { userId },
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          select: { productId: true },
+        }),
+      ]);
+
+      const viewedIds = views.map((v) => v.productId);
+      const cartIds = cartItems.map((c) => c.productSize.color.productId);
+      const wishlistIds = wishlist.map((w) => w.productId);
+      const purchasedIds = orders.flatMap((o) =>
+        o.items.map((i) => i.productId),
+      );
+
+      allInteractedIds = [
+        ...new Set([...viewedIds, ...cartIds, ...wishlistIds, ...purchasedIds]),
+      ];
+
+      // 3. Extract Subcategories & Categories to build "Interest Map"
+      const interactions = await this.prisma.productSubCategory.findMany({
+        where: { productId: { in: allInteractedIds } },
+        select: {
+          subCategoryId: true,
+          subCategory: { select: { categoryId: true } },
+        },
+      });
+
+      subCategoryIds = [...new Set(interactions.map((i) => i.subCategoryId))];
+      categoryIds = [
+        ...new Set(interactions.map((i) => i.subCategory.categoryId)),
+      ];
+    }
+
+    let recommendations: any[] = [];
+
+    // 4. Waterfall Strategy
+
+    // Step 1: Personalized High-Intent Matches
+    if (subCategoryIds.length > 0) {
+      recommendations = await this.prisma.product.findMany({
+        where: {
+          isActive: true,
+          id: { notIn: allInteractedIds },
+          subCategories: { some: { subCategoryId: { in: subCategoryIds } } },
+        },
+        take: limit,
+        orderBy: [{ trendScore: 'desc' }, { isFeatured: 'desc' }],
+        select: this.recommendationSelect,
+      });
+    }
+
+    // Step 2: Category-Level Discovery
+    if (recommendations.length < limit && categoryIds.length > 0) {
+      const existingIds = recommendations.map((r) => r.id);
+      const categoryMatches = await this.prisma.product.findMany({
+        where: {
+          isActive: true,
+          id: { notIn: [...allInteractedIds, ...existingIds] },
+          subCategories: {
+            some: { subCategory: { categoryId: { in: categoryIds } } },
+          },
+        },
+        take: limit - recommendations.length,
+        orderBy: [{ trendScore: 'desc' }, { soldCount: 'desc' }],
+        select: this.recommendationSelect,
+      });
+      recommendations = [...recommendations, ...categoryMatches];
+    }
+
+    // Step 3: Global Trends & Randomization
+    if (recommendations.length < limit) {
+      const existingIds = recommendations.map((r) => r.id);
+      const trending = await this.prisma.product.findMany({
+        where: {
+          isActive: true,
+          id: { notIn: [...allInteractedIds, ...existingIds] },
+        },
+        take: limit - recommendations.length + 5, // Take a few extra to shuffle
+        orderBy: [{ trendScore: 'desc' }, { createdAt: 'desc' }],
+        select: this.recommendationSelect,
+      });
+
+      // Shuffle the trending items so the user doesn't see the same "Fillers"
+      const shuffled = trending
+        .sort(() => 0.5 - Math.random())
+        .slice(0, limit - recommendations.length);
+      recommendations = [...recommendations, ...shuffled];
+    }
+
+    return recommendations;
+  }
+
+  // recently viewed products
+  async recentlyViewed(
+    userId: number | null,
+    visitorId: string | null,
+    limit: number = 10,
+  ) {
+    if (!userId && !visitorId) {
+      return []; // no identity → nothing to show
+    }
+
+    // Fetch unique recently viewed products
+    const views = await this.prisma.productView.findMany({
+      where: {
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(visitorId ? [{ visitorId }] : []),
+        ],
+        product: {
+          isActive: true,
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc', // latest interaction first
+      },
+      distinct: ['productId'], // avoid duplicate products
+      take: limit,
+      include: {
+        product: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            price: true,
+            basePrice: true,
+            rating: true,
+            images: {
+              orderBy: { serialNo: 'asc' },
+              take: 1,
+              select: {
+                id: true,
+                image: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Filter out null products (in case product became inactive)
+    const products = views.map((v) => v.product).filter((p) => p !== null);
+
+    return products;
+  }
+
+  // Reusable Select Object
+  private get recommendationSelect() {
+    return {
+      id: true,
+      title: true,
+      slug: true,
+      price: true,
+      basePrice: true,
+      rating: true,
+      images: {
+        where: { serialNo: 1 },
+        select: { image: true },
+      },
+    };
   }
 
   // set trendscore
