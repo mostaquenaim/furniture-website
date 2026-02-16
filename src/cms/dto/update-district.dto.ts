@@ -1,15 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsBoolean } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateDistrictDto } from './create-district.dto';
 
-export class UpdateDistrictDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsNumber()
-  deliveryFee?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isCODAvailable?: boolean;
-}
+export class UpdateDistrictDto extends PartialType(CreateDistrictDto) {}

@@ -13,6 +13,7 @@ import {
   Patch,
   Param,
   ParseIntPipe,
+  Delete,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -34,6 +35,7 @@ import { CreateMaterialDto } from 'src/cms/dto/create-material.dto';
 import { CreateProductDto } from 'src/product/dto/create-product.dto';
 import { CreateCouponDto } from 'src/cms/dto/create-coupon.dto';
 import { UpdateDistrictDto } from 'src/cms/dto/update-district.dto';
+import { CreateDistrictDto } from 'src/cms/dto/create-district.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -261,9 +263,23 @@ export class AdminController {
   //////////////////////
   ////// ORDER //////
   ////////////////////
+  @Post('create-initial-districts')
+  async createInitialDistrict(@Req() req: any) {
+    return this.cmsService.createInitialDistrict(req?.user?.userId);
+  }
+
   @Post('create-districts')
-  async createDistrict() {
-    return this.cmsService.createDistrict();
+  async createDistrict(
+    @Req() req: any,
+    @Body() districtDto: CreateDistrictDto,
+  ) {
+    return this.cmsService.createDistrict(req?.user?.userId, districtDto);
+  }
+
+  // delete coupon
+  @Delete('districts/:id')
+  async deleteDistrict(@Req() req: any, @Param('id') id: number) {
+    return await this.cmsService.deleteDistrict(req?.user?.userId, id);
   }
 
   //create coupons

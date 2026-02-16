@@ -1,3 +1,4 @@
+/* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -26,6 +27,7 @@ import couponsData from './data/couponData';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { CouponDiscountType, Prisma } from '@prisma/client';
 import { UpdateDistrictDto } from './dto/update-district.dto';
+import { CreateDistrictDto } from './dto/create-district.dto';
 
 @Injectable()
 export class CmsService {
@@ -322,8 +324,8 @@ export class CmsService {
     });
   }
 
-  // create district data
-  async createDistrict() {
+  // create initial district data
+  async createInitialDistrict(userId: number) {
     for (const district of districtsData) {
       // Remove trailing spaces from names
       const cleanName = district.name.trim();
@@ -345,6 +347,40 @@ export class CmsService {
         console.log(`District already exists: ${cleanName}`);
       }
     }
+  }
+
+  // create district data
+  async createDistrict(userId: number, districtDto: CreateDistrictDto) {
+    const cleanName = districtDto.name.trim();
+
+    // Check if district already exists
+    const existingDistrict = await this.prisma.district.findUnique({
+      where: { name: cleanName },
+    });
+
+    if (existingDistrict) {
+      throw new BadRequestException('District already exists');
+    }
+
+    const district = await this.prisma.district.create({
+      data: {
+        name: cleanName,
+        deliveryFee:
+          districtDto.deliveryFee ??
+          Number(process.env.DEFAULT_DELIVERY_FEE) ??
+          120,
+        isCODAvailable: districtDto.isCODAvailable ?? true,
+      },
+    });
+
+    return district;
+  }
+
+  // delete district
+  async deleteDistrict(userId: number, id: number) {
+    return this.prisma.district.delete({
+      where: { id },
+    });
   }
 
   // update districts
