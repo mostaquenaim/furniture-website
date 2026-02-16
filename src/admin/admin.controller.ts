@@ -36,6 +36,7 @@ import { CreateProductDto } from 'src/product/dto/create-product.dto';
 import { CreateCouponDto } from 'src/cms/dto/create-coupon.dto';
 import { UpdateDistrictDto } from 'src/cms/dto/update-district.dto';
 import { CreateDistrictDto } from 'src/cms/dto/create-district.dto';
+import { UpdateColorDto } from 'src/cms/dto/update-color.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -194,10 +195,25 @@ export class AdminController {
     };
   }
 
-  // ADD OTHER ATTRIBUTES
-  @Post('color')
+  ////COLOR////
+  @Post('colors')
   addColor(@Body() createColorDto: CreateColorDto) {
     return this.cmsService.createColor(createColorDto);
+  }
+
+  @Delete('/colors/:colorId')
+  deleteColor(@Req() req: any, @Param('colorId') colorId: number) {
+    return this.cmsService.deleteColor(req?.user?.userId, colorId);
+  }
+
+  // update color
+  @Patch('colors/:colorId')
+  updateColor(
+    @Req() req: any,
+    @Param('colorId') colorId: number,
+    @Body() colorDto: UpdateColorDto,
+  ) {
+    return this.cmsService.updateColor(req?.user?.userId, colorId, colorDto);
   }
 
   @Post('size')
@@ -263,6 +279,23 @@ export class AdminController {
   //////////////////////
   ////// ORDER //////
   ////////////////////
+
+  //create coupons
+  @Post('create-coupon')
+  async createCoupon(@Body() dto: CreateCouponDto) {
+    return await this.cmsService.createCoupon(dto);
+  }
+
+  @Post('create-mock-coupons')
+  async createMockCoupons() {
+    return this.cmsService.createMockCoupons();
+  }
+
+  //////////////////////
+  ////// OTHERS //////
+  ////////////////////
+
+  ///DISTRICTS///
   @Post('create-initial-districts')
   async createInitialDistrict(@Req() req: any) {
     return this.cmsService.createInitialDistrict(req?.user?.userId);
@@ -281,21 +314,6 @@ export class AdminController {
   async deleteDistrict(@Req() req: any, @Param('id') id: number) {
     return await this.cmsService.deleteDistrict(req?.user?.userId, id);
   }
-
-  //create coupons
-  @Post('create-coupon')
-  async createCoupon(@Body() dto: CreateCouponDto) {
-    return await this.cmsService.createCoupon(dto);
-  }
-
-  @Post('create-mock-coupons')
-  async createMockCoupons() {
-    return this.cmsService.createMockCoupons();
-  }
-
-  //////////////////////
-  ////// OTHERS //////
-  ////////////////////
 
   // tags
   @Post('tags')

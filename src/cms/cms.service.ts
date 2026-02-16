@@ -28,6 +28,7 @@ import { CreateCouponDto } from './dto/create-coupon.dto';
 import { CouponDiscountType, Prisma } from '@prisma/client';
 import { UpdateDistrictDto } from './dto/update-district.dto';
 import { CreateDistrictDto } from './dto/create-district.dto';
+import { UpdateColorDto } from './dto/update-color.dto';
 
 @Injectable()
 export class CmsService {
@@ -203,6 +204,49 @@ export class CmsService {
         hexCode: dto.hexCode,
         sortOrder: dto.sortOrder ?? 0,
       },
+    });
+  }
+
+  // DELETE COLOR
+  async deleteColor(userId: number, id: number) {
+    // check if color exists
+    const color = await this.prisma.color.findUnique({
+      where: { id },
+    });
+    if (!color) {
+      throw new NotFoundException('Color not found');
+    }
+
+    // check if any product uses this color
+    const usedInProducts = await this.prisma.productColor.count({
+      where: { colorId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this color. It is used in one or more products.',
+      );
+    }
+
+    // safe to delete
+    return this.prisma.color.delete({
+      where: { id },
+    });
+  }
+
+  // UPDATE COLOR
+  async updateColor(userId: number, id: number, colorDto: UpdateColorDto) {
+    const existing = await this.prisma.color.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Color not found');
+    }
+
+    return this.prisma.color.update({
+      where: { id },
+      data: colorDto,
     });
   }
 

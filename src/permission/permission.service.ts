@@ -14,11 +14,16 @@ export class PermissionService {
     endpoint: string,
     method: string,
   ): Promise<UserRole[]> {
-    console.log(endpoint, 'endpoint', method);
     const permission = await this.prisma.backendPermission.findUnique({
-      where: { endpoint },
+      where: {
+        endpoint_method: {
+          endpoint,
+          method,
+        },
+      },
       select: { roles: true },
     });
+
     return permission?.roles || [];
   }
 

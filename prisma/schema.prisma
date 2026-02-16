@@ -86,11 +86,13 @@ model FrontendPermission {
 model BackendPermission {
   id       Int        @id @default(autoincrement())
   name     String     @unique // e.g., MANAGE_USERS
-  endpoint String     @unique // e.g., /api/admin/users, POST /api/users
+  endpoint String // e.g., /api/admin/users
   method   String? // GET, POST, PUT, DELETE, etc.
   resource String? // users, products, orders, etc.
   action   String? // create, read, update, delete, list
   roles    UserRole[]
+
+  @@unique([endpoint, method]) // ✅ composite unique constraint
 }
 
 // =====================
