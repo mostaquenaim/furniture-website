@@ -137,8 +137,15 @@ export class CmsController {
 
   //MATERIALS
   @Get('materials')
-  getAllMaterials() {
-    return this.cmsService.getAllMaterials();
+  getAllMaterials(@Query('isActive') isActive?: string) {
+    let parsed: boolean | null | undefined;
+
+    if (isActive === 'true') parsed = true;
+    else if (isActive === 'false') parsed = false;
+    else if (isActive === 'null') parsed = null;
+    else parsed = undefined;
+
+    return this.cmsService.getAllMaterials(parsed);
   }
 
   //DISTRICTS

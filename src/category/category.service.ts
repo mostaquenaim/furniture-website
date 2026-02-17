@@ -413,8 +413,6 @@ export class CategoryService {
       seriesWithSubcategories?.categories.flatMap((cat) => cat.subCategories) ||
       [];
 
-    console.log(subcategories, 'subcatszz');
-
     return subcategories;
   }
 

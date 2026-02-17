@@ -131,7 +131,7 @@ export class AuthService {
       }),
     ]);
 
-    return this.issueToken(user, keepSignedIn ? '2d' : '30d');
+    return this.issueToken(user, keepSignedIn ? '1d' : '30d');
   }
 
   async verifyUpdateOtp(userId: number, code: string, type: 'email' | 'phone') {

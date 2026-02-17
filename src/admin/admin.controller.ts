@@ -37,6 +37,7 @@ import { CreateCouponDto } from 'src/cms/dto/create-coupon.dto';
 import { UpdateDistrictDto } from 'src/cms/dto/update-district.dto';
 import { CreateDistrictDto } from 'src/cms/dto/create-district.dto';
 import { UpdateColorDto } from 'src/cms/dto/update-color.dto';
+import { UpdateMaterialDto } from 'src/cms/dto/update-material.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -226,9 +227,29 @@ export class AdminController {
     return this.cmsService.createVariant(createVariantDto);
   }
 
-  @Post('material')
+  @Post('materials')
   addMaterial(@Body() createMaterialDto: CreateMaterialDto) {
     return this.cmsService.addMaterial(createMaterialDto);
+  }
+
+  // update material
+  @Patch('materials/:materialId')
+  updateMaterial(
+    @Req() req: any,
+    @Param('materialId') materialId: number,
+    @Body() materialDto: UpdateMaterialDto,
+  ) {
+    return this.cmsService.updateMaterial(
+      req?.user?.userId,
+      materialId,
+      materialDto,
+    );
+  }
+
+  // delete material
+  @Delete('/materials/:materialId')
+  deleteMaterial(@Req() req: any, @Param('materialId') materialId: number) {
+    return this.cmsService.deleteMaterial(req?.user?.userId, materialId);
   }
 
   //////////////////////

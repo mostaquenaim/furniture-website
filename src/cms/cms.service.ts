@@ -29,6 +29,7 @@ import { CouponDiscountType, Prisma } from '@prisma/client';
 import { UpdateDistrictDto } from './dto/update-district.dto';
 import { CreateDistrictDto } from './dto/create-district.dto';
 import { UpdateColorDto } from './dto/update-color.dto';
+import { UpdateMaterialDto } from './dto/update-material.dto';
 
 @Injectable()
 export class CmsService {
@@ -234,6 +235,33 @@ export class CmsService {
     });
   }
 
+  // DELETE MATERIAL
+  async deleteMaterial(userId: number, id: number) {
+    // check if material exists
+    const material = await this.prisma.material.findUnique({
+      where: { id },
+    });
+    if (!material) {
+      throw new NotFoundException('Material not found');
+    }
+
+    // check if any product uses this color
+    const usedInProducts = await this.prisma.product.count({
+      where: { materialId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this material. It is used in one or more products.',
+      );
+    }
+
+    // safe to delete
+    return this.prisma.material.delete({
+      where: { id },
+    });
+  }
+
   // UPDATE COLOR
   async updateColor(userId: number, id: number, colorDto: UpdateColorDto) {
     const existing = await this.prisma.color.findUnique({
@@ -247,6 +275,28 @@ export class CmsService {
     return this.prisma.color.update({
       where: { id },
       data: colorDto,
+    });
+  }
+
+  // UPDATE MATERIAL
+  async updateMaterial(
+    userId: number,
+    id: number,
+    materialDto: UpdateMaterialDto,
+  ) {
+    const existing = await this.prisma.material.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Material not found');
+    }
+
+    return this.prisma.material.update({
+      where: { id },
+      data: {
+        ...materialDto,
+      },
     });
   }
 
@@ -346,11 +396,10 @@ export class CmsService {
   }
 
   // get all materials
-  getAllMaterials() {
+  getAllMaterials(isActive?: boolean | null) {
     return this.prisma.material.findMany({
-      where: { isActive: true },
+      where: isActive === null ? {} : { isActive: isActive ?? true },
       orderBy: { order: 'asc' },
-      // include: { links: true },
     });
   }
 
