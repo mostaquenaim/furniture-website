@@ -227,6 +227,7 @@ export class AdminController {
     return this.cmsService.createVariant(createVariantDto);
   }
 
+  // create new material
   @Post('materials')
   addMaterial(@Body() createMaterialDto: CreateMaterialDto) {
     return this.cmsService.addMaterial(createMaterialDto);

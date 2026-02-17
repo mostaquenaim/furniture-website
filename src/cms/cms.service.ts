@@ -204,6 +204,7 @@ export class CmsService {
         name: dto.name,
         hexCode: dto.hexCode,
         sortOrder: dto.sortOrder ?? 0,
+        isActive: dto.isActive ?? true,
       },
     });
   }
@@ -387,11 +388,10 @@ export class CmsService {
   }
 
   // get all colors
-  getAllColors() {
+  getAllColors(isActive?: boolean | null) {
     return this.prisma.color.findMany({
-      where: { isActive: true },
+      where: isActive === null ? {} : { isActive: isActive ?? true },
       orderBy: { sortOrder: 'asc' },
-      // include: { links: true },
     });
   }
 

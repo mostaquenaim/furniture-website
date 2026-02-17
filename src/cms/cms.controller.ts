@@ -131,8 +131,15 @@ export class CmsController {
 
   //COLORS
   @Get('colors')
-  getAllColors() {
-    return this.cmsService.getAllColors();
+  getAllColors(@Query('isActive') isActive?: string) {
+    let parsed: boolean | null | undefined;
+
+    if (isActive === 'true') parsed = true;
+    else if (isActive === 'false') parsed = false;
+    else if (isActive === 'null') parsed = null;
+    else parsed = undefined;
+
+    return this.cmsService.getAllColors(parsed);
   }
 
   //MATERIALS

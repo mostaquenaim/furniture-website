@@ -1,4 +1,10 @@
-import { IsInt, IsNotEmpty, IsOptional, isString, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateColorDto {
   @IsString()
@@ -16,4 +22,8 @@ export class CreateColorDto {
   @IsOptional()
   @IsString()
   image?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
