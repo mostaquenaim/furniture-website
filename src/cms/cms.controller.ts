@@ -123,13 +123,42 @@ export class CmsController {
     return this.cmsService.removePromoBanner(id);
   }
 
-  //VARIANTS
-  @Get('variant')
-  getVariants() {
-    return this.cmsService.getVariants();
+  // VARIANTS
+  @Get('variants')
+  getVariants(
+    @Query('isActive') isActive?: string,
+    @Query('needSizes') needSizes?: string,
+  ) {
+    let parsedActive: boolean | null | undefined;
+
+    if (isActive === 'true') parsedActive = true;
+    else if (isActive === 'false') parsedActive = false;
+    else if (isActive === 'null') parsedActive = null;
+    else parsedActive = undefined;
+
+    let parsedSize: boolean | null | undefined;
+
+    if (needSizes === 'true') parsedSize = true;
+    else if (needSizes === 'false') parsedSize = false;
+    else parsedSize = undefined;
+
+    return this.cmsService.getVariants(parsedActive, parsedSize);
   }
 
-  //COLORS
+  // SIZES
+  @Get('sizes')
+  getSizes(@Query('isActive') isActive?: string) {
+    let parsed: boolean | null | undefined;
+
+    if (isActive === 'true') parsed = true;
+    else if (isActive === 'false') parsed = false;
+    else if (isActive === 'null') parsed = null;
+    else parsed = undefined;
+
+    return this.cmsService.getSizes(parsed);
+  }
+
+  // COLORS
   @Get('colors')
   getAllColors(@Query('isActive') isActive?: string) {
     let parsed: boolean | null | undefined;
@@ -142,7 +171,7 @@ export class CmsController {
     return this.cmsService.getAllColors(parsed);
   }
 
-  //MATERIALS
+  // MATERIALS
   @Get('materials')
   getAllMaterials(@Query('isActive') isActive?: string) {
     let parsed: boolean | null | undefined;
@@ -155,7 +184,7 @@ export class CmsController {
     return this.cmsService.getAllMaterials(parsed);
   }
 
-  //DISTRICTS
+  // DISTRICTS
   @UseGuards(JwtAuthGuard)
   @Get('districts')
   async getDistricts() {

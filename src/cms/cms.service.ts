@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -30,6 +31,7 @@ import { UpdateDistrictDto } from './dto/update-district.dto';
 import { CreateDistrictDto } from './dto/create-district.dto';
 import { UpdateColorDto } from './dto/update-color.dto';
 import { UpdateMaterialDto } from './dto/update-material.dto';
+import { UpdateSizeDto } from './dto/update-size.dto';
 
 @Injectable()
 export class CmsService {
@@ -263,6 +265,34 @@ export class CmsService {
     });
   }
 
+  // DELETE SIZE
+  async deleteSize(userId: number, id: number) {
+    // Check if size exists
+    const size = await this.prisma.size.findUnique({
+      where: { id },
+    });
+
+    if (!size) {
+      throw new NotFoundException('Size not found');
+    }
+
+    // Check if any product uses this size
+    const usedInProducts = await this.prisma.productSize.count({
+      where: { sizeId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this size. It is used in one or more products.',
+      );
+    }
+
+    // Safe to delete
+    return this.prisma.size.delete({
+      where: { id },
+    });
+  }
+
   // UPDATE COLOR
   async updateColor(userId: number, id: number, colorDto: UpdateColorDto) {
     const existing = await this.prisma.color.findUnique({
@@ -277,6 +307,18 @@ export class CmsService {
       where: { id },
       data: colorDto,
     });
+  }
+
+  // UPDATE Size
+  async updateSize(userId: number, id: number, sizeDto: UpdateSizeDto) {
+    try {
+      return await this.prisma.size.update({
+        where: { id },
+        data: sizeDto,
+      });
+    } catch (error) {
+      throw new NotFoundException('Size not found');
+    }
   }
 
   // UPDATE MATERIAL
@@ -377,13 +419,15 @@ export class CmsService {
   }
 
   // READ (Active only)
-  getVariants() {
+  getVariants(isActive?: boolean | null, parsedSize?: boolean) {
     return this.prisma.variant.findMany({
-      where: { isActive: true },
+      where: isActive === null ? {} : { isActive: isActive ?? true },
       orderBy: { sortOrder: 'asc' },
-      include: {
-        sizes: { orderBy: { sortOrder: 'asc' } },
-      },
+      include: parsedSize
+        ? {
+            sizes: { orderBy: { sortOrder: 'asc' } },
+          }
+        : {},
     });
   }
 
@@ -392,6 +436,17 @@ export class CmsService {
     return this.prisma.color.findMany({
       where: isActive === null ? {} : { isActive: isActive ?? true },
       orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  // get all sizes
+  getSizes(isActive?: boolean | null) {
+    return this.prisma.size.findMany({
+      where: isActive === null ? {} : { isActive: isActive ?? true },
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        variant: true,
+      },
     });
   }
 
