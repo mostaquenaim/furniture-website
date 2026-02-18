@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -246,48 +247,23 @@ export class ProductService {
     const product = await this.prisma.product.findUnique({
       where: { slug },
       include: {
-        // --------------------
-        // Material
-        // --------------------
-        material: true,
-        // --------------------
-        // Images
-        // --------------------
-        images: {
-          orderBy: {
-            serialNo: 'asc',
-          },
+        material: {
+          where: { isActive: true },
         },
-
-        // --------------------
-        // CATEGORIES
-        // --------------------
+        images: {
+          orderBy: { serialNo: 'asc' },
+        },
         subCategories: {
           include: {
             subCategory: {
               include: {
                 category: {
-                  include: {
-                    series: true,
-                  },
+                  include: { series: true },
                 },
               },
             },
           },
         },
-
-        // --------------------
-        // REVIEWS
-        // --------------------
-        // reviews: {
-        //   include: {
-        //     user: true,
-        //   },
-        // },
-
-        // --------------------
-        // COLORS
-        // --------------------
         colors: {
           include: {
             color: true,
@@ -295,12 +271,13 @@ export class ProductService {
             sizes: {
               where: {
                 quantity: { gt: 0 },
+                size: {
+                  isActive: true,
+                },
               },
               include: {
                 size: {
-                  include: {
-                    variant: true,
-                  },
+                  include: { variant: true },
                 },
               },
             },
@@ -310,7 +287,7 @@ export class ProductService {
     });
 
     if (!product) {
-      throw new NotFoundException('Product not found');
+      throw new NotFoundException(`Product with slug "${slug}" not found`);
     }
 
     return product;
@@ -403,9 +380,7 @@ export class ProductService {
             images: {
               take: 1,
               orderBy: { serialNo: 'asc' },
-              select: {
-                image: true,
-              },
+              select: { image: true },
             },
           },
         }
@@ -415,22 +390,24 @@ export class ProductService {
           take: limit,
           orderBy: orderBy ?? { sortOrder: 'asc' },
           include: {
-            material: true,
+            material: true, // If material is a single object, no 'where' allowed here
             images: {
               orderBy: { serialNo: 'asc' },
             },
             subCategories: {
               include: {
-                subCategory: true,
+                subCategory: true, // REMOVED 'where' from here
               },
             },
             colors: {
               include: {
-                color: true,
+                color: true, // REMOVED 'where' from here
                 images: true,
                 sizes: {
                   include: {
-                    size: true,
+                    size: {
+                      include: { variant: true }, // REMOVED 'where' from here
+                    },
                   },
                 },
               },
@@ -710,6 +687,7 @@ export class ProductService {
     return { message: 'Product prices synchronized successfully' };
   }
 
+  // add product view
   async addProductView(
     productId: number,
     userId: number | null,
@@ -1144,7 +1122,7 @@ export class ProductService {
     };
   }
 
-  // set trendscore
+  // set trend-score
   async setTrendScore() {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);

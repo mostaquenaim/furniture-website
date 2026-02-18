@@ -39,6 +39,7 @@ import { CreateDistrictDto } from 'src/cms/dto/create-district.dto';
 import { UpdateColorDto } from 'src/cms/dto/update-color.dto';
 import { UpdateMaterialDto } from 'src/cms/dto/update-material.dto';
 import { UpdateSizeDto } from 'src/cms/dto/update-size.dto';
+import { UpdateVariantDto } from 'src/cms/dto/update-variant.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -239,9 +240,29 @@ export class AdminController {
     return this.cmsService.updateSize(req?.user?.userId, sizeId, sizeDto);
   }
 
-  @Post('variant')
+  @Post('variants')
   addVariant(@Body() createVariantDto: CreateVariantDto) {
     return this.cmsService.createVariant(createVariantDto);
+  }
+
+  // delete variant
+  @Delete('/variants/:variantId')
+  deleteVariant(@Req() req: any, @Param('variantId') variantId: number) {
+    return this.cmsService.deleteVariant(req?.user?.userId, variantId);
+  }
+
+  // update variant
+  @Patch('variants/:variantId')
+  updateVariant(
+    @Req() req: any,
+    @Param('variantId') variantId: number,
+    @Body() variantDto: UpdateVariantDto,
+  ) {
+    return this.cmsService.updateVariant(
+      req?.user?.userId,
+      variantId,
+      variantDto,
+    );
   }
 
   // create new material

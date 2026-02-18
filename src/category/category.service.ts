@@ -692,31 +692,22 @@ export class CategoryService {
         sortOrder: true,
         isActive: true,
         categoryId: true,
-        // isAdvancePayment: true,
-        // advancePercentage: true,
 
-        // Always send minimal series info
-        category: {
-          select: {
-            id: true,
-            name: true,
-            series: {
+        // Only when full relation needed
+        category: withRelations
+          ? true // Returns the full category object
+          : {
               select: {
                 id: true,
                 name: true,
+                series: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
-          },
-        },
-
-        // Only when full relation needed
-        ...(withRelations && {
-          category: true,
-          // subCategories: {
-          //   where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
-          // },
-        }),
       },
     });
   }

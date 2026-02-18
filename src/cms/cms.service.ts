@@ -32,6 +32,7 @@ import { CreateDistrictDto } from './dto/create-district.dto';
 import { UpdateColorDto } from './dto/update-color.dto';
 import { UpdateMaterialDto } from './dto/update-material.dto';
 import { UpdateSizeDto } from './dto/update-size.dto';
+import { UpdateVariantDto } from './dto/update-variant.dto';
 
 @Injectable()
 export class CmsService {
@@ -293,6 +294,34 @@ export class CmsService {
     });
   }
 
+  // DELETE VARIANT
+  async deleteVariant(userId: number, id: number) {
+    // Check if variant exists
+    const variant = await this.prisma.variant.findUnique({
+      where: { id },
+    });
+
+    if (!variant) {
+      throw new NotFoundException('Variant not found');
+    }
+
+    // Check if any product uses this variant
+    const usedInProducts = await this.prisma.size.count({
+      where: { variantId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this variant. It is used in one or more sizes.',
+      );
+    }
+
+    // Safe to delete
+    return this.prisma.variant.delete({
+      where: { id },
+    });
+  }
+
   // UPDATE COLOR
   async updateColor(userId: number, id: number, colorDto: UpdateColorDto) {
     const existing = await this.prisma.color.findUnique({
@@ -318,6 +347,22 @@ export class CmsService {
       });
     } catch (error) {
       throw new NotFoundException('Size not found');
+    }
+  }
+
+  // UPDATE VARIANT
+  async updateVariant(
+    userId: number,
+    id: number,
+    variantDto: UpdateVariantDto,
+  ) {
+    try {
+      return await this.prisma.variant.update({
+        where: { id },
+        data: variantDto,
+      });
+    } catch (error) {
+      throw new NotFoundException('Variant not found');
     }
   }
 
