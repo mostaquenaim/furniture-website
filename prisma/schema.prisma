@@ -542,6 +542,12 @@ model OrderStatusHistory {
   @@index([orderId])
 }
 
+enum DeliveryMethod {
+  HOME
+  PICKUP
+  COURIER
+}
+
 model District {
   id             Int      @id @default(autoincrement())
   name           String   @unique
@@ -577,37 +583,230 @@ enum CouponDiscountType {
   FREE_DELIVERY
 }
 
+// =====================
+// Enhanced Payment System
+// =====================
+
 model Payment {
   id Int @id @default(autoincrement())
 
   orderId Int
   order   Order @relation(fields: [orderId], references: [id])
 
-  method   PaymentMethod
-  status   PaymentStatus
-  amount   Float
-  currency String        @default("BDT")
-  trxId    String?
+  // Payment method details
+  method        PaymentMethod
+  methodDetails Json? // Store method-specific details like mobile number, bank account etc.
 
-  isActive Boolean @default(true)
+  // Amount tracking
+  amount         Float
+  currency       String @default("BDT")
+  paidAmount     Float  @default(0) // Track partial payments
+  dueAmount      Float  @default(0) // Calculated field or set manually
+  convenienceFee Float? @default(0) // Payment gateway fees charged to customer
 
-  createdAt DateTime @default(now())
+  // Transaction tracking
+  transactionId  String  @unique // Our internal unique transaction ID
+  gatewayTranId  String? // Gateway transaction ID (before redirect)
+  gatewayRefId   String? // Gateway reference ID (after validation)
+  gatewayBatchId String? // For bulk payouts/refunds
+
+  // Status tracking
+  status             PaymentStatus      @default(PENDING)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  riskLevel          RiskLevel?         @default(LOW)
+
+  // Gateway information
+  gateway         String? // "SSLCOMMERZ", "BKASH", "NAGAD", "COD"
+  gatewayResponse Json? // Store full gateway request/response
+  rawResponse     Json? // Store full validation response
+
+  // Timing
+  initiatedAt DateTime  @default(now())
+  verifiedAt  DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  refundedAt  DateTime?
+
+  // Retry tracking
+  retryCount  Int       @default(0)
+  lastRetryAt DateTime?
+
+  // Refund tracking
+  refunds PaymentRefund[]
+
+  // For COD payments
+  collectedBy String? // delivery person, office staff
+  collectedAt DateTime?
+
+  // Audit
+  notes    String? // Admin notes about payment issues
+  metadata Json? // Additional flexible data
+
+  // Relations
+  paymentLogs PaymentLog[]
+
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  paymentSettlement   PaymentSettlement? @relation(fields: [paymentSettlementId], references: [id])
+  paymentSettlementId Int?
 
   @@index([orderId])
+  @@index([gatewayTranId])
+  @@index([transactionId])
+  @@index([status])
+  @@index([createdAt])
 }
+
+model PaymentRefund {
+  id Int @id @default(autoincrement())
+
+  paymentId Int
+  payment   Payment @relation(fields: [paymentId], references: [id])
+
+  amount Float
+  reason String? // "CUSTOMER_REQUEST", "ORDER_CANCELLED", "DUPLICATE", etc.
+  status RefundStatus @default(PENDING)
+
+  gatewayRefundId String? // Gateway refund transaction ID
+
+  requestedBy Int? // User ID (admin/customer)
+  processedBy Int? // Admin ID who processed
+  processedAt DateTime?
+
+  notes    String?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PaymentLog {
+  id Int @id @default(autoincrement())
+
+  paymentId Int
+  payment   Payment @relation(fields: [paymentId], references: [id])
+
+  action          String // "INITIATED", "VERIFIED", "FAILED", "REFUNDED", etc.
+  status          String
+  message         String?
+  gatewayResponse Json?
+
+  ipAddress String?
+  userAgent String?
+  createdBy Int? // User/Admin ID
+
+  createdAt DateTime @default(now())
+}
+
+model PaymentMethodConfig {
+  id Int @id @default(autoincrement())
+
+  method  PaymentMethod
+  gateway String // "SSLCOMMERZ", "BKASH", etc.
+
+  isEnabled Boolean @default(true)
+  isSandbox Boolean @default(false)
+
+  displayName  String
+  displayOrder Int    @default(0)
+
+  minAmount Float? // Minimum transaction amount
+  maxAmount Float? // Maximum transaction amount
+
+  convenienceFeeType  FeeType? // "FIXED" or "PERCENTAGE"
+  convenienceFeeValue Float?   @default(0)
+
+  config Json? // Store gateway-specific config (API keys, endpoints, etc.)
+
+  availableForCODOnly Boolean @default(false) // For COD payments
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PaymentSettlement {
+  id Int @id @default(autoincrement())
+
+  gateway        String
+  settlementDate DateTime
+  settlementId   String?  @unique // Gateway settlement ID
+
+  totalAmount Float
+  totalFees   Float
+  netAmount   Float
+
+  transactionCount Int
+
+  status       SettlementStatus @default(PENDING)
+  reconciledAt DateTime?
+
+  payments Payment[]
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =====================
+// Enums
+// =====================
 
 enum PaymentMethod {
   COD
   SSL
   BKASH
   NAGAD
+  ROCKET
+  BANK_TRANSFER
+  CARD
+  MOBILE_BANKING
 }
 
 enum PaymentStatus {
+  PENDING // Initial state
+  PROCESSING // Payment in progress
+  PAID // Successfully paid
+  FAILED // Payment failed
+  REFUNDED // Fully refunded
+  PARTIALLY_REFUNDED // Partially refunded
+  CANCELLED // Payment cancelled by user
+  EXPIRED // Payment link expired
+  ON_HOLD // Payment under review
+}
+
+enum VerificationStatus {
+  UNVERIFIED // Not yet verified
+  VERIFIED // Successfully verified
+  VERIFICATION_FAILED // Failed verification
+  PENDING_REVIEW // Needs manual review
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  BLOCKED
+}
+
+enum RefundStatus {
   PENDING
-  PAID
+  PROCESSING
+  COMPLETED
   FAILED
-  REFUNDED
+}
+
+enum FeeType {
+  FIXED
+  PERCENTAGE
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RECONCILED
 }
 
 // =====================

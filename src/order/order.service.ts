@@ -485,7 +485,7 @@ export class OrderService {
         ? {
             method: order.deliveryMethod,
             status: latestPayment.status, // Assuming Payment model has status
-            transactionId: latestPayment.trxId,
+            transactionId: latestPayment.transactionId,
           }
         : null,
 
