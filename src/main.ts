@@ -17,23 +17,33 @@ async function bootstrap() {
   );
 
   // CORS
+  // app.enableCors({
+  //   origin: (origin, callback) => {
+  //     const allowedOrigins = [
+  //       'http://localhost:7000',
+  //       'http://127.0.0.1:7000',
+  //       'https://furniture-frontend-iota.vercel.app',
+  //     ];
+
+  //     // Allow server-to-server requests
+  //     if (!origin) return callback(null, true);
+
+  //     // Allow SSLCommerz sandbox + live
+  //     if (
+  //       allowedOrigins.includes(origin) ||
+  //       origin.endsWith('.vercel.app') ||
+  //       origin.includes('sslcommerz.com')
+  //     ) {
+  //       return callback(null, true);
+  //     }
+
+  //     return callback(new Error('Not allowed by CORS'));
+  //   },
+  //   credentials: true,
+  // });
+
   app.enableCors({
-    origin: (origin, callback) => {
-      const allowedOrigins = [
-        'http://localhost:7000',
-        'http://127.0.0.1:7000',
-        'https://furniture-frontend-iota.vercel.app',
-      ];
-
-      // allow server-to-server & Postman
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: true,
     credentials: true,
   });
 

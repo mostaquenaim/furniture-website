@@ -3,11 +3,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { SSLInitiateDto } from './dto/ssl-initiate.dto';
-import { SSLVerifyDto } from './dto/ssl-verify.dto';
-import { BkashCreateDto } from './dto/bkash-create.dto';
-import { BkashExecuteDto } from './dto/bkash-execute.dto';
-import { BkashQueryDto } from './dto/bkash-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import SSLCommerzPayment from 'sslcommerz-lts';
@@ -36,7 +31,7 @@ export class PaymentService {
   }
 
   async initiateSSL(
-    orderId: number,
+    orderId: string,
   ): Promise<{ gatewayPageUrl: string; transactionId: string }> {
     const { storeId, storePassword, isLive } = this.getStoreConfig();
 
@@ -45,7 +40,7 @@ export class PaymentService {
     const gatewayTranId = `TXN_${Date.now()}_${orderId}`;
 
     const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+      where: { orderId: orderId },
       include: {
         user: true,
         district: true,
@@ -64,7 +59,7 @@ export class PaymentService {
     // Check if order is already paid or has pending payment
     const existingPayment = await this.prisma.payment.findFirst({
       where: {
-        orderId,
+        orderId: order.id,
         status: { in: ['PENDING', 'PROCESSING', 'PAID'] },
       },
     });
@@ -74,8 +69,11 @@ export class PaymentService {
         throw new BadRequestException('Order already paid');
       }
       // Return existing payment if still pending/processing
+      const gatewayPageUrl =
+        (existingPayment.gatewayResponse as any)?.GatewayPageURL || '';
+
       return {
-        gatewayPageUrl: existingPayment.gatewayResponse?.GatewayPageURL || '',
+        gatewayPageUrl: gatewayPageUrl,
         transactionId: existingPayment.transactionId,
       };
     }
@@ -83,7 +81,7 @@ export class PaymentService {
     // Create payment record
     const payment = await this.prisma.payment.create({
       data: {
-        orderId,
+        orderId: order.id,
         method: 'SSL',
         amount: order.total,
         paidAmount: 0,
@@ -117,15 +115,17 @@ export class PaymentService {
       },
     });
 
+    const BASE_URL = this.configService.get<string>('BASE_URL');
+
     // Prepare SSL Commerz data
     const data: any = {
       total_amount: order.total,
       currency: 'BDT',
       tran_id: gatewayTranId, // Use gatewayTranId for SSL
-      success_url: `${process.env.BASE_URL}/v1/payment/success?transactionId=${transactionId}`,
-      fail_url: `${process.env.BASE_URL}/v1/payment/fail?transactionId=${transactionId}`,
-      cancel_url: `${process.env.BASE_URL}/v1/payment/cancel?transactionId=${transactionId}`,
-      ipn_url: `${process.env.PAYMENT_IPN_URL}`,
+      success_url: `${BASE_URL}/api/payments/success?transactionId=${transactionId}`,
+      fail_url: `${BASE_URL}/api/payments/fail?transactionId=${transactionId}`,
+      cancel_url: `${BASE_URL}/api/payments/cancel?transactionId=${transactionId}`,
+      ipn_url: `${BASE_URL}/api/payments/ipn`,
 
       // Customer information
       cus_name: order.customerName,
@@ -141,6 +141,7 @@ export class PaymentService {
       ship_add1: order.shippingAddress,
       ship_city: order.districtName || 'Dhaka',
       ship_country: 'Bangladesh',
+      ship_postcode: order.postCode || '1000',
 
       // Product information
       product_name: order.items.map((item) => item.productTitle).join(', '),
@@ -154,9 +155,9 @@ export class PaymentService {
     };
 
     // Add EMI options if total is above threshold
-    if (order.total >= 5000) {
-      data.emi_option = 1;
-    }
+    // if (order.total >= 5000) {
+    //   data.emi_option = 1;
+    // }
 
     try {
       const sslcz = new SSLCommerzPayment(storeId, storePassword, isLive);
@@ -325,7 +326,7 @@ export class PaymentService {
         data: {
           status: 'PAID',
           verificationStatus: 'VERIFIED',
-          paidAmount: validationResponse.amount,
+          paidAmount: Number(validationResponse.amount),
           dueAmount: 0,
           verifiedAt: new Date(),
           completedAt: new Date(),
@@ -457,38 +458,5 @@ export class PaymentService {
     } else {
       await this.handlePaymentFail(payment.transactionId, ipnData);
     }
-  }
-
-  // SSLCommerz – Verify
-  verifySSL(dto: SSLVerifyDto) {
-    return { message: 'SSLCommerz payment verified', payload: dto };
-  }
-
-  // bKash – Create
-  createBkash(dto: BkashCreateDto) {
-    return { message: 'bKash payment created', payload: dto };
-  }
-
-  // bKash – Execute
-  executeBkash(dto: BkashExecuteDto) {
-    return { message: 'bKash payment executed', payload: dto };
-  }
-
-  // bKash – Query
-  queryBkash(dto: BkashQueryDto) {
-    return { message: 'bKash payment queried', payload: dto };
-  }
-
-  // Payment methods
-  getMethods() {
-    return {
-      methods: [
-        'sslcommerz',
-        'bkash',
-        'cash_on_delivery',
-        'emi',
-        'partial_payment',
-      ],
-    };
   }
 }

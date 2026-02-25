@@ -165,7 +165,7 @@ export class ProductService {
 
           // Create sizes with quantity
           if (colorVariant.sizes && colorVariant.sizes.length > 0) {
-            // Filter out sizes with 0 or negative quantity
+            // keep only sizes with stock
             const validSizes = colorVariant.sizes.filter(
               (size) => size.quantity > 0,
             );
@@ -173,29 +173,48 @@ export class ProductService {
             if (validSizes.length > 0) {
               await tx.productSize.createMany({
                 data: validSizes.map((size) => {
-                  let price: number | null = null;
+                  const basePrice =
+                    size.price !== undefined && size.price !== null
+                      ? Number(size.price)
+                      : null;
 
-                  if (dto.discount && dto.discount > 0 && basePrice) {
-                    if (dto.discountType === DiscountType.PERCENT) {
-                      price = Math.round(
-                        basePrice - (basePrice * dto.discount) / 100,
+                  let finalPrice: number | null = basePrice || 0;
+
+                  // SIZE LEVEL DISCOUNT
+                  if (
+                    basePrice &&
+                    size.discount &&
+                    size.discount > 0 &&
+                    size.discountType
+                  ) {
+                    if (size.discountType === DiscountType.PERCENT) {
+                      finalPrice = Math.round(
+                        basePrice - (basePrice * size.discount) / 100,
                       );
                     }
 
-                    if (dto.discountType === DiscountType.FIXED) {
-                      price = basePrice - dto.discount;
+                    if (size.discountType === DiscountType.FIXED) {
+                      finalPrice = basePrice - size.discount;
                     }
+
+                    // prevent negative price
+                    if (finalPrice < 0) finalPrice = 0;
                   }
 
                   return {
                     colorId: productColor.id,
                     sizeId: size.sizeId,
                     sku: size.sku || null,
-                    basePrice:
-                      size.price !== undefined && size.price !== null
-                        ? Number(size.price)
-                        : null,
-                    price: price,
+
+                    // original price
+                    basePrice: basePrice,
+
+                    // discounted price
+                    price: finalPrice,
+
+                    discountType: size.discountType || null,
+                    discount: size.discount || dto.discount || 0,
+
                     quantity: Number(size.quantity),
                   };
                 }),

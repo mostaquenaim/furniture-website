@@ -12,4 +12,7 @@ export class OrderAddressDto {
 
   @IsString()
   phone: string;
+
+  @IsString()
+  postCode: string;
 }

@@ -193,6 +193,7 @@ export class OrderService {
           customerName: dto.address.name,
           customerPhone: customerPhone,
           shippingAddress: dto.address.fullAddress,
+          postCode: dto.address.postCode,
           districtId: dto.address.districtId,
           districtName: district.name,
           deliveryCharge: deliveryCharge,

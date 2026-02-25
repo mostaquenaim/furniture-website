@@ -7,6 +7,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { DiscountType } from '../roles.enum';
 
 export class ProductColorSizeDto {
   @IsNumber()
@@ -22,6 +23,13 @@ export class ProductColorSizeDto {
 
   @IsNumber()
   quantity: number;
+
+  @IsOptional()
+  @IsNumber()
+  discount?: number;
+
+  @IsOptional()
+  discountType?: DiscountType;
 }
 
 export class CreateProductColorDto {

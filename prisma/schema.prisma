@@ -367,10 +367,13 @@ model Color {
 model ProductSize {
   id Int @id @default(autoincrement())
 
-  sku       String?
+  sku String?
+
+  discountType String?
+  discount     Int     @default(0)
   basePrice Int?
   price     Int?
-  quantity  Int     @default(0)
+  quantity  Int  @default(0)
 
   soldCount Int @default(0)
 
@@ -479,6 +482,7 @@ model Order {
   districtId      Int?
   district        District? @relation(fields: [districtId], references: [id])
   districtName    String?
+  postCode        String?
 
   deliveryMethod String?
   deliveryCharge Float?
@@ -495,6 +499,7 @@ model Order {
 
   items                OrderItem[]
   payments             Payment[]
+  paymentStatus        PaymentStatus        @default(PENDING)
   orderStatusHistories OrderStatusHistory[]
 }
 

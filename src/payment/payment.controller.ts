@@ -4,28 +4,27 @@
 import {
   Controller,
   Post,
-  Body,
-  Get,
-  Res,
-  Header,
   Param,
-  ParseIntPipe,
+  UseGuards,
+  Query,
+  Body,
+  Res,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
-import { SSLInitiateDto } from './dto/ssl-initiate.dto';
-import { SSLVerifyDto } from './dto/ssl-verify.dto';
-import { BkashCreateDto } from './dto/bkash-create.dto';
-import { BkashExecuteDto } from './dto/bkash-execute.dto';
-import { BkashQueryDto } from './dto/bkash-query.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import type { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('payments')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('sslcommerz/initiate/:orderId')
-  @Header('Access-Control-Allow-Origin', '*')
-  async initiateSSL(@Param('orderId', ParseIntPipe) orderId: number) {
+  @UseGuards(JwtAuthGuard)
+  async initiateSSL(@Param('orderId') orderId: string) {
     try {
       const sslcommerzURL = await this.paymentService.initiateSSL(orderId);
       return {
@@ -46,28 +45,55 @@ export class PaymentController {
     }
   }
 
-  @Post('sslcommerz/verify')
-  verifySSL(@Body() dto: SSLVerifyDto) {
-    return this.paymentService.verifySSL(dto);
+  @Post('success')
+  async success(
+    @Query('transactionId') transactionId: string,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    await this.paymentService.handlePaymentSuccess(transactionId, body);
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    // Redirect to frontend success page
+    return res.redirect(
+      `${frontendUrl}/payment/payment-success?transactionId=${transactionId}`,
+    );
   }
 
-  @Post('bkash/create')
-  createBkash(@Body() dto: BkashCreateDto) {
-    return this.paymentService.createBkash(dto);
+  @Post('fail')
+  async fail(
+    @Query('transactionId') transactionId: string,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    await this.paymentService.handlePaymentFail(transactionId, body);
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    return res.redirect(
+      `${frontendUrl}/payment/payment-failed?transactionId=${transactionId}`,
+    );
   }
 
-  @Post('bkash/execute')
-  executeBkash(@Body() dto: BkashExecuteDto) {
-    return this.paymentService.executeBkash(dto);
+  @Post('cancel')
+  async cancel(
+    @Query('transactionId') transactionId: string,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    await this.paymentService.handlePaymentCancel(transactionId, body);
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    return res.redirect(
+      `${frontendUrl}/payment/payment-cancelled?transactionId=${transactionId}`,
+    );
   }
 
-  @Post('bkash/query')
-  queryBkash(@Body() dto: BkashQueryDto) {
-    return this.paymentService.queryBkash(dto);
-  }
-
-  @Get('methods')
-  paymentMethods() {
-    return this.paymentService.getMethods();
+  @Post('ipn')
+  async ipn(@Body() body: any) {
+    await this.paymentService.handleIPN(body);
+    return { received: true };
   }
 }
