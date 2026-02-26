@@ -177,6 +177,7 @@ export class OrderService {
           where: { id: item.productSize.color.productId },
           data: {
             soldCount: { increment: item.quantity },
+            totalProductQuantity: { decrement: item.quantity },
           },
         });
       }
@@ -229,6 +230,34 @@ export class OrderService {
     });
 
     return order;
+  }
+
+  private async recalculateTotalQuantity(
+    productId: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<number> {
+    // Sum all quantities of sizes belonging to this product
+    const result = await tx.productSize.aggregate({
+      _sum: {
+        quantity: true,
+      },
+      where: {
+        color: {
+          productId: productId,
+        },
+      },
+    });
+
+    const totalQuantity = result._sum.quantity ?? 0;
+
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        totalProductQuantity: totalQuantity,
+      },
+    });
+
+    return totalQuantity;
   }
 
   // get all orders

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -113,6 +114,8 @@ export class ProductService {
         },
       });
 
+      let totalProductQuantity = 0;
+
       // Create product images
       if (dto.images && dto.images.length > 0) {
         await tx.productImage.createMany({
@@ -171,6 +174,11 @@ export class ProductService {
             );
 
             if (validSizes.length > 0) {
+              totalProductQuantity += validSizes.reduce(
+                (sum, size) => sum + Number(size.quantity),
+                0,
+              );
+
               await tx.productSize.createMany({
                 data: validSizes.map((size) => {
                   const basePrice =
@@ -222,6 +230,13 @@ export class ProductService {
             }
           }
         }
+
+        await tx.product.update({
+          where: { id: product.id },
+          data: {
+            totalProductQuantity,
+          },
+        });
       }
 
       // Connect tags
