@@ -406,9 +406,12 @@ export class CartService {
       throw new BadRequestException('Not enough stock');
     }
 
-    const basePrice = productSize.color.product.basePrice;
+    if (productSize.price == null) {
+      throw new BadRequestException('Variant price not set');
+    }
 
-    const finalPrice = productSize.price ?? productSize.color.product.basePrice;
+    const basePrice = productSize.price;
+    const finalPrice = productSize.price;
 
     const colorName = productSize.color.color.name;
     const sizeName = productSize.size.name;
