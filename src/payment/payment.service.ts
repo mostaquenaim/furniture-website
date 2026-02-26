@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -13,6 +14,15 @@ export class PaymentService {
     private readonly configService: ConfigService,
     private prisma: PrismaService,
   ) {}
+
+  private mapGatewayMethod(cardType: string): any {
+    const method = cardType.toLowerCase();
+    if (method.includes('bkash')) return 'BKASH';
+    if (method.includes('nagad')) return 'NAGAD';
+    if (method.includes('rocket')) return 'ROCKET';
+    // Fallback to SSL or generic card if it's VISA/MASTER
+    return 'SSL';
+  }
 
   // SSLCommerz – Initiate
 
@@ -171,8 +181,8 @@ export class PaymentService {
           status: apiResponse.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
           message:
             apiResponse.status === 'SUCCESS'
-              ? 'Gateway initialization successful'
-              : 'Gateway initialization failed',
+              ? `Gateway session created: ${apiResponse.sessionkey}`
+              : `Gateway error: ${apiResponse.failedreason}`,
           gatewayResponse: apiResponse,
           createdBy: order.userId || undefined,
         },
@@ -320,11 +330,14 @@ export class PaymentService {
         );
       }
 
+      const actualMethod = this.mapGatewayMethod(validationResponse.card_type);
+
       // Update payment as successful
       const updatedPayment = await this.prisma.payment.update({
         where: { id: payment.id },
         data: {
           status: 'PAID',
+          method: actualMethod,
           verificationStatus: 'VERIFIED',
           paidAmount: Number(validationResponse.amount),
           dueAmount: 0,

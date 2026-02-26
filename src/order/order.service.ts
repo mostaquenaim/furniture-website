@@ -35,6 +35,34 @@ export class OrderService {
     return `ORD-${dateStr}-${sequence}`;
   }
 
+  private async recalculateTotalQuantity(
+    productId: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<number> {
+    // Sum all quantities of sizes belonging to this product
+    const result = await tx.productSize.aggregate({
+      _sum: {
+        quantity: true,
+      },
+      where: {
+        color: {
+          productId: productId,
+        },
+      },
+    });
+
+    const totalQuantity = result._sum.quantity ?? 0;
+
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        totalProductQuantity: totalQuantity,
+      },
+    });
+
+    return totalQuantity;
+  }
+
   // create a order
   async createOrder(userId: number, dto: CreateOrderDto) {
     console.log(userId, 'userId');
@@ -209,12 +237,10 @@ export class OrderService {
               color: item?.color,
               size: item?.size,
               quantity: item?.quantity,
-              priceAtPurchase: item?.productSize?.color?.product?.price ?? 0,
-              basePriceAtPurchase:
-                item?.productSize?.color?.product?.basePrice ?? 0,
+              priceAtPurchase: item?.productSize?.price ?? 0,
+              basePriceAtPurchase: item?.productSize?.basePrice ?? 0,
               totalPriceAtPurchase:
-                (item?.productSize?.color?.product?.price ?? 0) *
-                item?.quantity,
+                (item?.productSize?.price ?? 0) * item?.quantity,
             })),
           },
         },
@@ -230,34 +256,6 @@ export class OrderService {
     });
 
     return order;
-  }
-
-  private async recalculateTotalQuantity(
-    productId: number,
-    tx: Prisma.TransactionClient,
-  ): Promise<number> {
-    // Sum all quantities of sizes belonging to this product
-    const result = await tx.productSize.aggregate({
-      _sum: {
-        quantity: true,
-      },
-      where: {
-        color: {
-          productId: productId,
-        },
-      },
-    });
-
-    const totalQuantity = result._sum.quantity ?? 0;
-
-    await tx.product.update({
-      where: { id: productId },
-      data: {
-        totalProductQuantity: totalQuantity,
-      },
-    });
-
-    return totalQuantity;
   }
 
   // get all orders
@@ -419,7 +417,7 @@ export class OrderService {
             select: { id: true, email: true },
           },
           payments: {
-            take: 1,
+            // take: 1,
             orderBy: { createdAt: 'desc' },
           },
         }),
@@ -513,7 +511,7 @@ export class OrderService {
 
       payment: latestPayment
         ? {
-            method: order.deliveryMethod,
+            method: latestPayment.method ?? order.deliveryMethod,
             status: latestPayment.status, // Assuming Payment model has status
             transactionId: latestPayment.transactionId,
           }
