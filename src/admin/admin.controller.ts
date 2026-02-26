@@ -315,6 +315,11 @@ export class AdminController {
     return this.productService.setTrendScore();
   }
 
+  @Patch('sync-product-quantity')
+  async syncProductQuantity() {
+    return this.productService.syncProductQuantity();
+  }
+
   // @Get('product-sync-prices')
   // async syncAllProductPrices() {
   //   console.log('admin');

@@ -324,6 +324,8 @@ export class ProductService {
       throw new NotFoundException(`Product with slug "${slug}" not found`);
     }
 
+    product.colors = product.colors.filter((color) => color.sizes.length > 0);
+
     return product;
   }
 
@@ -394,6 +396,18 @@ export class ProductService {
       };
     }
 
+    if (minPrice || maxPrice) {
+      where.price = {
+        ...(minPrice && { gte: minPrice }),
+        ...(maxPrice && { lte: maxPrice }),
+      };
+    }
+
+    // Always ensure product has stock
+    where.totalProductQuantity = {
+      gt: 0,
+    };
+
     // --------------------------
     // Build Query Based on thumb
     // --------------------------
@@ -435,12 +449,18 @@ export class ProductService {
             },
             colors: {
               include: {
-                color: true, // REMOVED 'where' from here
+                color: true,
                 images: true,
                 sizes: {
+                  where: {
+                    quantity: { gt: 0 },
+                    size: {
+                      isActive: true,
+                    },
+                  },
                   include: {
                     size: {
-                      include: { variant: true }, // REMOVED 'where' from here
+                      include: { variant: true },
                     },
                   },
                 },
@@ -454,8 +474,18 @@ export class ProductService {
       this.prisma.product.count({ where }),
     ]);
 
+    let filteredData = data;
+
+    if (!thumb) {
+      filteredData = (data as any[]).map((product) => ({
+        ...product,
+        colors:
+          product.colors?.filter((color: any) => color.sizes?.length > 0) ?? [],
+      }));
+    }
+
     return {
-      data,
+      data: filteredData,
       meta: {
         total,
         page,
@@ -719,6 +749,35 @@ export class ProductService {
     }
 
     return { message: 'Product prices synchronized successfully' };
+  }
+
+  // sync product quantity
+  async syncProductQuantity() {
+    const products = await this.prisma.product.findMany({
+      include: {
+        colors: {
+          include: {
+            sizes: true,
+          },
+        },
+      },
+    });
+
+    for (const product of products) {
+      let totalProductQuantity = 0;
+      for (const color of product.colors) {
+        for (const size of color.sizes) {
+          totalProductQuantity += size.quantity;
+        }
+      }
+
+      await this.prisma.product.update({
+        where: { id: product.id },
+        data: {
+          totalProductQuantity,
+        },
+      });
+    }
   }
 
   // add product view
