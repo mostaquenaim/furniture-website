@@ -110,7 +110,7 @@ export class OrderService {
     // 2a. Check for price changes
     const priceChangedItems: string[] = [];
     for (const item of cart.items) {
-      const productPrice = item?.productSize?.color?.product?.price ?? 0;
+      const productPrice = item?.productSize?.price ?? 0;
       if (productPrice > Number(item.priceAtAdd)) {
         // Update cart subtotalAtAdd for this item
         await this.prisma.cartItem.update({
