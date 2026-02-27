@@ -64,6 +64,7 @@ export class PaymentController {
   @Post('fail')
   async fail(
     @Query('transactionId') transactionId: string,
+    @Query('orderId') orderId: string,
     @Body() body: any,
     @Res() res: Response,
   ) {
@@ -72,13 +73,14 @@ export class PaymentController {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
 
     return res.redirect(
-      `${frontendUrl}/payment/payment-failed?transactionId=${transactionId}`,
+      `${frontendUrl}/payment/payment-failed?transactionId=${transactionId}&orderId=${orderId}`,
     );
   }
 
   @Post('cancel')
   async cancel(
     @Query('transactionId') transactionId: string,
+    @Query('orderId') orderId: string,
     @Body() body: any,
     @Res() res: Response,
   ) {
@@ -87,7 +89,7 @@ export class PaymentController {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
 
     return res.redirect(
-      `${frontendUrl}/payment/payment-cancelled?transactionId=${transactionId}`,
+      `${frontendUrl}/payment/payment-cancelled?transactionId=${transactionId}&orderId=${orderId}`,
     );
   }
 

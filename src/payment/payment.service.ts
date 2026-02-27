@@ -133,8 +133,8 @@ export class PaymentService {
       currency: 'BDT',
       tran_id: gatewayTranId, // Use gatewayTranId for SSL
       success_url: `${BASE_URL}/api/payments/success?transactionId=${transactionId}`,
-      fail_url: `${BASE_URL}/api/payments/fail?transactionId=${transactionId}`,
-      cancel_url: `${BASE_URL}/api/payments/cancel?transactionId=${transactionId}`,
+      fail_url: `${BASE_URL}/api/payments/fail?transactionId=${transactionId}&orderId=${orderId}`,
+      cancel_url: `${BASE_URL}/api/payments/cancel?transactionId=${transactionId}&orderId=${orderId}`,
       ipn_url: `${BASE_URL}/api/payments/ipn`,
 
       // Customer information

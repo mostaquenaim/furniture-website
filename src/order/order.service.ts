@@ -494,6 +494,12 @@ export class OrderService {
           image: item.product.images[0]?.image || '/placeholder-product.jpg',
           quantity: item.quantity,
         })),
+        shippingAddress: {
+          name: order.customerName,
+          phone: order.customerPhone,
+          address: order.shippingAddress,
+          district: order.district?.name || order.districtName,
+        },
       };
     }
 
