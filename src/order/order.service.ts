@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable no-constant-binary-expression */
@@ -13,26 +14,36 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class OrderService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationsService,
+  ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
 
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
     const countToday = await tx.order.count({
       where: {
         createdAt: {
-          gte: new Date(today.setHours(0, 0, 0, 0)),
+          gte: startOfDay,
         },
       },
     });
 
     const sequence = String(countToday + 1).padStart(6, '0');
 
-    return `ORD-${dateStr}-${sequence}`;
+    // 4 digit random number
+    const random = Math.floor(1000 + Math.random() * 9000);
+
+    return `ORD-${dateStr}-${random}-${sequence}`;
   }
 
   private async recalculateTotalQuantity(
@@ -63,9 +74,17 @@ export class OrderService {
     return totalQuantity;
   }
 
+  normalizeBDPhone(phone: string) {
+    let p = phone.replace(/\D/g, ''); // remove all non-digits
+    if (p.startsWith('0')) p = '+880' + p.slice(1);
+    else if (p.startsWith('1')) p = '+880' + p;
+    else if (!p.startsWith('+880')) p = '+880' + p;
+    return p;
+  }
+
   // create a order
   async createOrder(userId: number, dto: CreateOrderDto) {
-    console.log(userId, 'userId');
+    // console.log(userId, 'userId');
     // 1. Validate district (especially for COD)
     const district = await this.prisma.district.findUnique({
       where: { id: dto.address.districtId },
@@ -74,6 +93,12 @@ export class OrderService {
     if (!district) {
       throw new BadRequestException('Invalid district selected');
     }
+
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
 
     // 2. Fetch user's cart items
     const cart = await this.prisma.cart.findUnique({
@@ -244,7 +269,43 @@ export class OrderService {
             })),
           },
         },
+        include: {
+          items: true, // ← this is the key
+        },
       });
+
+      if (user) {
+        this.notificationService.sendOrderConfirmation(
+          {
+            email: user.email ?? '',
+            phone: user.phone ?? '',
+          },
+          {
+            customerName: order.customerName,
+            orderId: order.orderId,
+            trackingToken: order.trackingToken,
+            shippingAddress: order.shippingAddress,
+            districtName: order.districtName,
+            postCode: order.postCode,
+            items:
+              order.items && order.items.length > 0
+                ? order.items.map((i) => ({
+                    productTitle: i.productTitle,
+                    size: i.size,
+                    color: i.color,
+                    quantity: i.quantity,
+                    priceAtPurchase: i.priceAtPurchase,
+                  }))
+                : [],
+            subtotal: order.items.reduce(
+              (sum, i) => sum + Number(i.totalPriceAtPurchase),
+              0,
+            ),
+            deliveryCharge: order.deliveryCharge,
+            total: order.total,
+          },
+        );
+      }
 
       // 5. Optionally clear cart
       await tx.cart.update({
@@ -518,7 +579,7 @@ export class OrderService {
       payment: latestPayment
         ? {
             method: latestPayment.method ?? order.deliveryMethod,
-            status: latestPayment.status, // Assuming Payment model has status
+            status: latestPayment.status,
             transactionId: latestPayment.transactionId,
           }
         : null,

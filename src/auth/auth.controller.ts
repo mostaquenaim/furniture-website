@@ -70,13 +70,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Req() req) {
-    return this.authService.profile(req.user.userId);
+    return this.authService.profile(req?.user?.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Put('profile')
   updateProfile(@Req() req, @Body() data) {
-    return this.authService.updateProfile(req.user.userId, data);
+    return this.authService.updateProfile(req?.user?.userId, data);
   }
 
   //logout
@@ -84,7 +84,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: any) {
     // console.log(req, 'qqqqqqqqqqqqqqq');
-    const tokenJti = req.user.jti;
+    const tokenJti = req?.user?.jti;
     const exp = 3600;
 
     await this.authService.addToBlacklist(tokenJti, exp);
@@ -97,6 +97,6 @@ export class AuthController {
   @Patch('merge-user')
   async mergeUser(@Req() req: any, @Query('visitorId') visitorId: string) {
     console.log(visitorId, 'vistoriffs');
-    await this.authService.mergeGuestData(visitorId, req.user.userId);
+    await this.authService.mergeGuestData(visitorId, req?.user?.userId);
   }
 }

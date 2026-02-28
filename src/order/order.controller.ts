@@ -33,7 +33,7 @@ export class OrderController {
   ) {
     console.log(page, 'page');
 
-    return this.orderService.getAllOrders(req.user.userId, {
+    return this.orderService.getAllOrders(req?.user?.userId, {
       page: Number(page) || 1,
       limit: Number(limit) || 5,
       search,
@@ -55,6 +55,8 @@ export class OrderController {
     @Param('orderId') orderId: string,
     @Query('details') details: boolean,
   ) {
-    return this.orderService.trackOrder(req.user.userId, orderId, { details });
+    return this.orderService.trackOrder(req?.user?.userId, orderId, {
+      details,
+    });
   }
 }

@@ -22,7 +22,7 @@ import { SeoModule } from './seo/seo.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LogsModule } from './logdetails/logs.module';
 import { BlogsModule } from './blog/blog.module';
-import { NotificationsModule } from './notifications/notifications.module';
+import { NotificationModule } from './notifications/notifications.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { SettingsModule } from './settings/settings.module';
 import { RolesModule } from './roles/roles.module';
@@ -34,12 +34,21 @@ import { MaterialModule } from './material/material.module';
 import { CartModule } from './cart/cart.module';
 import { GuestModule } from './guest/guest.module';
 import { SupportModule } from './support/support.module';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
+
     AuthModule,
     PrismaModule,
     SubcategoryModule,
@@ -58,7 +67,7 @@ import { SupportModule } from './support/support.module';
     SeoModule,
     AnalyticsModule,
     LogsModule,
-    NotificationsModule,
+    NotificationModule,
     RecommendationsModule,
     SettingsModule,
     RolesModule,

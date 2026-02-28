@@ -1,0 +1,45 @@
+<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+  <h2 style="color: #333;">Thank you for your order, {{customerName}}!</h2>
+  <p>We've received your order <strong>#{{orderId}}</strong> and are getting it ready for shipment.</p>
+  
+  <div style="background-color: #f9f9f9; padding: 15px; margin-bottom: 20px;">
+    <h3 style="margin-top: 0;">Order Summary</h3>
+    <p><strong>Tracking Token:</strong> {{trackingToken}}</p>
+    <p><strong>Shipping to:</strong><br>
+       {{customerName}}<br>
+       {{shippingAddress}}<br>
+       {{districtName}}, {{postCode}}</p>
+  </div>
+
+  <table style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="border-bottom: 2px solid #eee;">
+        <th style="text-align: left; padding: 10px 0;">Product</th>
+        <th style="text-align: center;">Qty</th>
+        <th style="text-align: right;">Price</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px 0;">
+          <strong>{{this.productTitle}}</strong><br>
+          <small>Size: {{this.size}} | Color: {{this.color}}</small>
+        </td>
+        <td style="text-align: center;">{{this.quantity}}</td>
+        <td style="text-align: right;">৳{{this.priceAtPurchase}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div style="text-align: right; margin-top: 20px;">
+    <p>Subtotal: ৳{{subtotal}}</p>
+    <p>Delivery Charge: ৳{{deliveryCharge}}</p>
+    <h3 style="color: #e67e22;">Total: ৳{{total}}</h3>
+  </div>
+
+  <p style="font-size: 12px; color: #777; margin-top: 40px;">
+    If you have any questions, contact us at support@sakigai.com.
+  </p>
+</div>

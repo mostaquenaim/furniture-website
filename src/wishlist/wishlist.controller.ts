@@ -26,7 +26,7 @@ export class WishlistController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.wishlistService.getWishlist(req.user.userId, {
+    return this.wishlistService.getWishlist(req?.user?.userId, {
       page: Number(page) || 1,
       limit: Number(limit) || 8,
     });

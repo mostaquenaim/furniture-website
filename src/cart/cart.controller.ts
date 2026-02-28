@@ -19,8 +19,10 @@ import {
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/addCartItem.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
@@ -46,7 +48,7 @@ export class CartController {
   ) {
     // console.log('cart items', req.user.userId);
 
-    return await this.cartService.getCartItems(req.user.userId, null, {
+    return await this.cartService.getCartItems(req?.user?.userId, null, {
       productSlug: productSlug ? productSlug : undefined,
       colorId: colorId ? +colorId : undefined,
       sizeId: sizeId ? +sizeId : undefined,
@@ -58,7 +60,7 @@ export class CartController {
   @Get('count')
   async countCartItems(@Req() req) {
     console.log('found');
-    return this.cartService.countCartItems(req.user.userId, null);
+    return this.cartService.countCartItems(req?.user?.userId, null);
   }
 
   // apply coupon
@@ -68,7 +70,7 @@ export class CartController {
     @Body('code') code: string,
     @Req() req: any,
   ) {
-    return this.cartService.applyCoupon(req.user.id, null, cartId, code);
+    return this.cartService.applyCoupon(req?.user?.id, null, cartId, code);
   }
 
   // update cart item quantity
@@ -78,12 +80,21 @@ export class CartController {
     @Body('quantity', ParseIntPipe) quantity: number,
     @Req() req: any,
   ) {
-    return this.cartService.updateItemQuantity(req.user.id, null, id, quantity);
+    return this.cartService.updateItemQuantity(
+      req?.user?.id,
+      null,
+      id,
+      quantity,
+    );
   }
 
   // delete cart item
   @Delete('items/:id')
-  async removeCartItem(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.cartService.removeItem(req.user.id, null, id);
+  async removeCartItem(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+    @Query('visitorId') visitorId?: string,
+  ) {
+    return this.cartService.removeItem(req?.user?.id, visitorId || null, id);
   }
 }

@@ -173,7 +173,7 @@ export class AdminController {
   // ADMIN PROFILE
   @Get('profile')
   getAdminProfile(@Req() req) {
-    return req.user;
+    return req?.user;
   }
 
   @Get('cloudinary-signature')
