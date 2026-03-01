@@ -26,7 +26,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           },
         },
         defaults: {
-          from: `"Sakigai" <${process.env.MAIL_FROM}>`,
+          from: `"Sakigai" <${config.getOrThrow<string>('MAIL_FROM')}>`,
         },
         preview: process.env.NODE_ENV === 'development',
         template: {

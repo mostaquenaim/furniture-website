@@ -34,10 +34,12 @@ datasource db {
 model User {
   id         Int      @id @default(autoincrement())
   name       String?
-  phone      String   @unique
+  phone      String?   @unique
   email      String?  @unique
   isVerified Boolean  @default(false)
   password   String?
+  googleId   String?  @unique
+  avatar    String?  // URL to profile picture
   role       UserRole @default(CUSTOMER)
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())

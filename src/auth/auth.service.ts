@@ -19,6 +19,7 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
+import { GoogleUserDto } from './dto/google-user.dto';
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_TIME_MINUTES = 15;
@@ -30,6 +31,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // send otp
   async sendOtp(
     userId: number,
     type: 'email' | 'phone' | '',
@@ -72,7 +74,7 @@ export class AuthService {
   }
 
   // issue token
-  private async issueToken(user: any, expiresIn: JwtSignOptions['expiresIn']) {
+  async issueToken(user: any, expiresIn: JwtSignOptions['expiresIn']) {
     const jti = crypto.randomUUID();
 
     const payload = {
@@ -89,6 +91,7 @@ export class AuthService {
     return { user: safeUser, token };
   }
 
+  // verify otp
   async verifyOtp(
     emailOrPhone: string,
     code: string,
@@ -134,6 +137,7 @@ export class AuthService {
     return this.issueToken(user, keepSignedIn ? '1d' : '30d');
   }
 
+  // verify update otp
   async verifyUpdateOtp(userId: number, code: string, type: 'email' | 'phone') {
     console.log(userId, code, type);
     // console.log(userId, code, type);
@@ -178,6 +182,7 @@ export class AuthService {
     return user;
   }
 
+  // verify email or phone
   async verifyEmailOrPhone(emailOrPhone: string, type: 'email' | 'phone') {
     // console.log(emailOrPhone);
 
@@ -316,6 +321,7 @@ export class AuthService {
     });
   }
 
+  // update profile
   async updateProfile(userId: number, data: any) {
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
@@ -558,5 +564,41 @@ export class AuthService {
       success: true,
       message: 'Password changed successfully',
     };
+  }
+
+  // find or create google user
+  async findOrCreateGoogleUser(googleUser: GoogleUserDto) {
+    const { email, name, avatar, googleId } = googleUser;
+
+    // Case 1 & 2: find by googleId first, then fall back to email
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ googleId }, { email }],
+      },
+    });
+
+    if (user) {
+      // Link Google account to existing email account if not already linked
+      if (!user.googleId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { googleId, avatar: avatar ?? user.avatar },
+        });
+      }
+      return user;
+    }
+
+    // Case 3: new user via Google
+    user = await this.prisma.user.create({
+      data: {
+        email,
+        name,
+        avatar,
+        googleId,
+        role: 'CUSTOMER',
+      },
+    });
+
+    return user;
   }
 }

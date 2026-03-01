@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -12,16 +14,23 @@ import {
   Req,
   Query,
   Patch,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { ConfigService } from '@nestjs/config';
+import type { Response, Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private configService: ConfigService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -98,5 +107,33 @@ export class AuthController {
   async mergeUser(@Req() req: any, @Query('visitorId') visitorId: string) {
     console.log(visitorId, 'vistoriffs');
     await this.authService.mergeGuestData(visitorId, req?.user?.userId);
+  }
+
+  // ── Redirect user to Google consent screen ──────────────────────────
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  googleLogin() {
+    // Passport handles the redirect — no body needed
+  }
+
+  // Google redirects back here with the user profile ────────────────
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
+    const user = req?.user as any;
+
+    const keepSignedIn = false; // Google users — reasonable default
+    const expiresIn = keepSignedIn ? '30d' : '1d';
+
+    // Issue your own JWT (same shape as your regular login token)
+    const { token } = await this.authService.issueToken(user, expiresIn);
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    // Redirect to frontend with token in query param
+    // Frontend reads it once, stores in localStorage, then strips from URL
+    return res.redirect(
+      `${frontendUrl}/auth/google/success?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`,
+    );
   }
 }

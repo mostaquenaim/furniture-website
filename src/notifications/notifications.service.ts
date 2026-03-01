@@ -111,6 +111,7 @@ export class NotificationsService {
       //   from: process.env.TWILIO_PHONE,
       //   body: job.data.message,
       // });
+
       this.logger.log(`SMS sent to ${job.data.phone}`);
     } catch (err) {
       this.logger.error(`Failed to send SMS to ${job.data.phone}`, err);
