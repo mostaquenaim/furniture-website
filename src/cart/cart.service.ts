@@ -44,6 +44,8 @@ export class CartService {
         id: true,
         subtotalAtAdd: true,
         baseSubtotalAtAdd: true,
+        coupon: true,
+        couponId: true,
       },
     });
 
@@ -192,6 +194,8 @@ export class CartService {
         id: true,
         subtotalAtAdd: true,
         baseSubtotalAtAdd: true,
+        coupon: true,
+        couponId: true,
       },
     });
 

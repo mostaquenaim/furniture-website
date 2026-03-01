@@ -99,7 +99,7 @@ export class NotificationsService {
   }
 
   async processEmailJob(job: any) {
-    console.log(job.data, 'jobss2');
+    // console.log(job.data, 'jobss2');
     try {
       await this.mailerService.sendMail({
         to: job.data.email,

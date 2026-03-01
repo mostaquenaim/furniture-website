@@ -187,10 +187,10 @@ export class OrderService {
     }
 
     // 3. Calculate totals
-    let subtotal = 0;
-    for (const item of cart.items) {
-      subtotal += Number(item.subtotalAtAdd);
-    }
+    const subtotal = cart.subtotalAtAdd ?? 0;
+    // for (const item of cart.items) {
+    //   subtotal += Number(item.subtotalAtAdd);
+    // }
 
     let customerPhone = dto.address.phone;
 
