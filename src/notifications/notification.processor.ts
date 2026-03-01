@@ -8,7 +8,7 @@ export class NotificationProcessor {
 
   @Process('sendEmail')
   async handleEmail(job: Job) {
-    // console.log(job, 'jobss');
+    // console.log(job.data, 'jobss');
     return this.notificationService.processEmailJob(job);
   }
 

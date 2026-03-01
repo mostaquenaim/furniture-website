@@ -20,6 +20,8 @@ import * as crypto from 'crypto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
 import { GoogleUserDto } from './dto/google-user.dto';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'twilio/lib/twiml/VoiceResponse';
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_TIME_MINUTES = 15;
@@ -29,15 +31,22 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    @InjectQueue('notification') private notificationQueue: Queue,
   ) {}
 
   // send otp
   async sendOtp(
     userId: number,
     type: 'email' | 'phone' | '',
-    // purpose: 'REGISTER' | 'ADMIN_LOGIN' | 'UPDATE_EMAIL' | 'UPDATE_PHONE',
     email?: string,
     phone?: string,
+    purpose?:
+      | 'REGISTER'
+      | 'ADMIN_LOGIN'
+      | 'UPDATE_EMAIL'
+      | 'UPDATE_PHONE'
+      | 'VERIFY_EMAIL'
+      | 'VERIFY_PHONE',
   ) {
     await this.prisma.oTP.updateMany({
       where: {
@@ -52,7 +61,7 @@ export class AuthService {
     const code = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await this.prisma.oTP.create({
+    const otp = await this.prisma.oTP.create({
       data: { userId, code, type, expiresAt, email, phone },
     });
 
@@ -62,6 +71,21 @@ export class AuthService {
     } else {
       console.log(`Send SMS OTP to user: ${code}`);
     }
+
+    this.notificationQueue.add('sendEmail', {
+      email: email,
+      subject: 'Your OTP Code',
+      template: 'otp',
+      context: {
+        otp: code,
+        purpose,
+      },
+    });
+
+    this.notificationQueue.add('sendSMS', {
+      phone: phone,
+      message: `Your Sakigai OTP is ${code}. It will expire in 5 minutes.`,
+    });
 
     if (
       process.env.NODE_ENV === 'vercel' ||
@@ -202,6 +226,7 @@ export class AuthService {
       type,
       type === 'email' ? emailOrPhone : undefined,
       type === 'phone' ? emailOrPhone : undefined,
+      type === 'email' ? 'VERIFY_EMAIL' : 'VERIFY_PHONE',
     );
   }
 
@@ -250,6 +275,7 @@ export class AuthService {
       otpType,
       dto.email,
       dto.phone,
+      'REGISTER',
     );
 
     return {
@@ -278,6 +304,7 @@ export class AuthService {
     }
 
     const valid = await bcrypt.compare(dto.password, user.password);
+
     if (!valid) {
       await this.recordFailedAttempt(identifier);
       throw new UnauthorizedException('Invalid credentials');
@@ -296,7 +323,12 @@ export class AuthService {
 
     const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
     /*  */
-    const otpDetails = await this.sendOtp(user.id, 'email', dto.email);
+    const otpDetails = await this.sendOtp(
+      user.id,
+      'email',
+      dto.email,
+      'ADMIN_LOGIN',
+    );
 
     return {
       status: 'OTP_REQUIRED',
@@ -502,6 +534,7 @@ export class AuthService {
             type,
             emailChanging ? dto.email : undefined,
             phoneChanging ? dto.phone : undefined,
+            emailChanging ? 'UPDATE_EMAIL' : 'UPDATE_PHONE',
           ),
         };
         // throw new BadRequestException(`OTP required for ${type} change`);

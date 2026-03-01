@@ -8,9 +8,12 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bull';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Module({
   imports: [
+    BullModule.registerQueue({ name: 'notification' }),
     PassportModule,
     PrismaModule,
     JwtModule.register({
@@ -28,6 +31,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     // }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtStrategy, GoogleStrategy],
+  providers: [
+    AuthService,
+    PrismaService,
+    JwtStrategy,
+    GoogleStrategy,
+    NotificationsService,
+  ],
 })
 export class AuthModule {}

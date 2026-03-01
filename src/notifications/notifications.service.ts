@@ -73,17 +73,28 @@ export class NotificationsService {
 
   async sendStatusUpdate(
     user: { email: string; phone: string },
-    orderNumber: string,
-    status: string,
+    order: {
+      orderId: string;
+      customerName: string;
+      status: string;
+      trackingToken?: string;
+    },
   ) {
     await this.notificationQueue.add('sendEmail', {
       email: user.email,
-      template: 'order-status',
-      context: { orderNumber, status },
+      subject: `Order #${order.orderId} is now ${order.status}`,
+      template: 'order-status-update',
+      context: {
+        customerName: order.customerName,
+        orderId: order.orderId,
+        status: order.status,
+        trackingToken: order.trackingToken,
+      },
     });
+
     await this.notificationQueue.add('sendSMS', {
       phone: user.phone,
-      message: `Your order #${orderNumber} status: ${status}`,
+      message: `Hi ${order.customerName}, your order #${order.orderId} is now ${order.status}.`,
     });
   }
 
