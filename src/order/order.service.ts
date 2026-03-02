@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -15,6 +16,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import * as PDFDocument from 'pdfkit';
+import { Response } from 'express';
 
 @Injectable()
 export class OrderService {
@@ -80,6 +83,12 @@ export class OrderService {
     else if (p.startsWith('1')) p = '+880' + p;
     else if (!p.startsWith('+880')) p = '+880' + p;
     return p;
+  }
+
+  private async generateInvoiceNo(tx: Prisma.TransactionClient) {
+    const count = await tx.invoice.count();
+    const next = count + 1;
+    return `SKG-${new Date().getFullYear()}-${String(next).padStart(5, '0')}`;
   }
 
   // create a order
@@ -274,6 +283,20 @@ export class OrderService {
         },
       });
 
+      const invoiceNo = await this.generateInvoiceNo(tx);
+
+      await tx.invoice.create({
+        data: {
+          invoiceNo,
+          orderId: order.id,
+          subtotal: order.total - deliveryCharge,
+          discount: order.discount ?? 0,
+          shippingCost: deliveryCharge ?? 0,
+          tax: 0,
+          total: order.total,
+        },
+      });
+
       if (user) {
         this.notificationService.sendOrderConfirmation(
           {
@@ -317,6 +340,66 @@ export class OrderService {
     });
 
     return order;
+  }
+
+  // generate invoice pdf
+  async generateInvoicePdf(invoiceId: string, res: Response) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        order: {
+          include: {
+            items: true,
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    const doc = new PDFDocument({ margin: 50 });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=invoice-${invoice.invoiceNo}.pdf`,
+    );
+
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(22).text('Sakigai Furniture', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(14).text(`Invoice No: ${invoice.invoiceNo}`);
+    doc.text(`Date: ${invoice.issuedAt.toDateString()}`);
+    doc.moveDown();
+
+    if (invoice?.order?.user) {
+      doc.text(`Customer: ${invoice.order.user.name}`);
+      doc.text(`Email: ${invoice.order.user.email}`);
+      doc.moveDown();
+    }
+
+    doc.text('Items:', { underline: true });
+
+    invoice.order.items.forEach((item) => {
+      doc.text(
+        `${item.productTitle} - ${item.quantity} x ${item.priceAtPurchase} = ${item.quantity * item.priceAtPurchase}`,
+      );
+    });
+
+    doc.moveDown();
+    doc.text(`Subtotal: ${invoice.subtotal}`);
+    doc.text(`Shipping: ${invoice.shippingCost}`);
+    doc.text(`Discount: ${invoice.discount}`);
+    doc.text(`Tax: ${invoice.tax}`);
+    doc.moveDown();
+    doc.fontSize(16).text(`Total: ${invoice.total}`, { align: 'right' });
+
+    doc.end();
   }
 
   // get all orders

@@ -34,12 +34,12 @@ datasource db {
 model User {
   id         Int      @id @default(autoincrement())
   name       String?
-  phone      String?   @unique
+  phone      String?  @unique
   email      String?  @unique
   isVerified Boolean  @default(false)
   password   String?
   googleId   String?  @unique
-  avatar    String?  // URL to profile picture
+  avatar     String? // URL to profile picture
   role       UserRole @default(CUSTOMER)
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
@@ -373,9 +373,9 @@ model ProductSize {
 
   discountType String?
   discount     Int     @default(0)
-  basePrice Int?
-  price     Int?
-  quantity  Int  @default(0)
+  basePrice    Int?
+  price        Int?
+  quantity     Int     @default(0)
 
   soldCount Int @default(0)
 
@@ -503,6 +503,7 @@ model Order {
   payments             Payment[]
   paymentStatus        PaymentStatus        @default(PENDING)
   orderStatusHistories OrderStatusHistory[]
+  invoice              Invoice?
 }
 
 model OrderItem {
@@ -547,6 +548,22 @@ model OrderStatusHistory {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+model Invoice {
+  id        String @id @default(uuid())
+  invoiceNo String @unique
+  orderId   Int @unique
+  order     Order  @relation(fields: [orderId], references: [id])
+
+  subtotal     Float
+  discount     Float
+  shippingCost Float
+  tax          Float
+  total        Float
+
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 enum DeliveryMethod {
