@@ -553,7 +553,7 @@ model OrderStatusHistory {
 model Invoice {
   id        String @id @default(uuid())
   invoiceNo String @unique
-  orderId   Int @unique
+  orderId   Int    @unique
   order     Order  @relation(fields: [orderId], references: [id])
 
   subtotal     Float
@@ -562,8 +562,10 @@ model Invoice {
   tax          Float
   total        Float
 
-  issuedAt  DateTime @default(now())
-  createdAt DateTime @default(now())
+  dueDate   DateTime?
+  paidAt    DateTime?
+  issuedAt  DateTime  @default(now())
+  createdAt DateTime  @default(now())
 }
 
 enum DeliveryMethod {

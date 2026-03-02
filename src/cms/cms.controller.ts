@@ -12,7 +12,7 @@ import {
   ParseIntPipe,
   UseGuards,
   Query,
-  ValidationPipe,
+  Res,
 } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { CreateAboutDto } from './dto/create-about.dto';
@@ -25,12 +25,15 @@ import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
 import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CartService } from 'src/cart/cart.service';
+import { OrderService } from 'src/order/order.service';
+import type { Response } from 'express';
 
 @Controller()
 export class CmsController {
   constructor(
     private readonly cmsService: CmsService,
     private readonly cartService: CartService,
+    private readonly orderService: OrderService,
   ) {}
 
   // get tags
@@ -189,5 +192,19 @@ export class CmsController {
   @Get('districts')
   async getDistricts() {
     return this.cmsService.getDistricts();
+  }
+
+  //INVOICE
+
+  //invoice
+  @Get('invoices/:id')
+  async getInvoice(@Param('id') id: string) {
+    return this.orderService.getInvoice(id);
+  }
+
+  // invoice pdf generator
+  @Get('invoices/:id/pdf')
+  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
+    return this.orderService.generateInvoicePdf(id, res);
   }
 }

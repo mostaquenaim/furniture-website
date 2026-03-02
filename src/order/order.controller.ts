@@ -61,10 +61,4 @@ export class OrderController {
       details,
     });
   }
-
-  // invoice generator
-  @Get(':id/pdf')
-  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
-    return this.orderService.generateInvoicePdf(id, res);
-  }
 }

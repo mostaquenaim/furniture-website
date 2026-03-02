@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -16,8 +17,9 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import { Response } from 'express';
+import puppeteer from 'puppeteer';
 
 @Injectable()
 export class OrderService {
@@ -189,17 +191,16 @@ export class OrderService {
 
     if (priceChangedItems.length > 0) {
       throw new BadRequestException(
-        `The price of the following product(s) has increased: ${priceChangedItems.join(
-          ', ',
-        )}. Your cart has been updated with the new price.`,
+        `The price of one or more product(s) has increased. Your cart has been updated with the new price.`,
       );
     }
 
     // 3. Calculate totals
     const subtotal = cart.subtotalAtAdd ?? 0;
-    // for (const item of cart.items) {
-    //   subtotal += Number(item.subtotalAtAdd);
-    // }
+
+    const discount = cart.baseSubtotalAtAdd - cart.subtotalAtAdd;
+
+    console.log(discount);
 
     let customerPhone = dto.address.phone;
 
@@ -253,6 +254,7 @@ export class OrderService {
           userId,
           orderId,
           trackingToken,
+          discount,
           customerName: dto.address.name,
           customerPhone: customerPhone,
           shippingAddress: dto.address.fullAddress,
@@ -279,7 +281,7 @@ export class OrderService {
           },
         },
         include: {
-          items: true, // ← this is the key
+          items: true,
         },
       });
 
@@ -342,6 +344,23 @@ export class OrderService {
     return order;
   }
 
+  // get invoice
+  async getInvoice(id: string) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        order: {
+          include: {
+            items: true,
+            user: true,
+          },
+        },
+      },
+    });
+
+    return invoice;
+  }
+
   // generate invoice pdf
   async generateInvoicePdf(invoiceId: string, res: Response) {
     const invoice = await this.prisma.invoice.findUnique({
@@ -356,50 +375,298 @@ export class OrderService {
       },
     });
 
-    if (!invoice) {
-      throw new NotFoundException('Invoice not found');
-    }
+    if (!invoice) throw new NotFoundException('Invoice not found');
 
-    const doc = new PDFDocument({ margin: 50 });
+    const html = this.buildHtml(invoice);
+    const buffer = await this.renderPdf(html);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename=invoice-${invoice.invoiceNo}.pdf`,
     );
+    res.setHeader('Content-Length', buffer.length);
+    res.end(buffer);
+  }
 
-    doc.pipe(res);
-
-    // Header
-    doc.fontSize(22).text('Sakigai Furniture', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(14).text(`Invoice No: ${invoice.invoiceNo}`);
-    doc.text(`Date: ${invoice.issuedAt.toDateString()}`);
-    doc.moveDown();
-
-    if (invoice?.order?.user) {
-      doc.text(`Customer: ${invoice.order.user.name}`);
-      doc.text(`Email: ${invoice.order.user.email}`);
-      doc.moveDown();
-    }
-
-    doc.text('Items:', { underline: true });
-
-    invoice.order.items.forEach((item) => {
-      doc.text(
-        `${item.productTitle} - ${item.quantity} x ${item.priceAtPurchase} = ${item.quantity * item.priceAtPurchase}`,
-      );
+  private async renderPdf(html: string): Promise<Buffer> {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      });
+      return Buffer.from(pdf);
+    } finally {
+      await browser.close();
+    }
+  }
 
-    doc.moveDown();
-    doc.text(`Subtotal: ${invoice.subtotal}`);
-    doc.text(`Shipping: ${invoice.shippingCost}`);
-    doc.text(`Discount: ${invoice.discount}`);
-    doc.text(`Tax: ${invoice.tax}`);
-    doc.moveDown();
-    doc.fontSize(16).text(`Total: ${invoice.total}`, { align: 'right' });
+  private taka(n: number): string {
+    return `৳ ${Number(n).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`;
+  }
 
-    doc.end();
+  private fmtDate(d: Date | string): string {
+    return new Date(d).toLocaleDateString('en-BD', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+
+  private buildHtml(invoice: any): string {
+    const user = invoice.order?.user;
+    const items: any[] = invoice.order?.items ?? [];
+
+    const statusColors: Record<
+      string,
+      { bg: string; color: string; border: string }
+    > = {
+      PAID: { bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+      UNPAID: { bg: '#fffbeb', color: '#b45309', border: '#fcd34d' },
+      CANCELLED: { bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' },
+      REFUNDED: { bg: '#f8fafc', color: '#64748b', border: '#cbd5e1' },
+    };
+    const sc = statusColors[invoice.status] ?? statusColors.UNPAID;
+
+    const itemRows = items
+      .map(
+        (item) => `
+        <tr>
+          <td class="item-cell">
+            <span class="item-name">${item.productTitle}</span>
+            ${item.sku ? `<span class="sku">SKU: ${item.sku}</span>` : ''}
+          </td>
+          <td class="center mono">${item.quantity}</td>
+          <td class="right mono">${this.taka(item.priceAtPurchase)}</td>
+          <td class="right mono bold">${this.taka(item.quantity * item.priceAtPurchase)}</td>
+        </tr>`,
+      )
+      .join('');
+
+    const subtotal = items.reduce(
+      (s: number, i: any) => s + i.quantity * i.priceAtPurchase,
+      0,
+    );
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 13px;
+      color: #1e293b;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .mono { font-family: 'DM Mono', 'Courier New', monospace; }
+
+    .header {
+      background: #0f172a;
+      padding: 40px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .brand-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #e2c97e;
+    }
+    .brand-tagline { color: #64748b; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 4px; }
+    .brand-contact { color: #475569; font-size: 11px; margin-top: 16px; line-height: 1.7; }
+    .inv-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: #cbd5e1;
+      text-align: right;
+    }
+    .inv-number { font-family: 'DM Mono', monospace; font-size: 12px; color: #e2c97e; text-align: right; margin-top: 6px; }
+    .status-badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: ${sc.bg};
+      color: ${sc.color};
+      border: 1px solid ${sc.border};
+    }
+    .gold-rule { height: 3px; background: linear-gradient(to right, #e2c97e, #c9a84c, #0f172a); }
+
+    .meta-row { display: flex; border-bottom: 1px solid #f1f5f9; }
+    .meta-block { flex: 1; padding: 24px 32px; border-right: 1px solid #f1f5f9; }
+    .meta-block:last-child { border-right: none; }
+    .meta-label { font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.18em; color: #94a3b8; margin-bottom: 8px; }
+    .meta-value { font-size: 14px; color: #0f172a; font-weight: 600; line-height: 1.5; }
+    .meta-sub   { font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.6; }
+    .meta-mono  { font-family: 'DM Mono', monospace; font-size: 11px; color: #475569; word-break: break-all; }
+
+    .table-wrap { padding: 32px 48px 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
+    thead th { padding: 11px 8px; font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: #94a3b8; }
+    thead th:first-child { text-align: left; padding-left: 0; width: 44%; }
+    tbody tr { border-bottom: 1px solid #f8fafc; }
+    tbody tr:last-child { border-bottom: 2px solid #0f172a; }
+    tbody td { padding: 14px 8px; vertical-align: top; }
+    tbody td:first-child { padding-left: 0; }
+    .item-name { display: block; font-size: 14px; font-weight: 600; color: #0f172a; }
+    .sku { display: block; font-family: 'DM Mono', monospace; font-size: 10px; color: #94a3b8; margin-top: 2px; }
+    .center { text-align: center; }
+    .right  { text-align: right; }
+    .bold   { font-weight: 500; color: #0f172a; }
+
+    .totals-wrap { display: flex; justify-content: flex-end; padding: 0 48px 36px; }
+    .totals-inner { width: 220px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; color: #64748b; border-bottom: 1px solid #f8fafc; }
+    .totals-row .val { font-family: 'DM Mono', monospace; }
+    .totals-row.green .val { color: #15803d; }
+    .totals-grand { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 2px solid #0f172a; margin-top: 4px; }
+    .totals-grand .label { font-size: 17px; font-weight: 600; color: #0f172a; }
+    .totals-grand .val   { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500; color: #0f172a; }
+
+    .thankyou { text-align: center; padding: 20px 48px 28px; font-size: 13px; color: #94a3b8; font-style: italic; }
+
+    .footer { background: #faf9f7; border-top: 1px solid #f1f5f9; padding: 20px 48px; display: flex; justify-content: space-between; align-items: center; }
+    .footer-note { font-size: 10px; color: #94a3b8; line-height: 1.7; }
+    .footer-brand { font-family: 'DM Mono', monospace; font-size: 10px; color: #cbd5e1; letter-spacing: 0.25em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <div class="brand-name">Sakigai</div>
+      <div class="brand-tagline">Furniture · Crafted for your home</div>
+      <div class="brand-contact">
+        Dhaka, Bangladesh<br/>
+        support@sakigai.com.bd · sakigai.com.bd
+      </div>
+    </div>
+    <div>
+      <div class="inv-title">Invoice</div>
+      <div class="inv-number">${invoice.invoiceNo}</div>
+      <div style="text-align:right">
+        <span class="status-badge">${invoice.status ?? 'UNPAID'}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="gold-rule"></div>
+
+  <div class="meta-row">
+    <div class="meta-block">
+      <div class="meta-label">Billed To</div>
+      <div class="meta-value">${user?.name ?? '—'}</div>
+      ${user?.email ? `<div class="meta-sub">${user.email}</div>` : ''}
+      ${user?.phone ? `<div class="meta-sub mono">${user.phone}</div>` : ''}
+    </div>
+    <div class="meta-block">
+      <div class="meta-label">Issued</div>
+      <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.issuedAt)}</div>
+      ${
+        invoice.dueDate
+          ? `
+        <div class="meta-label" style="margin-top:14px">Due</div>
+        <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.dueDate)}</div>
+      `
+          : ''
+      }
+    </div>
+    <div class="meta-block">
+      <div class="meta-label">Order Ref</div>
+      <div class="meta-mono">${invoice.order?.id ?? '—'}</div>
+      ${
+        invoice.paidAt
+          ? `
+        <div class="meta-label" style="margin-top:14px">Paid On</div>
+        <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.paidAt)}</div>
+      `
+          : ''
+      }
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th style="text-align:center">Qty</th>
+          <th style="text-align:right">Unit Price</th>
+          <th style="text-align:right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+  </div>
+
+  <div class="totals-wrap">
+    <div class="totals-inner">
+      <div class="totals-row">
+        <span>Subtotal</span><span class="val">${this.taka(subtotal)}</span>
+      </div>
+      ${
+        (invoice.discount ?? 0) > 0
+          ? `
+      <div class="totals-row green">
+        <span>Discount</span><span class="val">− ${this.taka(invoice.discount)}</span>
+      </div>`
+          : ''
+      }
+      <div class="totals-row">
+        <span>Shipping</span>
+        <span class="val">${(invoice.shippingCost ?? 0) > 0 ? this.taka(invoice.shippingCost) : 'Free'}</span>
+      </div>
+      ${
+        (invoice.tax ?? 0) > 0
+          ? `
+      <div class="totals-row">
+        <span>Tax</span><span class="val">${this.taka(invoice.tax)}</span>
+      </div>`
+          : ''
+      }
+      <div class="totals-grand">
+        <span class="label">Total</span>
+        <span class="val">${this.taka(invoice.total)}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="thankyou">Thank you for choosing Sakigai. We hope you love your furniture.</div>
+
+  <div class="footer">
+    <div class="footer-note">
+      Questions? Email support@sakigai.com.bd<br/>
+      Computer-generated invoice — no signature required.
+    </div>
+    <div class="footer-brand">Sakigai · ${new Date().getFullYear()}</div>
+  </div>
+
+</body>
+</html>`;
   }
 
   // get all orders
@@ -648,6 +915,10 @@ export class OrderService {
     }
 
     const latestPayment = order.payments?.[0] || null;
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { orderId: order.id },
+      select: { id: true },
+    });
 
     return {
       ...baseResponse,
@@ -658,6 +929,7 @@ export class OrderService {
       subtotal:
         order.total - (order.deliveryCharge || 0) + (order.discount || 0),
       total: order.total,
+      invoiceId: invoice?.id,
 
       payment: latestPayment
         ? {
