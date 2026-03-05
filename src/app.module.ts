@@ -36,6 +36,7 @@ import { GuestModule } from './guest/guest.module';
 import { SupportModule } from './support/support.module';
 import { BullModule } from '@nestjs/bull';
 import { BarcodeModule } from './barcode/barcode.module';
+import { ActivityLogModule } from './activity-log/activity-log.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { BarcodeModule } from './barcode/barcode.module';
     GuestModule,
     SupportModule,
     BarcodeModule,
+    ActivityLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

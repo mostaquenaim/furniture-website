@@ -53,6 +53,7 @@ model User {
   productViews   ProductView[]
   visitors       Visitor[]
   supportTickets SupportTicket[]
+  activityLogs   ActivityLog[]
 }
 
 enum UserRole {
@@ -1051,10 +1052,37 @@ model FeaturedCategory {
 }
 
 model ActivityLog {
-  id        Int      @id @default(autoincrement())
-  adminId   Int
-  action    String
+  id      Int  @id @default(autoincrement())
+  adminId Int
+  admin   User @relation(fields: [adminId], references: [id])
+
+  action      String // e.g. "UPDATE_PRODUCT"
+  module      LogModule
+  targetId    String? // id of the affected resource
+  targetLabel String? // e.g. "Sakigai Chair v2" — human readable snapshot
+
+  metadata Json? // before/after values, extra context
+
+  ipAddress String?
+  userAgent String?
+
   createdAt DateTime @default(now())
+}
+
+enum LogModule {
+  PRODUCT
+  ORDER
+  USER
+  COUPON
+  INVENTORY
+  BARCODE
+  PAYMENT
+  BANNER
+  CATEGORY
+  BLOG
+  SUPPORT
+  AUTH
+  SYSTEM
 }
 
 // =====================

@@ -7,6 +7,7 @@ import { PermissionService } from 'src/permission/permission.service';
 import { CmsService } from 'src/cms/cms.service';
 import { ProductService } from 'src/product/product.service';
 import { BlogsService } from 'src/blog/blog.service';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Module({
   controllers: [AdminController],
@@ -18,6 +19,7 @@ import { BlogsService } from 'src/blog/blog.service';
     PermissionService,
     CmsService,
     ProductService,
+    ActivityLogService
   ],
 })
 export class AdminModule {}

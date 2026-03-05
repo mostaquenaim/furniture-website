@@ -12,10 +12,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateSeriesDto } from './dto/seriesDto.dto';
 import { CreateCategoryDto } from './dto/categoryDto.dto';
 import { CreateSubCategoryDto } from './dto/subCategoryDto.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { LogModule } from '@prisma/client';
 
 @Injectable()
 export class CategoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   // ✅ CREATE CATEGORY
   async create(data: {
@@ -658,7 +663,7 @@ export class CategoryService {
       throw new ConflictException('Category slug already exists');
     }
 
-    return this.prisma.category.update({
+    const res = this.prisma.category.update({
       where: { id: existingCategory.id },
       data: {
         name: categoryDto.name,
@@ -669,6 +674,18 @@ export class CategoryService {
         seriesId: categoryDto.seriesId,
       },
     });
+
+    await this.activityLogService.log({
+      adminId: userId,
+      action: 'TOGGLE_PRODUCT_STATUS',
+      module: LogModule.PRODUCT,
+      targetId: existingCategory.id,
+      targetLabel: existingCategory.name ?? '',
+      metadata: { isActive: existingCategory.isActive },
+      // ipAddress: ip,
+    });
+
+    return res;
   }
 
   // =====================
