@@ -80,7 +80,15 @@ export class BarcodeService {
       where: lowStockOnly
         ? { quantity: { lte: this.prisma.inventoryItem.fields.lowStockAt } }
         : undefined,
-      include: { product: true, location: true },
+      include: {
+        product: {
+          select: {
+            title: true,
+            price: true,
+          },
+        },
+        location: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
