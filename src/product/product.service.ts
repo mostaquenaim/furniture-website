@@ -19,6 +19,11 @@ import { DiscountType } from './roles.enum';
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
+  private generateBarcodeCode(productSku: string, warehouse: string) {
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return `SAK-${productSku}-${warehouse}-${random}`;
+  }
+
   // create a product
   async createProduct(dto: CreateProductDto) {
     const existing = await this.prisma.product.findUnique({
@@ -115,6 +120,21 @@ export class ProductService {
       });
 
       let totalProductQuantity = 0;
+
+      // inventory location and barcode start
+      // const barcodeCode = this.generateBarcodeCode(product.slug, dto.warehouse);
+
+      // await tx.inventoryItem.create({
+      //   data: {
+      //     productId: product.id,
+      //     barcode: barcodeCode,
+      //     warehouse: dto.warehouse,
+      //     rack: dto.rack,
+      //     bin: dto.bin,
+      //     quantity: dto.quantity,
+      //   },
+      // });
+      // inventory location and barcode end
 
       // Create product images
       if (dto.images && dto.images.length > 0) {
@@ -277,7 +297,7 @@ export class ProductService {
   }
 
   // get a product by id
-  async getProductById(slug: string) {
+  async getProductBySlug(slug: string) {
     const product = await this.prisma.product.findUnique({
       where: { slug },
       include: {

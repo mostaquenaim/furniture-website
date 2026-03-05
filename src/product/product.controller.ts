@@ -11,14 +11,20 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
+import type { Response } from 'express';
+import { BarcodeService } from 'src/barcode/barcode.service';
 
 @Controller('product')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly barcodeService: BarcodeService,
+  ) {}
 
   @Get('all')
   getAllProducts(
@@ -126,7 +132,7 @@ export class ProductController {
 
   @Get(':slug')
   getProductById(@Param('slug') slug: string) {
-    return this.productService.getProductById(slug);
+    return this.productService.getProductBySlug(slug);
   }
 
   @Patch(':productId/toggle-status')
@@ -138,4 +144,9 @@ export class ProductController {
   // toggleProductStatusBySlug(@Param('productId') productId: string) {
   //   return this.productService.toggleProductStatusBySlug(productId);
   // }
+
+  @Get(':id/barcodeimage')
+  streamImage(@Param('id') id: string, @Res() res: Response) {
+    return this.barcodeService.streamBarcodeImage(id, res);
+  }
 }

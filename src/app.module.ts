@@ -35,6 +35,7 @@ import { CartModule } from './cart/cart.module';
 import { GuestModule } from './guest/guest.module';
 import { SupportModule } from './support/support.module';
 import { BullModule } from '@nestjs/bull';
+import { BarcodeModule } from './barcode/barcode.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { BullModule } from '@nestjs/bull';
     CartModule,
     GuestModule,
     SupportModule,
+    BarcodeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

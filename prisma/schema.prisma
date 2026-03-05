@@ -269,17 +269,52 @@ model Product {
 }
 
 model InventoryItem {
-  id        String  @id @default(uuid())
-  productId Int
-  barcode   String  @unique
-  warehouse String
-  rack      String?
-  bin       String?
-  quantity  Int     @default(0)
+  id String @id @default(uuid())
 
-  product Product @relation(fields: [productId], references: [id])
+  // Link to product AND optionally to a specific color/size variant
+  productId     Int
+  product       Product      @relation(fields: [productId], references: [id])
+  productSizeId Int? // ← ADD THIS — null means "any variant"
+  productSize   ProductSize? @relation(fields: [productSizeId], references: [id])
+
+  barcode String @unique // move to product level ideally, but ok here
+
+  // Replace free-text with a relation
+  locationId  String?
+  location    WarehouseLocation? @relation(fields: [locationId], references: [id])
+  barcodeType BarcodeType        @default(CODE128)
+
+  quantity   Int @default(0)
+  lowStockAt Int @default(5) // ← ADD THIS
+
+  // Audit
+  lastCountedAt DateTime? // ← ADD THIS — last physical stock count
+  printCount    Int       @default(0)
+  printedAt     DateTime?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // ← ADD THIS — was missing
+}
+
+enum BarcodeType {
+  CODE128
+  QR
+  EAN13
+}
+
+model WarehouseLocation {
+  id    String  @id @default(cuid())
+  code  String  @unique // e.g. "A-03-B-02" (zone-aisle-shelf-bin)
+  zone  String
+  aisle String
+  shelf String
+  bin   String
+  label String? // "Dining Tables North"
+
+  items InventoryItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Tag {
@@ -397,9 +432,10 @@ model ProductSize {
   sizeId Int
   size   Size @relation(fields: [sizeId], references: [id])
 
-  colorId   Int
-  color     ProductColor @relation(fields: [colorId], references: [id], onDelete: Cascade)
-  cartItems CartItem[]
+  colorId        Int
+  color          ProductColor    @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  cartItems      CartItem[]
+  inventoryItems InventoryItem[]
 }
 
 model Variant {
