@@ -14,6 +14,7 @@ import {
   Param,
   ParseIntPipe,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -40,6 +41,7 @@ import { UpdateColorDto } from 'src/cms/dto/update-color.dto';
 import { UpdateMaterialDto } from 'src/cms/dto/update-material.dto';
 import { UpdateSizeDto } from 'src/cms/dto/update-size.dto';
 import { UpdateVariantDto } from 'src/cms/dto/update-variant.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -49,16 +51,10 @@ export class AdminController {
     private readonly categoryService: CategoryService,
     private readonly cmsService: CmsService,
     private readonly productService: ProductService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
-  @Get('dashboard')
-  getDashboard(@Req() req: any) {
-    return {
-      message: 'Welcome to Admin Dashboard',
-    };
-  }
-
   @Get('all-series')
   findAll() {
     return this.categoryService.getAllSeries(true);
@@ -66,18 +62,33 @@ export class AdminController {
 
   // series, category and subcategory creation
   @Post('series')
-  createSeries(@Body() createSeriesDto: CreateSeriesDto) {
-    return this.categoryService.createSeries(createSeriesDto);
+  createSeries(@Body() createSeriesDto: CreateSeriesDto, @Req() req: any) {
+    return this.categoryService.createSeries(
+      createSeriesDto,
+      req?.user?.userId,
+    );
   }
 
   @Post('category')
-  createCategory(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoryService.createCategory(createCategoryDto);
+  createCategory(
+    @Body() createCategoryDto: CreateCategoryDto,
+    @Req() req: any,
+  ) {
+    return this.categoryService.createCategory(
+      createCategoryDto,
+      req?.user?.userId,
+    );
   }
 
   @Post('subcategory')
-  createSubCategory(@Body() createSubCategoryDto: CreateSubCategoryDto) {
-    return this.categoryService.createSubCategory(createSubCategoryDto);
+  createSubCategory(
+    @Body() createSubCategoryDto: CreateSubCategoryDto,
+    @Req() req: any,
+  ) {
+    return this.categoryService.createSubCategory(
+      createSubCategoryDto,
+      req?.user?.userId,
+    );
   }
 
   // update series order
@@ -200,8 +211,8 @@ export class AdminController {
 
   ////COLOR////
   @Post('colors')
-  addColor(@Body() createColorDto: CreateColorDto) {
-    return this.cmsService.createColor(createColorDto);
+  addColor(@Body() createColorDto: CreateColorDto, @Req() req: any) {
+    return this.cmsService.createColor(createColorDto, req?.user?.userId);
   }
 
   @Delete('/colors/:colorId')
@@ -220,8 +231,8 @@ export class AdminController {
   }
 
   @Post('sizes')
-  addSize(@Body() createSizeDto: CreateSizeDto) {
-    return this.cmsService.createSize(createSizeDto);
+  addSize(@Body() createSizeDto: CreateSizeDto, @Req() req: any) {
+    return this.cmsService.createSize(createSizeDto, req?.user?.userId);
   }
 
   // delete size
@@ -393,5 +404,14 @@ export class AdminController {
     @Body() updateDistrictDto: UpdateDistrictDto,
   ) {
     return this.cmsService.updateDistrict(id, updateDistrictDto);
+  }
+
+  @Get('activity-log')
+  async getActivityLogs(@Query() query: any) {
+    return this.activityLogService.getLogs({
+      module: query.module,
+      adminId: query.adminId ? Number(query.adminId) : undefined,
+      action: query.action,
+    });
   }
 }

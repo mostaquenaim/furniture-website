@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -33,10 +34,14 @@ import { UpdateColorDto } from './dto/update-color.dto';
 import { UpdateMaterialDto } from './dto/update-material.dto';
 import { UpdateSizeDto } from './dto/update-size.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class CmsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   private about = { content: '' };
   private tnc = { content: '' };
@@ -190,7 +195,7 @@ export class CmsService {
   }
 
   // COLOR ATTRIBUTE
-  async createColor(dto: CreateColorDto) {
+  async createColor(dto: CreateColorDto, adminId: number) {
     // Prevent duplicate colors (hex should be unique logically)
     const existing = await this.prisma.color.findFirst({
       where: {
@@ -202,7 +207,7 @@ export class CmsService {
       throw new ConflictException('Color with this hex code already exists');
     }
 
-    return this.prisma.color.create({
+    const color = await this.prisma.color.create({
       data: {
         name: dto.name,
         hexCode: dto.hexCode,
@@ -210,6 +215,23 @@ export class CmsService {
         isActive: dto.isActive ?? true,
       },
     });
+
+    //activity log
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_COLOR',
+      module: 'CATALOG',
+      targetId: color.id,
+      targetLabel: color.name,
+      newValue: {
+        name: color.name,
+        hexCode: color.hexCode,
+        sortOrder: color.sortOrder,
+        isActive: color.isActive,
+      },
+    });
+
+    return color;
   }
 
   // DELETE COLOR
@@ -234,9 +256,20 @@ export class CmsService {
     }
 
     // safe to delete
-    return this.prisma.color.delete({
+    const deleted = await this.prisma.color.delete({
       where: { id },
     });
+
+    //activity log
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_COLOR',
+      module: 'CATALOG',
+      targetId: color.id,
+      targetLabel: color.name,
+    });
+
+    return deleted;
   }
 
   // DELETE MATERIAL
@@ -245,6 +278,7 @@ export class CmsService {
     const material = await this.prisma.material.findUnique({
       where: { id },
     });
+
     if (!material) {
       throw new NotFoundException('Material not found');
     }
@@ -261,9 +295,19 @@ export class CmsService {
     }
 
     // safe to delete
-    return this.prisma.material.delete({
+    const deletedMaterial = await this.prisma.material.delete({
       where: { id },
     });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_MATERIAL',
+      module: 'CATALOG',
+      targetId: material.id,
+      targetLabel: material.name,
+    });
+
+    return deletedMaterial;
   }
 
   // DELETE SIZE
@@ -289,9 +333,19 @@ export class CmsService {
     }
 
     // Safe to delete
-    return this.prisma.size.delete({
+    const deletedSize = await this.prisma.size.delete({
       where: { id },
     });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_SIZE',
+      module: 'CATALOG',
+      targetId: size.id,
+      targetLabel: size?.name || '',
+    });
+
+    return deletedSize;
   }
 
   // DELETE VARIANT
@@ -332,19 +386,71 @@ export class CmsService {
       throw new NotFoundException('Color not found');
     }
 
-    return this.prisma.color.update({
+    const updatedColor = await this.prisma.color.update({
       where: { id },
       data: colorDto,
     });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'UPDATE_COLOR',
+      module: 'CATALOG',
+      targetId: existing.id,
+      targetLabel: existing.name,
+      oldValue: {
+        name: existing.name,
+        hexCode: existing.hexCode,
+        image: existing.image,
+        isActive: existing.isActive,
+        sortOrder: existing.sortOrder,
+      },
+      newValue: {
+        name: updatedColor.name,
+        hexCode: updatedColor.hexCode,
+        image: updatedColor.image,
+        isActive: updatedColor.isActive,
+        sortOrder: updatedColor.sortOrder,
+      },
+    });
+
+    return updatedColor;
   }
 
   // UPDATE Size
   async updateSize(userId: number, id: number, sizeDto: UpdateSizeDto) {
     try {
-      return await this.prisma.size.update({
+      const existing = await this.prisma.size.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!existing) throw new NotFoundException('Size not found');
+
+      const updateSize = await this.prisma.size.update({
         where: { id },
         data: sizeDto,
       });
+
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'UPDATE_SIZE',
+        module: 'CATALOG',
+        targetId: existing.id,
+        targetLabel: existing.name,
+        oldValue: {
+          name: existing.name,
+          isActive: existing.isActive,
+          sortOrder: existing.sortOrder,
+        },
+        newValue: {
+          name: updateSize.name,
+          isActive: updateSize.isActive,
+          sortOrder: updateSize.sortOrder,
+        },
+      });
+
+      return updateSize;
     } catch (error) {
       throw new NotFoundException('Size not found');
     }
@@ -357,10 +463,38 @@ export class CmsService {
     variantDto: UpdateVariantDto,
   ) {
     try {
-      return await this.prisma.variant.update({
+      const existing = await this.prisma.variant.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!existing) throw new NotFoundException('Variant not found');
+
+      const updatedVariant = await this.prisma.variant.update({
         where: { id },
         data: variantDto,
       });
+
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'UPDATE_VARIANT',
+        module: 'CATALOG',
+        targetId: existing.id,
+        targetLabel: existing.name,
+        oldValue: {
+          name: existing.name,
+          isActive: existing.isActive,
+          sortOrder: existing.sortOrder,
+        },
+        newValue: {
+          name: updatedVariant.name,
+          isActive: updatedVariant.isActive,
+          sortOrder: updatedVariant.sortOrder,
+        },
+      });
+
+      return updatedVariant;
     } catch (error) {
       throw new NotFoundException('Variant not found');
     }
@@ -380,16 +514,36 @@ export class CmsService {
       throw new NotFoundException('Material not found');
     }
 
-    return this.prisma.material.update({
+    const updatedMaterial = await this.prisma.material.update({
       where: { id },
       data: {
         ...materialDto,
       },
     });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'UPDATE_MATERIAL',
+      module: 'CATALOG',
+      targetId: existing.id,
+      targetLabel: existing.name,
+      oldValue: {
+        name: existing.name,
+        isActive: existing.isActive,
+        sortOrder: existing.order,
+      },
+      newValue: {
+        name: updatedMaterial.name,
+        isActive: updatedMaterial.isActive,
+        sortOrder: updatedMaterial.order,
+      },
+    });
+
+    return updatedMaterial;
   }
 
   // SIZE ATTRIBUTE
-  async createSize(dto: CreateSizeDto) {
+  async createSize(dto: CreateSizeDto, adminId: number) {
     // Check uniqueness by name within the same variant
     const existing = await this.prisma.size.findFirst({
       where: {
@@ -404,7 +558,7 @@ export class CmsService {
       );
     }
 
-    return this.prisma.size.create({
+    const size = await this.prisma.size.create({
       data: {
         name: dto.name,
         variantId: dto.variantId, // always defined
@@ -412,6 +566,19 @@ export class CmsService {
         isActive: dto.isActive ?? true,
       },
     });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_SIZE',
+      module: 'CATALOG',
+      targetId: size.id,
+      targetLabel: size?.name || '',
+      metadata: {
+        dto,
+      },
+    });
+
+    return size;
   }
 
   getAllSizes() {

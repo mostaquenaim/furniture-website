@@ -1056,33 +1056,60 @@ model ActivityLog {
   adminId Int
   admin   User @relation(fields: [adminId], references: [id])
 
-  action      String // e.g. "UPDATE_PRODUCT"
-  module      LogModule
-  targetId    String? // id of the affected resource
-  targetLabel String? // e.g. "Sakigai Chair v2" — human readable snapshot
+  // What happened
+  action   String // "UPDATE_PRODUCT", "DELETE_ORDER"
+  module   LogModule // PRODUCT, ORDER, etc.
+  severity LogSeverity @default(INFO)
+  status   LogStatus   @default(SUCCESS)
 
-  metadata Json? // before/after values, extra context
+  // What was affected
+  targetId    String? // Database ID of affected record
+  targetLabel String? // Human-readable name at time of action
 
+  // What changed
+  oldValue Json? // Previous state
+  newValue Json? // New state
+  metadata Json? // Extra context
+
+  // Who, where, when
   ipAddress String?
   userAgent String?
+  sessionId String? // Group related actions
+
+  statement String?
 
   createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([module])
+  @@index([createdAt])
+  @@index([targetId])
 }
 
 enum LogModule {
+  CATALOG
   PRODUCT
   ORDER
   USER
-  COUPON
+  MARKETING
   INVENTORY
-  BARCODE
-  PAYMENT
-  BANNER
-  CATEGORY
-  BLOG
+  CONTENT
   SUPPORT
   AUTH
   SYSTEM
+}
+
+enum LogSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum LogStatus {
+  SUCCESS
+  FAILED
+  PENDING
 }
 
 // =====================

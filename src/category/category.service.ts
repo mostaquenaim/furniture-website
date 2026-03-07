@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -158,7 +159,7 @@ export class CategoryService {
     });
   }
 
-  async createSeries(dto: CreateSeriesDto) {
+  async createSeries(dto: CreateSeriesDto, adminId: number) {
     // Check slug uniqueness (important for admin UX)
     const existing = await this.prisma.series.findUnique({
       where: { slug: dto.slug },
@@ -168,7 +169,7 @@ export class CategoryService {
       throw new ConflictException('Series with this slug already exists');
     }
 
-    return this.prisma.series.create({
+    const series = await this.prisma.series.create({
       data: {
         name: dto.name,
         slug: dto.slug,
@@ -178,6 +179,20 @@ export class CategoryService {
         sortOrder: dto.sortOrder ?? 0,
       },
     });
+
+    // Log activity
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_SERIES',
+      module: 'CATALOG',
+      targetId: series.id,
+      targetLabel: series.name,
+      metadata: {
+        dto,
+      },
+    });
+
+    return series;
   }
 
   // get products by series
@@ -463,7 +478,7 @@ export class CategoryService {
       throw new ConflictException('Series slug already exists');
     }
 
-    return this.prisma.series.update({
+    const series = await this.prisma.series.update({
       where: { slug },
       data: {
         name: seriesDto.name,
@@ -474,6 +489,33 @@ export class CategoryService {
         sortOrder: seriesDto.sortOrder,
       },
     });
+
+    // Activity log
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'UPDATE_SERIES',
+      module: 'CATALOG',
+      targetId: series.id,
+      targetLabel: series.name,
+      oldValue: {
+        name: existingSeries.name,
+        slug: existingSeries.slug,
+        image: existingSeries.image,
+        notice: existingSeries.notice,
+        isActive: existingSeries.isActive,
+        sortOrder: existingSeries.sortOrder,
+      },
+      newValue: {
+        name: series.name,
+        slug: series.slug,
+        image: series.image,
+        notice: series.notice,
+        isActive: series.isActive,
+        sortOrder: series.sortOrder,
+      },
+    });
+
+    return series;
   }
 
   // update series order
@@ -483,7 +525,7 @@ export class CategoryService {
   ) {
     try {
       // We wrap all updates in a transaction
-      return await this.prisma.$transaction(
+      const series = await this.prisma.$transaction(
         orders.map((item) =>
           this.prisma.series.update({
             where: { id: item.id },
@@ -491,7 +533,32 @@ export class CategoryService {
           }),
         ),
       );
+
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'REORDER_SERIES',
+        module: 'CATALOG',
+        metadata: {
+          reorderedItems: orders,
+        },
+        targetLabel: 'Series order',
+      });
+
+      return series;
     } catch (error) {
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'REORDER_SERIES',
+        module: 'CATALOG',
+        severity: 'ERROR',
+        status: 'FAILED',
+        metadata: {
+          attemptedOrders: orders,
+          error: error?.message,
+        },
+        targetLabel: 'Series order',
+      });
+
       throw new InternalServerErrorException('Could not update series order');
     }
   }
@@ -562,7 +629,8 @@ export class CategoryService {
     });
   }
 
-  async createCategory(dto: CreateCategoryDto) {
+  // create category
+  async createCategory(dto: CreateCategoryDto, adminId: number) {
     // Ensure parent series exists
     const series = await this.prisma.series.findUnique({
       where: { id: dto.seriesId },
@@ -587,7 +655,7 @@ export class CategoryService {
     }
 
     // Create category
-    return this.prisma.category.create({
+    const category = await this.prisma.category.create({
       data: {
         name: dto.name ?? null,
         slug: dto.slug,
@@ -597,6 +665,20 @@ export class CategoryService {
         seriesId: dto.seriesId,
       },
     });
+
+    // Log activity
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_CATEGORY',
+      module: 'CATALOG',
+      targetId: category.id,
+      targetLabel: category?.name || '',
+      metadata: {
+        dto,
+      },
+    });
+
+    return category;
   }
 
   // update categories order
@@ -606,7 +688,7 @@ export class CategoryService {
   ) {
     try {
       // We wrap all updates in a transaction
-      return await this.prisma.$transaction(
+      const categories = await this.prisma.$transaction(
         orders.map((item) =>
           this.prisma.category.update({
             where: { id: item.id },
@@ -614,7 +696,32 @@ export class CategoryService {
           }),
         ),
       );
+
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'REORDER_CATEGORIES',
+        module: 'CATALOG',
+        metadata: {
+          reorderedItems: orders,
+        },
+        targetLabel: 'Category order',
+      });
+
+      return categories;
     } catch (error) {
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'REORDER_CATEGORIES',
+        module: 'CATALOG',
+        severity: 'ERROR',
+        status: 'FAILED',
+        metadata: {
+          attemptedOrders: orders,
+          error: error?.message,
+        },
+        targetLabel: 'Category order',
+      });
+
       throw new InternalServerErrorException(
         'Could not update categories order',
       );
@@ -663,7 +770,7 @@ export class CategoryService {
       throw new ConflictException('Category slug already exists');
     }
 
-    const res = this.prisma.category.update({
+    const category = await this.prisma.category.update({
       where: { id: existingCategory.id },
       data: {
         name: categoryDto.name,
@@ -675,17 +782,29 @@ export class CategoryService {
       },
     });
 
-    await this.activityLogService.log({
+    this.activityLogService.log({
       adminId: userId,
-      action: 'TOGGLE_PRODUCT_STATUS',
-      module: LogModule.PRODUCT,
-      targetId: existingCategory.id,
-      targetLabel: existingCategory.name ?? '',
-      metadata: { isActive: existingCategory.isActive },
-      // ipAddress: ip,
+      action: 'UPDATE_CATEGORIES',
+      module: 'CATALOG',
+      targetId: category.id,
+      targetLabel: category.name ?? '',
+      oldValue: {
+        name: existingCategory.name,
+        slug: existingCategory.slug,
+        image: existingCategory.image,
+        isActive: existingCategory.isActive,
+        sortOrder: existingCategory.sortOrder,
+      },
+      newValue: {
+        name: category.name,
+        slug: category.slug,
+        image: category.image,
+        isActive: category.isActive,
+        sortOrder: category.sortOrder,
+      },
     });
 
-    return res;
+    return category;
   }
 
   // =====================
@@ -966,7 +1085,7 @@ export class CategoryService {
     });
   }
 
-  async createSubCategory(dto: CreateSubCategoryDto) {
+  async createSubCategory(dto: CreateSubCategoryDto, adminId: number) {
     // Ensure parent category exists
     const category = await this.prisma.category.findUnique({
       where: { id: dto.categoryId },
@@ -991,7 +1110,7 @@ export class CategoryService {
     }
 
     // Create subcategory
-    return this.prisma.subCategory.create({
+    const subCategory = await this.prisma.subCategory.create({
       data: {
         name: dto.name,
         slug: dto.slug,
@@ -1001,6 +1120,20 @@ export class CategoryService {
         categoryId: dto.categoryId,
       },
     });
+
+    // Log activity
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_SUBCATEGORY',
+      module: 'CATALOG',
+      targetId: subCategory.id,
+      targetLabel: subCategory?.name || '',
+      metadata: {
+        dto,
+      },
+    });
+
+    return subCategory;
   }
 
   //update subcategory
@@ -1045,7 +1178,7 @@ export class CategoryService {
       throw new ConflictException('Category slug already exists');
     }
 
-    return this.prisma.subCategory.update({
+    const subCategory = await this.prisma.subCategory.update({
       where: { id: existingCategory.id },
       data: {
         name: categoryDto.name,
@@ -1059,6 +1192,30 @@ export class CategoryService {
         isCODAvailable: categoryDto.isCODAvailable,
       },
     });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'UPDATE_SUBCATEGORIES',
+      module: 'CATALOG',
+      targetId: subCategory.id,
+      targetLabel: subCategory.name ?? '',
+      oldValue: {
+        name: existingCategory.name,
+        slug: existingCategory.slug,
+        image: existingCategory.image,
+        isActive: existingCategory.isActive,
+        sortOrder: existingCategory.sortOrder,
+      },
+      newValue: {
+        name: subCategory.name,
+        slug: subCategory.slug,
+        image: subCategory.image,
+        isActive: subCategory.isActive,
+        sortOrder: subCategory.sortOrder,
+      },
+    });
+
+    return subCategory
   }
 
   // update subcategories order
@@ -1068,7 +1225,7 @@ export class CategoryService {
   ) {
     try {
       // We wrap all updates in a transaction
-      return await this.prisma.$transaction(
+      const subcategories = await this.prisma.$transaction(
         orders.map((item) =>
           this.prisma.subCategory.update({
             where: { id: item.id },
@@ -1076,7 +1233,32 @@ export class CategoryService {
           }),
         ),
       );
+
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'REORDER_SUBCATEGORIES',
+        module: 'CATALOG',
+        metadata: {
+          reorderedItems: orders,
+        },
+        targetLabel: 'Subcategory order',
+      });
+
+      return subcategories;
     } catch (error) {
+      this.activityLogService.log({
+        adminId: userId,
+        action: 'REORDER_SUBCATEGORIES',
+        module: 'CATALOG',
+        severity: 'ERROR',
+        status: 'FAILED',
+        metadata: {
+          attemptedOrders: orders,
+          error: error?.message,
+        },
+        targetLabel: 'Subcategory order',
+      });
+
       throw new InternalServerErrorException(
         'Could not update categories order',
       );

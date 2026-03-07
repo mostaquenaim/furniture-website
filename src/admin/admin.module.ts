@@ -19,7 +19,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
     PermissionService,
     CmsService,
     ProductService,
-    ActivityLogService
+    ActivityLogService,
   ],
 })
 export class AdminModule {}
