@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -15,10 +16,14 @@ import {
   CreateBarcodeDto,
   CreateLocationDto,
 } from './dto/barcode.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class BarcodeService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   // ── Generate sequential barcode value ─────────────────────────────────────
   private async nextBarcodeValue(): Promise<string> {
@@ -27,7 +32,7 @@ export class BarcodeService {
   }
 
   // ── Create barcode for a product ──────────────────────────────────────────
-  async createBarcode(dto: CreateBarcodeDto) {
+  async createBarcode(dto: CreateBarcodeDto, adminId: number) {
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
     });
@@ -49,7 +54,7 @@ export class BarcodeService {
 
     const barcode = dto.barcode ?? (await this.nextBarcodeValue());
 
-    return this.prisma.inventoryItem.create({
+    const item = await this.prisma.inventoryItem.create({
       data: {
         productId: dto.productId,
         barcode,
@@ -60,6 +65,23 @@ export class BarcodeService {
       },
       include: { product: true, location: true },
     });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_BARCODE',
+      module: 'INVENTORY',
+      targetId: item.id,
+      targetLabel: `${product.title} (${barcode})`,
+      newValue: {
+        productId: item.productId,
+        productSizeId: item.productSizeId,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        locationId: item.locationId,
+      },
+    });
+
+    return item;
   }
 
   // ── Get barcode by product ID ──────────────────────────────────────────────

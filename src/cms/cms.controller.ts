@@ -98,32 +98,10 @@ export class CmsController {
     return this.cmsService.deleteBanner(id);
   }
 
-  // CREATE PROMO BANNER
-  @Post('promo-banners')
-  createPromoBanner(@Body() dto: CreatePromoBannerDto) {
-    // console.log(dto);
-    return this.cmsService.createPromoBanner(dto);
-  }
-
   // GET ALL ACTIVE PROMO BANNERS (Frontend)
   @Get('promo-banners')
   getActivePromoBanners() {
     return this.cmsService.findAllActivePromoBanners();
-  }
-
-  // UPDATE PROMO BANNER
-  @Put('promo-banners/:id')
-  updatePromoBanner(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdatePromoBannerDto,
-  ) {
-    return this.cmsService.updatePromoBanner(id, dto);
-  }
-
-  // DELETE PROMO BANNER
-  @Delete('promo-banners/:id')
-  removePromoBanner(@Param('id', ParseIntPipe) id: number) {
-    return this.cmsService.removePromoBanner(id);
   }
 
   // VARIANTS

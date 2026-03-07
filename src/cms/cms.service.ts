@@ -66,16 +66,29 @@ export class CmsService {
   }
 
   // create new tag
-  async createNewTag(name: string) {
+  async createNewTag(name: string, adminId: number) {
     const existing = await this.prisma.tag.findUnique({
       where: { name: name.toLowerCase() },
     });
 
     if (existing) return existing;
 
-    return this.prisma.tag.create({
+    const tag = await this.prisma.tag.create({
       data: { name: name.toLowerCase() },
     });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_TAG',
+      module: 'PRODUCT',
+      targetId: tag.id,
+      targetLabel: tag.name,
+      newValue: {
+        name: tag.name,
+      },
+    });
+
+    return tag;
   }
 
   // About
@@ -158,7 +171,19 @@ export class CmsService {
   }
 
   // UPDATE (transaction-safe)
-  async updatePromoBanner(id: number, dto: UpdatePromoBannerDto) {
+  async updatePromoBanner(
+    id: number,
+    dto: UpdatePromoBannerDto,
+    adminId: number,
+  ) {
+    const existing = await this.prisma.promoBanner.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existing) throw new NotFoundException('Promo Banner Not Found');
+
     return this.prisma.$transaction(async (tx) => {
       if (dto.links) {
         await tx.promoBannerLink.deleteMany({
@@ -166,7 +191,7 @@ export class CmsService {
         });
       }
 
-      return tx.promoBanner.update({
+      const updatedPromo = await tx.promoBanner.update({
         where: { id },
         data: {
           text: dto.text,
@@ -184,195 +209,28 @@ export class CmsService {
         },
         include: { links: true },
       });
-    });
-  }
 
-  // DELETE
-  removePromoBanner(id: number) {
-    return this.prisma.promoBanner.delete({
-      where: { id },
-    });
-  }
+      this.activityLogService.log({
+        adminId,
+        action: 'UPDATE_PROMO',
+        module: 'MARKETING',
+        targetId: existing.id,
+        targetLabel: '',
+        oldValue: {
+          text: existing.text,
+          bgColor: existing.bgColor,
+          isActive: existing.isActive,
+          order: existing.order,
+        },
+        newValue: {
+          text: updatedPromo.text,
+          bgColor: updatedPromo.bgColor,
+          isActive: updatedPromo.isActive,
+          order: updatedPromo.order,
+        },
+      });
 
-  // COLOR ATTRIBUTE
-  async createColor(dto: CreateColorDto, adminId: number) {
-    // Prevent duplicate colors (hex should be unique logically)
-    const existing = await this.prisma.color.findFirst({
-      where: {
-        hexCode: dto.hexCode,
-      },
-    });
-
-    if (existing) {
-      throw new ConflictException('Color with this hex code already exists');
-    }
-
-    const color = await this.prisma.color.create({
-      data: {
-        name: dto.name,
-        hexCode: dto.hexCode,
-        sortOrder: dto.sortOrder ?? 0,
-        isActive: dto.isActive ?? true,
-      },
-    });
-
-    //activity log
-    this.activityLogService.log({
-      adminId,
-      action: 'CREATE_COLOR',
-      module: 'CATALOG',
-      targetId: color.id,
-      targetLabel: color.name,
-      newValue: {
-        name: color.name,
-        hexCode: color.hexCode,
-        sortOrder: color.sortOrder,
-        isActive: color.isActive,
-      },
-    });
-
-    return color;
-  }
-
-  // DELETE COLOR
-  async deleteColor(userId: number, id: number) {
-    // check if color exists
-    const color = await this.prisma.color.findUnique({
-      where: { id },
-    });
-    if (!color) {
-      throw new NotFoundException('Color not found');
-    }
-
-    // check if any product uses this color
-    const usedInProducts = await this.prisma.productColor.count({
-      where: { colorId: id },
-    });
-
-    if (usedInProducts > 0) {
-      throw new BadRequestException(
-        'Cannot delete this color. It is used in one or more products.',
-      );
-    }
-
-    // safe to delete
-    const deleted = await this.prisma.color.delete({
-      where: { id },
-    });
-
-    //activity log
-    this.activityLogService.log({
-      adminId: userId,
-      action: 'DELETE_COLOR',
-      module: 'CATALOG',
-      targetId: color.id,
-      targetLabel: color.name,
-    });
-
-    return deleted;
-  }
-
-  // DELETE MATERIAL
-  async deleteMaterial(userId: number, id: number) {
-    // check if material exists
-    const material = await this.prisma.material.findUnique({
-      where: { id },
-    });
-
-    if (!material) {
-      throw new NotFoundException('Material not found');
-    }
-
-    // check if any product uses this color
-    const usedInProducts = await this.prisma.product.count({
-      where: { materialId: id },
-    });
-
-    if (usedInProducts > 0) {
-      throw new BadRequestException(
-        'Cannot delete this material. It is used in one or more products.',
-      );
-    }
-
-    // safe to delete
-    const deletedMaterial = await this.prisma.material.delete({
-      where: { id },
-    });
-
-    this.activityLogService.log({
-      adminId: userId,
-      action: 'DELETE_MATERIAL',
-      module: 'CATALOG',
-      targetId: material.id,
-      targetLabel: material.name,
-    });
-
-    return deletedMaterial;
-  }
-
-  // DELETE SIZE
-  async deleteSize(userId: number, id: number) {
-    // Check if size exists
-    const size = await this.prisma.size.findUnique({
-      where: { id },
-    });
-
-    if (!size) {
-      throw new NotFoundException('Size not found');
-    }
-
-    // Check if any product uses this size
-    const usedInProducts = await this.prisma.productSize.count({
-      where: { sizeId: id },
-    });
-
-    if (usedInProducts > 0) {
-      throw new BadRequestException(
-        'Cannot delete this size. It is used in one or more products.',
-      );
-    }
-
-    // Safe to delete
-    const deletedSize = await this.prisma.size.delete({
-      where: { id },
-    });
-
-    this.activityLogService.log({
-      adminId: userId,
-      action: 'DELETE_SIZE',
-      module: 'CATALOG',
-      targetId: size.id,
-      targetLabel: size?.name || '',
-    });
-
-    return deletedSize;
-  }
-
-  // DELETE VARIANT
-  async deleteVariant(userId: number, id: number) {
-    // Check if variant exists
-    const variant = await this.prisma.variant.findUnique({
-      where: { id },
-    });
-
-    if (!variant) {
-      throw new NotFoundException('Variant not found');
-    }
-
-    // Check if any product uses this variant
-    const usedInProducts = await this.prisma.size.count({
-      where: { variantId: id },
-    });
-
-    if (usedInProducts > 0) {
-      throw new BadRequestException(
-        'Cannot delete this variant. It is used in one or more sizes.',
-      );
-    }
-
-    // Safe to delete
-    return this.prisma.variant.delete({
-      where: { id },
+      return updatedPromo;
     });
   }
 
@@ -542,6 +400,363 @@ export class CmsService {
     return updatedMaterial;
   }
 
+  // update districts
+  async updateDistrict(id: number, data: UpdateDistrictDto, adminId: number) {
+    const existing = await this.prisma.district.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('District not found');
+    }
+
+    const updatedDistrict = await this.prisma.district.update({
+      where: { id },
+      data,
+    });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_DISTRICT',
+      module: 'SYSTEM',
+      targetId: existing.id,
+      targetLabel: '',
+      oldValue: {
+        name: existing.name,
+        isActive: existing.isActive,
+        deliveryFee: existing.deliveryFee,
+        isCODAvailable: existing.isCODAvailable,
+      },
+      newValue: {
+        name: updatedDistrict.name,
+        isActive: updatedDistrict.isActive,
+        deliveryFee: updatedDistrict.deliveryFee,
+        isCODAvailable: updatedDistrict.isCODAvailable,
+      },
+    });
+
+    return updatedDistrict;
+  }
+
+  // DELETE
+  async removePromoBanner(id: number, adminId: number) {
+    const existing = await this.prisma.promoBanner.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existing) throw new NotFoundException('Promo Banner Not Found');
+
+    const deletedPromo = await this.prisma.promoBanner.delete({
+      where: { id },
+    });
+
+    //activity log
+    this.activityLogService.log({
+      adminId: adminId,
+      action: 'DELETE_COLOR',
+      module: 'CATALOG',
+      targetId: existing.id,
+      targetLabel: '',
+    });
+
+    return deletedPromo;
+  }
+
+  // DELETE COLOR
+  async deleteColor(userId: number, id: number) {
+    // check if color exists
+    const color = await this.prisma.color.findUnique({
+      where: { id },
+    });
+    if (!color) {
+      throw new NotFoundException('Color not found');
+    }
+
+    // check if any product uses this color
+    const usedInProducts = await this.prisma.productColor.count({
+      where: { colorId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this color. It is used in one or more products.',
+      );
+    }
+
+    // safe to delete
+    const deleted = await this.prisma.color.delete({
+      where: { id },
+    });
+
+    //activity log
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_COLOR',
+      module: 'CATALOG',
+      targetId: color.id,
+      targetLabel: color.name,
+    });
+
+    return deleted;
+  }
+
+  // DELETE MATERIAL
+  async deleteMaterial(userId: number, id: number) {
+    // check if material exists
+    const material = await this.prisma.material.findUnique({
+      where: { id },
+    });
+
+    if (!material) {
+      throw new NotFoundException('Material not found');
+    }
+
+    // check if any product uses this color
+    const usedInProducts = await this.prisma.product.count({
+      where: { materialId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this material. It is used in one or more products.',
+      );
+    }
+
+    // safe to delete
+    const deletedMaterial = await this.prisma.material.delete({
+      where: { id },
+    });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_MATERIAL',
+      module: 'CATALOG',
+      targetId: material.id,
+      targetLabel: material.name,
+    });
+
+    return deletedMaterial;
+  }
+
+  // DELETE SIZE
+  async deleteSize(userId: number, id: number) {
+    // Check if size exists
+    const size = await this.prisma.size.findUnique({
+      where: { id },
+    });
+
+    if (!size) {
+      throw new NotFoundException('Size not found');
+    }
+
+    // Check if any product uses this size
+    const usedInProducts = await this.prisma.productSize.count({
+      where: { sizeId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this size. It is used in one or more products.',
+      );
+    }
+
+    // Safe to delete
+    const deletedSize = await this.prisma.size.delete({
+      where: { id },
+    });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_SIZE',
+      module: 'CATALOG',
+      targetId: size.id,
+      targetLabel: size?.name || '',
+    });
+
+    return deletedSize;
+  }
+
+  // DELETE VARIANT
+  async deleteVariant(userId: number, id: number) {
+    // Check if variant exists
+    const variant = await this.prisma.variant.findUnique({
+      where: { id },
+    });
+
+    if (!variant) {
+      throw new NotFoundException('Variant not found');
+    }
+
+    // Check if any product uses this variant
+    const usedInProducts = await this.prisma.size.count({
+      where: { variantId: id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this variant. It is used in one or more sizes.',
+      );
+    }
+
+    // Safe to delete
+    const deleted = await this.prisma.variant.delete({
+      where: { id },
+    });
+
+    //activity log
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_VARIANT',
+      module: 'CATALOG',
+      targetId: variant.id,
+      targetLabel: variant.name,
+    });
+
+    return deleted;
+  }
+
+  // delete district
+  async deleteDistrict(userId: number, id: number) {
+    const existing = await this.prisma.district.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existing) throw new NotFoundException('District not found');
+
+    const deleted = await this.prisma.district.delete({
+      where: { id },
+    });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_DISTRICT',
+      module: 'SYSTEM',
+      targetId: existing.id,
+      targetLabel: existing.name,
+    });
+
+    return deleted;
+  }
+
+  //create coupons mock
+  async createMockCoupons() {
+    for (const couponData of couponsData) {
+      await this.prisma.coupon.create({
+        data: couponData,
+      });
+    }
+  }
+
+  // create a coupon
+  async createCoupon(dto: CreateCouponDto, adminId: number) {
+    // Validate discountValue for percentage/fixed coupons
+    if (
+      (dto.discountType === CouponDiscountType.PERCENTAGE ||
+        dto.discountType === CouponDiscountType.FIXED_AMOUNT) &&
+      (dto.discountValue === undefined || dto.discountValue === null)
+    ) {
+      throw new BadRequestException(
+        'discountValue is required for PERCENTAGE or FIXED coupon type',
+      );
+    }
+
+    const start = dto.startDate ?? new Date();
+    if (dto.expiryDate <= start) {
+      throw new BadRequestException('expiryDate must be after startDate');
+    }
+
+    try {
+      const coupon = await this.prisma.coupon.create({
+        data: {
+          code: dto.code,
+          discountType: dto.discountType,
+          discountValue: dto.discountValue ?? null,
+          minOrderValue: dto.minOrderValue ?? null,
+          maxDiscount: dto.maxDiscount ?? null,
+          startDate: start,
+          expiryDate: dto.expiryDate,
+          isActive: dto.isActive ?? true,
+        },
+      });
+
+      //activity log
+      this.activityLogService.log({
+        adminId,
+        action: 'CREATE_COUPON',
+        module: 'MARKETING',
+        targetId: coupon.id,
+        targetLabel: coupon.code,
+        newValue: {
+          isActive: coupon.isActive,
+          code: coupon.code,
+          discountType: coupon.discountType,
+          discountValue: coupon.discountValue,
+          minOrderValue: coupon.minOrderValue,
+          maxDiscount: coupon.maxDiscount,
+          expiryDate: coupon.expiryDate,
+          startDate: coupon.startDate,
+        },
+      });
+
+      return coupon;
+    } catch (error) {
+      // Prisma unique constraint violation error
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          `Coupon code "${dto.code}" already exists`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  // COLOR ATTRIBUTE
+  async createColor(dto: CreateColorDto, adminId: number) {
+    // Prevent duplicate colors (hex should be unique logically)
+    const existing = await this.prisma.color.findFirst({
+      where: {
+        hexCode: dto.hexCode,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('Color with this hex code already exists');
+    }
+
+    const color = await this.prisma.color.create({
+      data: {
+        name: dto.name,
+        hexCode: dto.hexCode,
+        sortOrder: dto.sortOrder ?? 0,
+        isActive: dto.isActive ?? true,
+      },
+    });
+
+    //activity log
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_COLOR',
+      module: 'CATALOG',
+      targetId: color.id,
+      targetLabel: color.name,
+      newValue: {
+        name: color.name,
+        hexCode: color.hexCode,
+        sortOrder: color.sortOrder,
+        isActive: color.isActive,
+      },
+    });
+
+    return color;
+  }
+
   // SIZE ATTRIBUTE
   async createSize(dto: CreateSizeDto, adminId: number) {
     // Check uniqueness by name within the same variant
@@ -581,12 +796,8 @@ export class CmsService {
     return size;
   }
 
-  getAllSizes() {
-    return this.prisma.size.findMany({ orderBy: { sortOrder: 'asc' } });
-  }
-
   // VARIANT ATTRIBUTE
-  async createVariant(dto: CreateVariantDto) {
+  async createVariant(dto: CreateVariantDto, adminId: number) {
     // Check uniqueness by name
     const existing = await this.prisma.variant.findFirst({
       where: { name: dto.name },
@@ -596,17 +807,95 @@ export class CmsService {
       throw new ConflictException('Variant with this name already exists');
     }
 
-    return this.prisma.variant.create({
+    const variant = await this.prisma.variant.create({
       data: {
         name: dto.name,
         sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive ?? true,
       },
     });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_VARIANT',
+      module: 'CATALOG',
+      targetId: variant.id,
+      targetLabel: variant.name,
+      newValue: {
+        isActive: variant.isActive,
+        name: variant.name,
+      },
+    });
+
+    return variant;
+  }
+
+  // create initial district data
+  async createInitialDistrict(userId: number) {
+    for (const district of districtsData) {
+      // Remove trailing spaces from names
+      const cleanName = district.name.trim();
+
+      // Check if district already exists
+      const existingDistrict = await this.prisma.district.findUnique({
+        where: { name: cleanName },
+      });
+
+      if (!existingDistrict) {
+        await this.prisma.district.create({
+          data: {
+            name: cleanName,
+            deliveryFee: Number(process.env.DEFAULT_DELIVERY_FEE) || 120,
+          },
+        });
+        console.log(`Created district: ${cleanName}`);
+      } else {
+        console.log(`District already exists: ${cleanName}`);
+      }
+    }
+  }
+
+  // create district data
+  async createDistrict(userId: number, districtDto: CreateDistrictDto) {
+    const cleanName = districtDto.name.trim();
+
+    // Check if district already exists
+    const existingDistrict = await this.prisma.district.findUnique({
+      where: { name: cleanName },
+    });
+
+    if (existingDistrict) {
+      throw new BadRequestException('District already exists');
+    }
+
+    const district = await this.prisma.district.create({
+      data: {
+        name: cleanName,
+        deliveryFee:
+          districtDto.deliveryFee ??
+          Number(process.env.DEFAULT_DELIVERY_FEE) ??
+          120,
+        isCODAvailable: districtDto.isCODAvailable ?? true,
+      },
+    });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'CREATE_DISTRICT',
+      module: 'SYSTEM',
+      targetId: district.id,
+      targetLabel: district.name,
+      newValue: {
+        isActive: district.isActive,
+        name: district.name,
+      },
+    });
+
+    return district;
   }
 
   // MATERIAL ATTRIBUTE
-  async addMaterial(dto: CreateMaterialDto) {
+  async addMaterial(dto: CreateMaterialDto, adminId: number) {
     // Check uniqueness by name
     const existing = await this.prisma.material.findFirst({
       where: { name: dto.name },
@@ -616,7 +905,7 @@ export class CmsService {
       throw new ConflictException('Material with this name already exists');
     }
 
-    return this.prisma.material.create({
+    const material = await this.prisma.material.create({
       data: {
         name: dto.name,
         slug: dto.slug,
@@ -624,10 +913,30 @@ export class CmsService {
         isActive: dto.isActive ?? true,
       },
     });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_MATERIAL',
+      module: 'CATALOG',
+      targetId: material.id,
+      targetLabel: material.name,
+      newValue: {
+        isActive: material.isActive,
+        name: material.name,
+        slug: material.slug,
+        order: material.order,
+      },
+    });
+
+    return material;
   }
 
   getAllVariants() {
     return this.prisma.variant.findMany({ orderBy: { sortOrder: 'asc' } });
+  }
+
+  getAllSizes() {
+    return this.prisma.size.findMany({ orderBy: { sortOrder: 'asc' } });
   }
 
   // READ (Active only)
@@ -682,136 +991,5 @@ export class CmsService {
       },
       orderBy: { name: 'asc' },
     });
-  }
-
-  // create initial district data
-  async createInitialDistrict(userId: number) {
-    for (const district of districtsData) {
-      // Remove trailing spaces from names
-      const cleanName = district.name.trim();
-
-      // Check if district already exists
-      const existingDistrict = await this.prisma.district.findUnique({
-        where: { name: cleanName },
-      });
-
-      if (!existingDistrict) {
-        await this.prisma.district.create({
-          data: {
-            name: cleanName,
-            deliveryFee: Number(process.env.DEFAULT_DELIVERY_FEE) || 120,
-          },
-        });
-        console.log(`Created district: ${cleanName}`);
-      } else {
-        console.log(`District already exists: ${cleanName}`);
-      }
-    }
-  }
-
-  // create district data
-  async createDistrict(userId: number, districtDto: CreateDistrictDto) {
-    const cleanName = districtDto.name.trim();
-
-    // Check if district already exists
-    const existingDistrict = await this.prisma.district.findUnique({
-      where: { name: cleanName },
-    });
-
-    if (existingDistrict) {
-      throw new BadRequestException('District already exists');
-    }
-
-    const district = await this.prisma.district.create({
-      data: {
-        name: cleanName,
-        deliveryFee:
-          districtDto.deliveryFee ??
-          Number(process.env.DEFAULT_DELIVERY_FEE) ??
-          120,
-        isCODAvailable: districtDto.isCODAvailable ?? true,
-      },
-    });
-
-    return district;
-  }
-
-  // delete district
-  async deleteDistrict(userId: number, id: number) {
-    return this.prisma.district.delete({
-      where: { id },
-    });
-  }
-
-  // update districts
-  async updateDistrict(id: number, data: UpdateDistrictDto) {
-    const existing = await this.prisma.district.findUnique({
-      where: { id },
-    });
-
-    if (!existing) {
-      throw new NotFoundException('District not found');
-    }
-
-    return this.prisma.district.update({
-      where: { id },
-      data,
-    });
-  }
-
-  //create coupons mock
-  async createMockCoupons() {
-    for (const couponData of couponsData) {
-      await this.prisma.coupon.create({
-        data: couponData,
-      });
-    }
-  }
-
-  // create a coupon
-  async createCoupon(dto: CreateCouponDto) {
-    // Validate discountValue for percentage/fixed coupons
-    if (
-      (dto.discountType === CouponDiscountType.PERCENTAGE ||
-        dto.discountType === CouponDiscountType.FIXED_AMOUNT) &&
-      (dto.discountValue === undefined || dto.discountValue === null)
-    ) {
-      throw new BadRequestException(
-        'discountValue is required for PERCENTAGE or FIXED coupon type',
-      );
-    }
-
-    const start = dto.startDate ?? new Date();
-    if (dto.expiryDate <= start) {
-      throw new BadRequestException('expiryDate must be after startDate');
-    }
-
-    try {
-      const coupon = await this.prisma.coupon.create({
-        data: {
-          code: dto.code,
-          discountType: dto.discountType,
-          discountValue: dto.discountValue ?? null,
-          minOrderValue: dto.minOrderValue ?? null,
-          maxDiscount: dto.maxDiscount ?? null,
-          startDate: start,
-          expiryDate: dto.expiryDate,
-          isActive: dto.isActive ?? true,
-        },
-      });
-
-      return coupon;
-    } catch (error) {
-      // Prisma unique constraint violation error
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new BadRequestException(
-          `Coupon code "${dto.code}" already exists`,
-        );
-      }
-      throw error;
-    }
   }
 }

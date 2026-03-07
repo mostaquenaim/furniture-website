@@ -23,7 +23,7 @@ export class CategoryService {
     private activityLogService: ActivityLogService,
   ) {}
 
-  // ✅ CREATE CATEGORY
+  // CREATE CATEGORY
   async create(data: {
     slug: string;
     image?: string;
@@ -31,9 +31,26 @@ export class CategoryService {
     seriesId: number;
   }) {
     try {
-      return await this.prisma.category.create({
+      const cat = await this.prisma.category.create({
         data,
       });
+
+      // this.activityLogService.log({
+      //   adminId,
+      //   action: 'CREATE_BLOG',
+      //   module: 'CONTENT',
+      //   targetId: blog.id,
+      //   targetLabel: blog.title,
+      //   newValue: {
+      //     title: blog.title,
+      //     slug: blog.slug,
+      //     content: blog.content,
+      //     categoryId: blog.categoryId,
+      //     published: blog.published,
+      //   },
+      // });
+
+      return cat;
     } catch (error) {
       throw new ConflictException(
         'Category with this slug already exists in the series',
@@ -1215,7 +1232,7 @@ export class CategoryService {
       },
     });
 
-    return subCategory
+    return subCategory;
   }
 
   // update subcategories order

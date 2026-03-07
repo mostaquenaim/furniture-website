@@ -11,10 +11,14 @@ import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateBlogCategoryDto } from './dto/create-blog-category.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class BlogsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   private blogs = [];
 
@@ -22,7 +26,7 @@ export class BlogsService {
     return this.blogs;
   }
 
-  async createBlog(dto: CreateBlogDto) {
+  async createBlog(dto: CreateBlogDto, adminId: number) {
     console.log(dto);
     // Check duplicate blog slug
     const existingBlog = await this.prisma.blogPost.findUnique({
@@ -73,10 +77,25 @@ export class BlogsService {
       },
     });
 
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_BLOG',
+      module: 'CONTENT',
+      targetId: blog.id,
+      targetLabel: blog.title,
+      newValue: {
+        title: blog.title,
+        slug: blog.slug,
+        content: blog.content,
+        categoryId: blog.categoryId,
+        published: blog.published,
+      },
+    });
+
     return blog;
   }
 
-  async createBlogCategory(dto: CreateBlogCategoryDto) {
+  async createBlogCategory(dto: CreateBlogCategoryDto, adminId: number) {
     const { name, slug: inputSlug, order = 0, isActive = true } = dto;
 
     // Auto-generate slug if not provided
@@ -105,6 +124,18 @@ export class BlogsService {
         slug,
         order,
         isActive,
+      },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_BLOGCATEGORY',
+      module: 'CONTENT',
+      targetId: category.id,
+      targetLabel: category.name,
+      newValue: {
+        slug: category.slug,
+        name: category.name,
       },
     });
 

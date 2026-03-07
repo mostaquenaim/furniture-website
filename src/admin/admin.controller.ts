@@ -15,6 +15,7 @@ import {
   ParseIntPipe,
   Delete,
   Query,
+  Put,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -42,6 +43,8 @@ import { UpdateMaterialDto } from 'src/cms/dto/update-material.dto';
 import { UpdateSizeDto } from 'src/cms/dto/update-size.dto';
 import { UpdateVariantDto } from 'src/cms/dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { UpdatePromoBannerDto } from 'src/cms/dto/update-promo-banner.dto';
+import { CreatePromoBannerDto } from 'src/cms/dto/create-promo-banner.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -252,8 +255,8 @@ export class AdminController {
   }
 
   @Post('variants')
-  addVariant(@Body() createVariantDto: CreateVariantDto) {
-    return this.cmsService.createVariant(createVariantDto);
+  addVariant(@Body() createVariantDto: CreateVariantDto, @Req() req: any) {
+    return this.cmsService.createVariant(createVariantDto, req?.user?.userId);
   }
 
   // delete variant
@@ -278,8 +281,8 @@ export class AdminController {
 
   // create new material
   @Post('materials')
-  addMaterial(@Body() createMaterialDto: CreateMaterialDto) {
-    return this.cmsService.addMaterial(createMaterialDto);
+  addMaterial(@Body() createMaterialDto: CreateMaterialDto, @Req() req: any) {
+    return this.cmsService.addMaterial(createMaterialDto, req?.user?.userId);
   }
 
   // update material
@@ -306,29 +309,30 @@ export class AdminController {
   ////// PRODUCT //////
   ////////////////////
   @Post('products')
-  async createProduct(@Body() dto: CreateProductDto) {
+  async createProduct(@Body() dto: CreateProductDto, @Req() req: any) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     // return true
-    return this.productService.createProduct(dto);
+    return this.productService.createProduct(dto, req?.user?.userId);
   }
 
   @Patch('product/:productId')
   async updateProduct(
     @Param('productId') productId: string,
     @Body() dto: UpdateProductDto,
+    @Req() req: any,
   ) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
-    return this.productService.updateProduct(productId, dto);
+    return this.productService.updateProduct(productId, dto, req?.user?.userId);
   }
 
   @Patch('set-trend-score')
-  async setTrendScore() {
-    return this.productService.setTrendScore();
+  async setTrendScore(@Req() req: any) {
+    return this.productService.setTrendScore(req?.user?.userId);
   }
 
   @Patch('sync-product-quantity')
-  async syncProductQuantity() {
-    return this.productService.syncProductQuantity();
+  async syncProductQuantity(@Req() req: any) {
+    return this.productService.syncProductQuantity(req?.user?.userId);
   }
 
   // @Get('product-sync-prices')
@@ -341,15 +345,18 @@ export class AdminController {
   ////// BLOG //////
   ////////////////////
   @Post('/blogs')
-  async createBlog(@Body() dto: CreateBlogDto) {
+  async createBlog(@Body() dto: CreateBlogDto, @Req() req: any) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
-    return this.blogService.createBlog(dto);
+    return this.blogService.createBlog(dto, req?.user?.userId);
   }
 
   @Post('blog-categories')
-  async createBlogCategory(@Body() dto: CreateBlogCategoryDto) {
+  async createBlogCategory(
+    @Body() dto: CreateBlogCategoryDto,
+    @Req() req: any,
+  ) {
     // console.log('DTO:', dto);
-    return this.blogService.createBlogCategory(dto);
+    return this.blogService.createBlogCategory(dto, req?.user?.userId);
   }
 
   //////////////////////
@@ -358,14 +365,14 @@ export class AdminController {
 
   //create coupons
   @Post('create-coupon')
-  async createCoupon(@Body() dto: CreateCouponDto) {
-    return await this.cmsService.createCoupon(dto);
+  async createCoupon(@Body() dto: CreateCouponDto, @Req() req: any) {
+    return await this.cmsService.createCoupon(dto, req?.user?.userId);
   }
 
-  @Post('create-mock-coupons')
-  async createMockCoupons() {
-    return this.cmsService.createMockCoupons();
-  }
+  // @Post('create-mock-coupons')
+  // async createMockCoupons() {
+  //   return this.cmsService.createMockCoupons();
+  // }
 
   //////////////////////
   ////// OTHERS //////
@@ -393,8 +400,8 @@ export class AdminController {
 
   // tags
   @Post('tags')
-  async createTags(@Body('name') name: string) {
-    return this.cmsService.createNewTag(name);
+  async createTags(@Body('name') name: string, @Req() req: any) {
+    return this.cmsService.createNewTag(name, req?.user?.userId);
   }
 
   // district id
@@ -402,8 +409,13 @@ export class AdminController {
   async updateDistrict(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDistrictDto: UpdateDistrictDto,
+    @Req() req: any,
   ) {
-    return this.cmsService.updateDistrict(id, updateDistrictDto);
+    return this.cmsService.updateDistrict(
+      id,
+      updateDistrictDto,
+      req?.user?.userId,
+    );
   }
 
   @Get('activity-log')
@@ -413,5 +425,28 @@ export class AdminController {
       adminId: query.adminId ? Number(query.adminId) : undefined,
       action: query.action,
     });
+  }
+
+  // UPDATE PROMO BANNER
+  @Put('promo-banners/:id')
+  updatePromoBanner(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdatePromoBannerDto,
+    @Req() req: any,
+  ) {
+    return this.cmsService.updatePromoBanner(id, dto, req?.user?.userId);
+  }
+
+  // DELETE PROMO BANNER
+  @Delete('promo-banners/:id')
+  removePromoBanner(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.cmsService.removePromoBanner(id, req?.user?.userId);
+  }
+
+  // CREATE PROMO BANNER
+  @Post('promo-banners')
+  createPromoBanner(@Body() dto: CreatePromoBannerDto) {
+    // console.log(dto);
+    return this.cmsService.createPromoBanner(dto);
   }
 }

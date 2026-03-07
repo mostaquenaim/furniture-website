@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -14,10 +15,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { DiscountType } from './roles.enum';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class ProductService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   private generateBarcodeCode(productSku: string, warehouse: string) {
     const random = Math.floor(1000 + Math.random() * 9000);
@@ -25,7 +30,7 @@ export class ProductService {
   }
 
   // create a product
-  async createProduct(dto: CreateProductDto) {
+  async createProduct(dto: CreateProductDto, adminId: number) {
     const existing = await this.prisma.product.findUnique({
       where: {
         slug: dto.slug,
@@ -120,21 +125,6 @@ export class ProductService {
       });
 
       let totalProductQuantity = 0;
-
-      // inventory location and barcode start
-      // const barcodeCode = this.generateBarcodeCode(product.slug, dto.warehouse);
-
-      // await tx.inventoryItem.create({
-      //   data: {
-      //     productId: product.id,
-      //     barcode: barcodeCode,
-      //     warehouse: dto.warehouse,
-      //     rack: dto.rack,
-      //     bin: dto.bin,
-      //     quantity: dto.quantity,
-      //   },
-      // });
-      // inventory location and barcode end
 
       // Create product images
       if (dto.images && dto.images.length > 0) {
@@ -271,7 +261,7 @@ export class ProductService {
       }
 
       // Return the complete product with all relations
-      return await tx.product.findUnique({
+      const updatedProduct = await tx.product.findUnique({
         where: { id: product.id },
         include: {
           images: true,
@@ -293,6 +283,40 @@ export class ProductService {
           },
         },
       });
+
+      //activity log
+      await this.activityLogService.log({
+        adminId,
+        action: 'CREATE_PRODUCT',
+        module: 'PRODUCT',
+        targetId: product.id,
+        targetLabel: product.title,
+        newValue: {
+          title: product.title,
+          slug: product.slug,
+          sku: product.sku,
+          basePrice: product.basePrice,
+          price: product.price,
+          discount: product.discount,
+          discountType: product.discountType,
+          hasColorVariants: product.hasColorVariants,
+          showColor: product.showColor,
+          materialId: product.materialId,
+          totalProductQuantity: totalProductQuantity,
+          subCategories: dto.subCategories,
+          tags: dto.tags ?? [],
+          colors: dto.colors?.map((c) => ({
+            colorId: c.colorId,
+            sizes: c.sizes?.map((s) => ({
+              sizeId: s.sizeId,
+              quantity: s.quantity,
+              price: s.price ?? null,
+            })),
+          })),
+        },
+      });
+
+      return updatedProduct;
     });
   }
 
@@ -534,7 +558,7 @@ export class ProductService {
   }
 
   // update product
-  async updateProduct(slug: string, dto: UpdateProductDto) {
+  async updateProduct(slug: string, dto: UpdateProductDto, adminId: number) {
     const product = await this.prisma.product.findUnique({
       where: { slug },
     });
@@ -696,7 +720,7 @@ export class ProductService {
         }
       }
 
-      return tx.product.findUnique({
+      const updatedProduct = await tx.product.findUnique({
         where: { id: product.id },
         include: {
           images: true,
@@ -708,6 +732,40 @@ export class ProductService {
           },
         },
       });
+
+      await this.activityLogService.log({
+        adminId,
+        action: 'UPDATE_PRODUCT',
+        module: 'PRODUCT',
+        targetId: product.id,
+        targetLabel: updatedProduct?.title || product.title,
+
+        oldValue: {
+          title: product.title,
+          slug: product.slug,
+          sku: product.sku,
+          basePrice: product.basePrice,
+          price: product.price,
+          discount: product.discount,
+          discountType: product.discountType,
+          isActive: product.isActive,
+          materialId: product.materialId,
+        },
+
+        newValue: {
+          title: updatedProduct?.title,
+          slug: updatedProduct?.slug,
+          sku: updatedProduct?.sku,
+          basePrice: updatedProduct?.basePrice,
+          price: updatedProduct?.price,
+          discount: updatedProduct?.discount,
+          discountType: updatedProduct?.discountType,
+          isActive: updatedProduct?.isActive,
+          materialId: updatedProduct?.materialId,
+        },
+      });
+
+      return updatedProduct;
     });
   }
 
@@ -772,7 +830,7 @@ export class ProductService {
   }
 
   // sync product quantity
-  async syncProductQuantity() {
+  async syncProductQuantity(adminId: number) {
     const products = await this.prisma.product.findMany({
       include: {
         colors: {
@@ -1236,7 +1294,7 @@ export class ProductService {
   }
 
   // set trend-score
-  async setTrendScore() {
+  async setTrendScore(adminId: number) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 

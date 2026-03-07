@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 // src/barcode/barcode.controller.ts
 import {
   Controller,
@@ -12,6 +14,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { BarcodeService } from './barcode.service';
@@ -33,8 +36,8 @@ export class BarcodeController {
   // ── Barcodes ──────
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateBarcodeDto) {
-    return this.barcodeService.createBarcode(dto);
+  create(@Body() dto: CreateBarcodeDto, @Req() req: any) {
+    return this.barcodeService.createBarcode(dto, req?.user?.userId);
   }
 
   @Get()
