@@ -30,8 +30,7 @@ import {
 export class BarcodeController {
   constructor(private barcodeService: BarcodeService) {}
 
-  // ── Barcodes ──────────────────────────────────────────────────────────────
-
+  // ── Barcodes ──────
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(@Body() dto: CreateBarcodeDto) {

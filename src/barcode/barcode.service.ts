@@ -1,17 +1,15 @@
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // src/barcode/barcode.service.ts
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Response } from 'express';
 import * as bwipjs from 'bwip-js';
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer';
 import {
   AssignLocationDto,
   CreateBarcodeDto,
@@ -194,6 +192,7 @@ export class BarcodeService {
     const bc = await this.prisma.inventoryItem.findUnique({
       where: { id: barcodeId },
     });
+
     if (!bc) throw new NotFoundException('Barcode not found');
 
     const png =
@@ -207,60 +206,84 @@ export class BarcodeService {
 
   // ── Print label sheet PDF (multiple labels per page) ──────────────────────
   async printLabelSheet(barcodeIds: string[], res: Response) {
+    if (!barcodeIds?.length) {
+      throw new NotFoundException('No barcode IDs provided');
+    }
+
     const barcodes = await this.prisma.inventoryItem.findMany({
       where: { id: { in: barcodeIds } },
       include: { product: true, location: true },
     });
 
-    if (!barcodes.length) throw new NotFoundException('No barcodes found');
+    if (!barcodes.length) {
+      throw new NotFoundException('No barcodes found');
+    }
 
-    // Generate base64 barcode PNGs for each
     const withImages = await Promise.all(
       barcodes.map(async (bc) => {
         const png =
           bc.barcodeType === 'QR'
             ? await this.generateQrPng(bc.barcode)
             : await this.generateBarcodePng(bc.barcode);
-        return { ...bc, imgBase64: png.toString('base64') };
+
+        return {
+          ...bc,
+          imgBase64: png.toString('base64'),
+        };
       }),
     );
 
-    // Record print
     await this.prisma.inventoryItem.updateMany({
       where: { id: { in: barcodeIds } },
-      data: { printedAt: new Date(), printCount: { increment: 1 } },
+      data: {
+        printedAt: new Date(),
+        printCount: { increment: 1 },
+      },
     });
 
     const html = this.buildLabelSheetHtml(withImages);
-    const buffer = await this.renderPdf(html);
+    const pdf = await this.renderPdf(html);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename=sakigai-labels.pdf',
     );
-    res.setHeader('Content-Length', buffer.length);
-    res.end(buffer);
+
+    res.end(pdf);
   }
 
   // ── Puppeteer render ───────────────────────────────────────────────────────
+  private browser: Browser | null = null;
+
   private async renderPdf(html: string): Promise<Buffer> {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const pdf = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '12mm', right: '10mm', bottom: '12mm', left: '10mm' },
+    if (!this.browser) {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
-      return Buffer.from(pdf);
-    } finally {
-      await browser.close();
     }
+
+    const page = await this.browser.newPage();
+
+    await page.setContent(html, {
+      waitUntil: 'domcontentloaded',
+    });
+
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '10mm',
+        right: '10mm',
+        bottom: '10mm',
+        left: '10mm',
+      },
+    });
+
+    await page.close();
+
+    return Buffer.from(pdf);
   }
 
   // ── Label sheet HTML (4×6 grid, Avery-style) ──────────────────────────────
@@ -270,9 +293,8 @@ export class BarcodeService {
         (bc) => `
       <div class="label">
         <div class="label-brand">SAKIGAI</div>
-        <div class="label-name">${this.truncate(bc.product?.name ?? '—', 28)}</div>
+        <div class="label-name">${this.truncate(bc.product?.title ?? '—', 28)}</div>
         <img class="barcode-img" src="data:image/png;base64,${bc.imgBase64}" alt="${bc.barcode}" />
-        <div class="label-code">${bc.barcode}</div>
         <div class="label-footer">
           <span class="loc-badge">${bc.location?.code ?? 'NO LOC'}</span>
           <span class="stock">QTY: ${bc.quantity}</span>
