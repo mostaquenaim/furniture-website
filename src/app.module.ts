@@ -37,6 +37,7 @@ import { SupportModule } from './support/support.module';
 import { BullModule } from '@nestjs/bull';
 import { BarcodeModule } from './barcode/barcode.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
+import { CourierModule } from './courier/courier.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { ActivityLogModule } from './activity-log/activity-log.module';
     SupportModule,
     BarcodeModule,
     ActivityLogModule,
+    CourierModule,
   ],
   controllers: [AppController],
   providers: [AppService],

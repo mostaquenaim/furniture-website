@@ -58,16 +58,28 @@ export class ProductController {
   }
 
   // you may also like / recommended / related products
-  @Get('you-may-also-like/:productSlug')
+  @Get('you-may-also-like')
   async youMayAlsoLike(
-    @Param('productSlug') productSlug: string,
+    @Query('productSlug') productSlug?: string,
     @Query('productIds') productIds?: string,
+    @Query('categorySlug') categorySlug?: string,
+    @Query('categoryIds') categoryIds?: string,
   ) {
     const ids = productIds ? productIds.split(',').map(Number) : [];
+    const catIds = categoryIds ? categoryIds.split(',').map(Number) : [];
 
-    console.log(ids);
-
-    return this.productService.youMayAlsoLike(productSlug, ids);
+    if (categorySlug || categoryIds)
+      return this.productService.getSubCategoryBasedRecommendations(
+        categorySlug,
+        catIds,
+      );
+    else
+      return this.productService.youMayAlsoLike(
+        productSlug,
+        ids,
+        categorySlug,
+        catIds,
+      );
   }
 
   // product.controller.ts
@@ -100,7 +112,7 @@ export class ProductController {
     return this.productService.recommendedProducts(userId, parsedLimit);
   }
 
-  // recommended products
+  // recently viewed
   @Get('recently-viewed')
   @UseGuards(OptionalJwtAuthGuard)
   async recentlyViewed(

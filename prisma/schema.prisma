@@ -196,18 +196,6 @@ model SubCategory {
   @@unique([categoryId, slug])
 }
 
-model SubCategoryBlogs {
-  subCategoryId Int
-  blogPostId    Int
-
-  subCategory SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
-  blogPost    BlogPost    @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@id([subCategoryId, blogPostId])
-}
-
 model ProductSubCategory {
   productId     Int
   subCategoryId Int
@@ -556,6 +544,7 @@ model Order {
   paymentStatus        PaymentStatus        @default(PENDING)
   orderStatusHistories OrderStatusHistory[]
   invoice              Invoice?
+  courierShipments     CourierShipment[]
 }
 
 model OrderItem {
@@ -627,14 +616,15 @@ enum DeliveryMethod {
 }
 
 model District {
-  id             Int      @id @default(autoincrement())
-  name           String   @unique
-  isActive       Boolean  @default(true)
-  deliveryFee    Int      @default(120)
-  isCODAvailable Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id             Int           @id @default(autoincrement())
+  name           String        @unique
+  isActive       Boolean       @default(true)
+  deliveryFee    Int           @default(120)
+  isCODAvailable Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   orders         Order[]
+  courierRates   CourierRate[]
 }
 
 model Coupon {
@@ -661,10 +651,117 @@ enum CouponDiscountType {
   FREE_DELIVERY
 }
 
+model CourierProvider {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  displayName String
+  logo        String?
+  isActive    Boolean @default(true)
+  priority    Int     @default(0)
+
+  config Json
+
+  shipments CourierShipment[]
+  rates     CourierRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CourierShipment {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  providerId Int
+  provider   CourierProvider @relation(fields: [providerId], references: [id])
+
+  consignmentId  String?
+  trackingNumber String?
+  trackingUrl    String?
+
+  labelUrl    String?
+  manifestUrl String?
+
+  status         CourierStatus @default(PENDING)
+  providerStatus String?
+
+  lastSyncAt DateTime?
+
+  deliveredAt DateTime?
+
+  deliveryCharge Float?
+  codAmount      Float?
+
+  errorMessage String?
+  metadata     Json?
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  courierWebhookLogs CourierWebhookLog[]
+
+  @@unique([orderId, providerId])
+  @@index([trackingNumber])
+}
+
+model CourierWebhookLog {
+  id Int @id @default(autoincrement())
+
+  provider  String
+  eventType String
+  payload   Json
+
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  error       String?
+
+  shipmentId Int?
+  shipment   CourierShipment? @relation(fields: [shipmentId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model CourierRate {
+  id Int @id @default(autoincrement())
+
+  providerId Int
+  provider   CourierProvider @relation(fields: [providerId], references: [id])
+
+  districtId Int?
+  district   District? @relation(fields: [districtId], references: [id])
+
+  weightMin Float
+  weightMax Float
+  price     Float
+
+  codFee       Float?
+  deliveryTime String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CourierStatus {
+  PENDING
+  BOOKED
+  PICKUP_ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  PARTIALLY_DELIVERED
+  RETURNED
+  CANCELLED
+  ON_HOLD
+  FAILED
+}
+
 // =====================
 // Enhanced Payment System
 // =====================
-
 model Payment {
   id Int @id @default(autoincrement())
 
@@ -829,7 +926,6 @@ model PaymentSettlement {
 // =====================
 // Enums
 // =====================
-
 enum PaymentMethod {
   COD
   SSL
@@ -971,6 +1067,18 @@ model BlogCategory {
   updatedAt DateTime @updatedAt
 
   posts BlogPost[]
+}
+
+model SubCategoryBlogs {
+  subCategoryId Int
+  blogPostId    Int
+
+  subCategory SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  blogPost    BlogPost    @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([subCategoryId, blogPostId])
 }
 
 model BlogPost {

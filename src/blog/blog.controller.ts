@@ -1,15 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { UpdateBlogDto } from './dto/update-blog.dto';
 import { BlogsService } from './blog.service';
 
@@ -18,13 +10,21 @@ export class BlogsController {
   constructor(private readonly service: BlogsService) {}
 
   @Get()
-  getAll() {
-    return this.service.getAll();
-  }
+  getAll(
+    @Query('activeCategory') activeCategory?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    const category =
+      activeCategory && activeCategory !== 'null' ? activeCategory : null;
 
-  @Get('/details/:slug')
-  getBySlug(@Param('slug') slug: string) {
-    return this.service.getBySlug(slug);
+    return this.service.getAll({
+      category,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 10,
+      search: search || '',
+    });
   }
 
   @Get('categories')
@@ -33,26 +33,8 @@ export class BlogsController {
     return this.service.getCategories();
   }
 
-  @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateBlogDto) {
-    return this.service.update(id, dto);
-  }
-
-  @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.service.delete(id);
-  }
-
-  @Get(':id/products')
-  getProducts(@Param('id') id: string) {
-    return this.service.getProducts(id);
-  }
-
-  @Post(':id/products')
-  linkProducts(
-    @Param('id') id: string,
-    @Body() body: { productIds: string[] },
-  ) {
-    return this.service.linkProducts(id, body.productIds);
+  @Get('/:blogSlug')
+  getBlogBySlug(@Param('blogSlug') slug: string) {
+    return this.service.getBlogBySlug(slug);
   }
 }

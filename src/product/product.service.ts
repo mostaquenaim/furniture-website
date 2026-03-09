@@ -896,7 +896,12 @@ export class ProductService {
   }
 
   // you may also like
-  async youMayAlsoLike(productSlug: string, productIds: number[]) {
+  async youMayAlsoLike(
+    productSlug?: string,
+    productIds?: number[],
+    categorySlug?: string,
+    catIds?: number[],
+  ) {
     // Find the source product with its subcategories and material
     const sourceProduct = await this.prisma.product.findUnique({
       where: { slug: productSlug, isActive: true },
@@ -1105,6 +1110,62 @@ export class ProductService {
     }
 
     return relatedProducts;
+  }
+
+  // get recommended products by category
+  async getSubCategoryBasedRecommendations(
+    subCategorySlug?: string,
+    subCategoryIds?: number[],
+    productIds?: number[],
+  ) {
+    const ids: number[] = subCategoryIds || [];
+
+    if (subCategorySlug) {
+      const sub = await this.prisma.subCategory.findUnique({
+        where: { slug: subCategorySlug },
+        select: { id: true },
+      });
+
+      if (sub) ids.push(sub.id);
+    }
+
+    const excludeIds = productIds?.length ? productIds : [];
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        isActive: true,
+        id: { notIn: excludeIds },
+
+        subCategories: {
+          some: {
+            subCategoryId: { in: ids },
+          },
+        },
+      },
+
+      take: 8,
+
+      orderBy: [
+        { isFeatured: 'desc' },
+        { rating: 'desc' },
+        { soldCount: 'desc' },
+      ],
+
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        images: {
+          select: {
+            id: true,
+            image: true,
+            serialNo: true,
+          },
+        },
+      },
+    });
+
+    return products;
   }
 
   // get recommended products

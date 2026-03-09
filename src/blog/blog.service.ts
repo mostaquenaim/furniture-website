@@ -6,6 +6,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
@@ -22,8 +23,82 @@ export class BlogsService {
 
   private blogs = [];
 
-  getAll() {
-    return this.blogs;
+  async getAll(params: {
+    category: string | null;
+    page: number;
+    limit: number;
+    search: string;
+  }) {
+    const { category, page, limit, search } = params;
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      published: true,
+
+      ...(category && {
+        category: {
+          slug: category,
+        },
+      }),
+
+      ...(search && {
+        OR: [
+          {
+            title: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            content: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      }),
+    };
+
+    const [blogs, total] = await Promise.all([
+      this.prisma.blogPost.findMany({
+        where,
+        skip,
+        take: limit,
+
+        include: {
+          category: true,
+
+          subCategories: {
+            include: {
+              subCategory: true,
+            },
+          },
+
+          tags: {
+            include: {
+              tag: true,
+            },
+          },
+        },
+
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+
+      this.prisma.blogPost.count({ where }),
+    ]);
+
+    return {
+      data: blogs,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async createBlog(dto: CreateBlogDto, adminId: number) {
@@ -142,11 +217,6 @@ export class BlogsService {
     return category;
   }
 
-  getBySlug(slug: string) {
-    console.log(slug);
-    // return this.blogs.find((b) => b.slug === slug);
-  }
-
   async getCategories() {
     console.log('here it goes');
     const categories = await this.prisma.blogCategory.findMany({
@@ -158,33 +228,55 @@ export class BlogsService {
     return categories;
   }
 
-  update(id: string, dto: UpdateBlogDto) {
-    console.log(id, dto);
-    // const idx = this.blogs.findIndex((b) => b.id == id);
-    // if (idx === -1) return null;
+  async getBlogBySlug(slug: string) {
+    const blog = await this.prisma.blogPost.findUnique({
+      where: {
+        slug,
+      },
+      include: {
+        // Include the primary category
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        // Include Many-to-Many Subcategories through the join table
+        subCategories: {
+          include: {
+            subCategory: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        // Include Many-to-Many Tags through the join table
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // this.blogs[idx] = { ...this.blogs[idx], ...dto };
-    // return this.blogs[idx];
-  }
+    if (!blog) {
+      throw new NotFoundException(`Blog post with slug "${slug}" not found`);
+    }
 
-  delete(id: string) {
-    console.log(id);
-    // this.blogs = this.blogs.filter((b) => b.id != id);
-    // return { message: 'Blog deleted' };
-  }
-
-  getProducts(id: string) {
-    console.log(id);
-    // const blog = this.blogs.find((b) => b.id == id);
-    // return blog?.products || [];
-  }
-
-  linkProducts(id: string, productIds: string[]) {
-    console.log(id, productIds);
-    // const blog = this.blogs.find((b) => b.id == id);
-    // if (!blog) return null;
-
-    // blog.products.push(...productIds);
-    // return blog;
+    // Professional touch: Flatten the relational structure for the frontend
+    return {
+      ...blog,
+      subCategories: blog.subCategories.map((sc) => sc.subCategory),
+      tags: blog.tags.map((t) => t.tag),
+    };
   }
 }
