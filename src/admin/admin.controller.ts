@@ -338,6 +338,18 @@ export class AdminController {
     return this.productService.syncProductQuantity(req?.user?.userId);
   }
 
+  // Review update
+  @Patch('reviews/:reviewId')
+  updateReview(
+    @Param('reviewId', ParseIntPipe) id: number,
+    @Body() updateData: { isHidden?: boolean; isFeatured?: boolean },
+    @Req() req: any,
+  ) {
+    // req.user.userId assumes you have an AuthGuard providing the user
+    const adminId = req?.user?.userId;
+    return this.productService.updateReview(id, updateData, adminId);
+  }
+
   // @Get('product-sync-prices')
   // async syncAllProductPrices() {
   //   console.log('admin');
@@ -375,7 +387,7 @@ export class AdminController {
   // update order status
   @Patch('orders/:orderId/status')
   updateOrderStatus(
-    @Param('orderId') id: number,
+    @Param('orderId') id: string,
     @Req() req: any,
     @Body('status') status: OrderStatus,
   ) {

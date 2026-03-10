@@ -728,6 +728,20 @@ export class OrderService {
       where.status = status;
     }
 
+    if (from || to) {
+      where.createdAt = {};
+
+      if (from) {
+        where.createdAt.gte = new Date(from);
+      }
+
+      if (to) {
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = toDate;
+      }
+    }
+
     let data: any[];
     let total: number;
 
@@ -817,13 +831,25 @@ export class OrderService {
   async trackOrder(
     userId: number,
     orderId: string,
-    { details = false }: { details?: boolean },
+    { detailsValue = false }: { detailsValue?: boolean },
   ) {
-    const order = await this.prisma.order.findFirst({
+    const user = await this.prisma.user.findUnique({
       where: {
-        userId,
-        OR: [{ orderId }, { trackingToken: orderId }],
+        id: userId,
       },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const isAdmin = user.role != 'CUSTOMER';
+
+    const whereCondition = {
+      OR: [{ orderId }, { trackingToken: orderId }],
+      ...(!isAdmin && userId ? { userId } : {}),
+    };
+
+    const order = await this.prisma.order.findFirst({
+      where: whereCondition,
       include: {
         items: {
           include: {
@@ -843,7 +869,7 @@ export class OrderService {
           orderBy: { createdAt: 'asc' },
         },
         // Conditional includes based on detailed view
-        ...(details && {
+        ...(detailsValue && {
           district: true,
           user: {
             select: { id: true, email: true },
@@ -918,7 +944,7 @@ export class OrderService {
       trackingEvents,
     };
 
-    if (!details) {
+    if (!detailsValue) {
       return {
         ...baseResponse,
         items: order.items.map((item) => ({
@@ -991,14 +1017,14 @@ export class OrderService {
 
   // update status of order
   async updateOrderStatus(
-    orderId: number,
+    orderId: string,
     status: OrderStatus,
     adminId: number,
   ) {
     return this.prisma.$transaction(async (tx) => {
       // 1. Find order
       const order = await tx.order.findUnique({
-        where: { id: orderId },
+        where: { orderId: orderId },
       });
 
       if (!order) {
@@ -1007,7 +1033,7 @@ export class OrderService {
 
       // 2. Update order
       const updatedOrder = await tx.order.update({
-        where: { id: orderId },
+        where: { orderId: orderId },
         data: {
           status,
         },
@@ -1016,7 +1042,7 @@ export class OrderService {
       // 3. Save status history
       await tx.orderStatusHistory.create({
         data: {
-          orderId,
+          orderId: order.id,
           status,
           note: `Order status changed to ${status}`,
         },

@@ -59,10 +59,12 @@ export class OrderController {
   trackOrder(
     @Req() req,
     @Param('orderId') orderId: string,
-    @Query('details') details: boolean,
+    @Query('details') details: string,
   ) {
+    const detailsValue = details === 'true';
+
     return this.orderService.trackOrder(req?.user?.userId, orderId, {
-      details,
+      detailsValue,
     });
   }
 }

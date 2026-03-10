@@ -131,10 +131,33 @@ export class ProductController {
   }
 
   // product reviews
-  @Get('review/:slug')
-  async getProductReviews(@Param('slug') slug: string) {
-    console.log('slug/review');
-    return this.productService.getProductReviews(slug);
+  // @Get('review/:slug')
+  @Get('reviews')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getProductReviews(
+    @Query('productSlug') productSlug?: string,
+    @Query('minRating') minRating?: string,
+    @Query('maxRating') maxRating?: string,
+    @Query('isHidden') isHidden?: string,
+    @Query('isFeatured') isFeatured?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('customerId') customerId?: string,
+    @Req() req?: any,
+  ) {
+    console.log(isHidden, 'isHidden');
+    return this.productService.getProductReviews({
+      productSlug: productSlug !== undefined ? productSlug : undefined,
+      minRating: minRating !== undefined ? Number(minRating) : undefined,
+      maxRating: maxRating !== undefined ? Number(maxRating) : undefined,
+      isHidden:
+        isHidden === 'true' ? true : isHidden === 'false' ? false : undefined,
+      isFeatured: isFeatured === 'true' ? true : undefined,
+      fromDate: fromDate ? new Date(fromDate) : undefined,
+      toDate: toDate ? new Date(toDate) : undefined,
+      adminId: req?.user?.userId,
+      customerId: customerId ? parseInt(customerId) : undefined,
+    });
   }
 
   // @Get('trending')

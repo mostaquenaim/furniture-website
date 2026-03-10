@@ -31,7 +31,7 @@ export class CourierController {
   }
 
   @Get('providers')
-  async getProviders() {
+  getProviders() {
     return this.courierService.getProviders();
   }
 
