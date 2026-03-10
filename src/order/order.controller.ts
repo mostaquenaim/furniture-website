@@ -32,6 +32,8 @@ export class OrderController {
     @Query('sortBy') sortBy?: 'createdAt' | 'total' | 'status',
     @Query('order') order: 'asc' | 'desc' = 'desc',
     @Query('thumb') thumb?: boolean,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     console.log(page, 'page');
 
@@ -42,6 +44,8 @@ export class OrderController {
       status,
       orderBy: sortBy ? { [sortBy]: order } : undefined,
       thumb,
+      from,
+      to,
     });
   }
 

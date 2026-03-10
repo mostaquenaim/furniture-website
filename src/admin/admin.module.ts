@@ -8,8 +8,12 @@ import { CmsService } from 'src/cms/cms.service';
 import { ProductService } from 'src/product/product.service';
 import { BlogsService } from 'src/blog/blog.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { OrderService } from 'src/order/order.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
+  imports: [BullModule.registerQueue({ name: 'notification' })],
   controllers: [AdminController],
   providers: [
     AdminService,
@@ -20,6 +24,8 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
     CmsService,
     ProductService,
     ActivityLogService,
+    OrderService,
+    NotificationsService,
   ],
 })
 export class AdminModule {}

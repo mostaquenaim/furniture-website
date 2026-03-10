@@ -11,6 +11,8 @@ import { SteadfastCourierProvider } from './providers/steadfast.provider';
 import { RedxProvider } from './providers/redx.provider';
 import { PaperflyProvider } from './providers/paperfly.provider';
 import { PathaoProvider } from './providers/pathao.provider';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { PermissionService } from 'src/permission/permission.service';
 
 // Providers
 
@@ -30,6 +32,8 @@ import { PathaoProvider } from './providers/pathao.provider';
     RedxProvider,
     PaperflyProvider,
     PathaoProvider,
+    PrismaService,
+    PermissionService,
   ],
   exports: [CourierService],
 })

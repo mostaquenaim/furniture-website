@@ -20,12 +20,14 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import PDFDocument from 'pdfkit';
 import { Response } from 'express';
 import puppeteer from 'puppeteer';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class OrderService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationsService,
+    private activityLogService: ActivityLogService,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -679,6 +681,8 @@ export class OrderService {
       status,
       orderBy,
       thumb,
+      from,
+      to,
     }: {
       page?: number;
       limit?: number;
@@ -686,11 +690,25 @@ export class OrderService {
       status?: OrderStatus;
       orderBy?: Record<string, 'asc' | 'desc'>;
       thumb?: boolean;
+      from?: string;
+      to?: string;
     },
   ) {
     const skip = (page - 1) * limit;
 
-    const where: any = { userId };
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const isAdmin = user.role != 'CUSTOMER';
+
+    const where: any = {};
+
+    if (!isAdmin) where.userId;
 
     // Search logic
     if (search) {
@@ -713,9 +731,11 @@ export class OrderService {
     let data: any[];
     let total: number;
 
+    const whereCondition = !isAdmin ? { userId: userId } : {};
+
     const statusGroups = await this.prisma.order.groupBy({
       by: ['status'],
-      where: { userId }, // IMPORTANT: no pagination filters
+      where: whereCondition,
       _count: { _all: true },
     });
 
@@ -793,6 +813,7 @@ export class OrderService {
     };
   }
 
+  // track order
   async trackOrder(
     userId: number,
     orderId: string,
@@ -966,5 +987,56 @@ export class OrderService {
         email: order.customerEmail || order.user?.email,
       },
     };
+  }
+
+  // update status of order
+  async updateOrderStatus(
+    orderId: number,
+    status: OrderStatus,
+    adminId: number,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Find order
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // 2. Update order
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status,
+        },
+      });
+
+      // 3. Save status history
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId,
+          status,
+          note: `Order status changed to ${status}`,
+        },
+      });
+
+      this.activityLogService.log({
+        adminId,
+        action: 'UPDATE_ORDER',
+        module: 'ORDER',
+        targetId: order.id,
+        targetLabel: '',
+        oldValue: {
+          status: order.status,
+        },
+        newValue: {
+          status: updatedOrder.status,
+        },
+      });
+
+      return updatedOrder;
+    });
   }
 }

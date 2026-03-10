@@ -45,6 +45,8 @@ import { UpdateVariantDto } from 'src/cms/dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { UpdatePromoBannerDto } from 'src/cms/dto/update-promo-banner.dto';
 import { CreatePromoBannerDto } from 'src/cms/dto/create-promo-banner.dto';
+import { OrderService } from 'src/order/order.service';
+import { OrderStatus } from '@prisma/client';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -55,6 +57,7 @@ export class AdminController {
     private readonly cmsService: CmsService,
     private readonly productService: ProductService,
     private readonly activityLogService: ActivityLogService,
+    private readonly orderService: OrderService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
@@ -367,6 +370,16 @@ export class AdminController {
   @Post('create-coupon')
   async createCoupon(@Body() dto: CreateCouponDto, @Req() req: any) {
     return await this.cmsService.createCoupon(dto, req?.user?.userId);
+  }
+
+  // update order status
+  @Patch('orders/:orderId/status')
+  updateOrderStatus(
+    @Param('orderId') id: number,
+    @Req() req: any,
+    @Body('status') status: OrderStatus,
+  ) {
+    return this.orderService.updateOrderStatus(id, status, req?.user?.userId);
   }
 
   // @Post('create-mock-coupons')
