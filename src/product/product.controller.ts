@@ -18,12 +18,14 @@ import { ProductService } from './product.service';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
 import type { Response } from 'express';
 import { BarcodeService } from 'src/barcode/barcode.service';
+import { ReviewService } from 'src/review/review.service';
 
 @Controller('product')
 export class ProductController {
   constructor(
     private readonly productService: ProductService,
     private readonly barcodeService: BarcodeService,
+    private readonly reviewService: ReviewService,
   ) {}
 
   @Get('all')
@@ -66,9 +68,10 @@ export class ProductController {
     @Query('categoryIds') categoryIds?: string,
   ) {
     const ids = productIds ? productIds.split(',').map(Number) : [];
+
     const catIds = categoryIds ? categoryIds.split(',').map(Number) : [];
 
-    if (categorySlug || categoryIds)
+    if (categoryIds)
       return this.productService.getSubCategoryBasedRecommendations(
         categorySlug,
         catIds,
@@ -131,7 +134,6 @@ export class ProductController {
   }
 
   // product reviews
-  // @Get('review/:slug')
   @Get('reviews')
   @UseGuards(OptionalJwtAuthGuard)
   async getProductReviews(
@@ -145,13 +147,13 @@ export class ProductController {
     @Query('customerId') customerId?: string,
     @Req() req?: any,
   ) {
-    console.log(isHidden, 'isHidden');
+    // console.log(isHidden, 'isHidden');
+
     return this.productService.getProductReviews({
       productSlug: productSlug !== undefined ? productSlug : undefined,
       minRating: minRating !== undefined ? Number(minRating) : undefined,
       maxRating: maxRating !== undefined ? Number(maxRating) : undefined,
-      isHidden:
-        isHidden === 'true' ? true : isHidden === 'false' ? false : undefined,
+      isHidden: isHidden === 'true' ? true : isHidden === 'null' ? null : false,
       isFeatured: isFeatured === 'true' ? true : undefined,
       fromDate: fromDate ? new Date(fromDate) : undefined,
       toDate: toDate ? new Date(toDate) : undefined,
@@ -160,11 +162,16 @@ export class ProductController {
     });
   }
 
+  // get a random featured review
+  @Get('reviews/featured')
+  getAFeaturedReview() {
+    return this.reviewService.getAFeaturedReview();
+  }
+
   // @Get('trending')
   // async getTrendingProducts(){
 
   // }
-
   @Get(':slug')
   getProductById(@Param('slug') slug: string) {
     return this.productService.getProductBySlug(slug);

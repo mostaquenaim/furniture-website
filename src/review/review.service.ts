@@ -11,10 +11,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class ReviewService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
   private reviews = [];
 
   getAll() {
@@ -86,6 +90,109 @@ export class ReviewService {
       message: 'Review submitted successfully.',
       review,
     };
+  }
+
+  // update review
+  async updateReview(
+    id: number,
+    data: { isHidden?: boolean; isFeatured?: boolean },
+    adminId: number,
+  ) {
+    // 1. Fetch existing review
+    const review = await this.prisma.review.findUnique({
+      where: { id },
+      include: {
+        orderItem: {
+          select: {
+            product: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!review) throw new NotFoundException(`Review with ID ${id} not found`);
+
+    // 2. Enforce business rule: cannot be hidden and featured at the same time
+    if (data.isHidden && data.isFeatured) {
+      throw new BadRequestException(
+        'A review cannot be hidden and featured at the same time',
+      );
+    }
+    if (data.isHidden && review.isFeatured) {
+      // if hiding, unfeature
+      data.isFeatured = false;
+    }
+    if (data.isFeatured && review.isHidden) {
+      // if featuring, unhide
+      data.isHidden = false;
+    }
+
+    // 3. Update
+    const updated = await this.prisma.review.update({
+      where: { id },
+      data: {
+        ...(data.isHidden !== undefined && { isHidden: data.isHidden }),
+        ...(data.isFeatured !== undefined && { isFeatured: data.isFeatured }),
+      },
+    });
+
+    // 4. Log activity
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_REVIEW',
+      module: 'PRODUCT',
+      targetId: review.id,
+      targetLabel: review.orderItem.product.title, // or any label you want
+      oldValue: { isHidden: review.isHidden, isFeatured: review.isFeatured },
+      newValue: { isHidden: updated.isHidden, isFeatured: updated.isFeatured },
+    });
+
+    return updated;
+  }
+
+  // get a random featured review
+  async getAFeaturedReview() {
+    // Fetch all featured reviews
+    const reviews = await this.prisma.review.findMany({
+      where: {
+        isFeatured: true,
+      },
+      include: {
+        orderItem: {
+          select: {
+            productId: true,
+            product: {
+              select: {
+                title: true,
+                slug: true,
+              },
+            },
+            order: {
+              select: {
+                userId: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // If no featured reviews, return null
+    if (!reviews || reviews.length === 0) {
+      return null;
+    }
+
+    // Pick a random review from the array
+    const randomIndex = Math.floor(Math.random() * reviews.length);
+    return reviews[randomIndex];
   }
 
   getProductReviews(productId: string) {

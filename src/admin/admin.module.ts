@@ -11,6 +11,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { OrderService } from 'src/order/order.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { BullModule } from '@nestjs/bull';
+import { ReviewService } from 'src/review/review.service';
 
 @Module({
   imports: [BullModule.registerQueue({ name: 'notification' })],
@@ -26,6 +27,7 @@ import { BullModule } from '@nestjs/bull';
     ActivityLogService,
     OrderService,
     NotificationsService,
+    ReviewService,
   ],
 })
 export class AdminModule {}

@@ -1118,7 +1118,9 @@ export class ProductService {
     subCategoryIds?: number[],
     productIds?: number[],
   ) {
-    const ids: number[] = subCategoryIds || [];
+    console.log(subCategoryIds, 'subCategoryIds');
+
+    // const ids: number[] = subCategoryIds || [];
 
     if (subCategorySlug) {
       const sub = await this.prisma.subCategory.findUnique({
@@ -1126,7 +1128,7 @@ export class ProductService {
         select: { id: true },
       });
 
-      if (sub) ids.push(sub.id);
+      if (sub) subCategoryIds?.push(sub.id);
     }
 
     const excludeIds = productIds?.length ? productIds : [];
@@ -1138,7 +1140,7 @@ export class ProductService {
 
         subCategories: {
           some: {
-            subCategoryId: { in: ids },
+            subCategoryId: { in: subCategoryIds },
           },
         },
       },
@@ -1425,7 +1427,7 @@ export class ProductService {
     productSlug?: string;
     minRating?: number;
     maxRating?: number;
-    isHidden?: boolean;
+    isHidden?: boolean | null;
     isFeatured?: boolean;
     fromDate?: Date;
     toDate?: Date;
@@ -1444,9 +1446,11 @@ export class ProductService {
       productId = product.id;
     }
 
+    console.log(isHidden, 'isHidden');
+
     // Build Prisma filters
     const filters: any = {
-      isHidden,
+      ...(isHidden === false || isHidden === true ? { isHidden } : {}),
       ...(typeof isFeatured === 'boolean' ? { isFeatured } : {}),
       ...(minRating !== undefined || maxRating !== undefined
         ? {
@@ -1512,66 +1516,5 @@ export class ProductService {
       ratingCount,
       averageRating: Number(averageRating.toFixed(1)),
     };
-  }
-
-  // update review
-  async updateReview(
-    id: number,
-    data: { isHidden?: boolean; isFeatured?: boolean },
-    adminId: number,
-  ) {
-    // 1. Fetch existing review
-    const review = await this.prisma.review.findUnique({
-      where: { id },
-      include: {
-        orderItem: {
-          select: {
-            product: {
-              select: {
-                title: true,
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!review) throw new NotFoundException(`Review with ID ${id} not found`);
-
-    // 2. Enforce business rule: cannot be hidden and featured at the same time
-    if (data.isHidden && data.isFeatured) {
-      throw new BadRequestException(
-        'A review cannot be hidden and featured at the same time',
-      );
-    }
-    if (data.isHidden && review.isFeatured) {
-      // if hiding, unfeature
-      data.isFeatured = false;
-    }
-    if (data.isFeatured && review.isHidden) {
-      // if featuring, unhide
-      data.isHidden = false;
-    }
-
-    // 3. Update
-    const updated = await this.prisma.review.update({
-      where: { id },
-      data: {
-        ...(data.isHidden !== undefined && { isHidden: data.isHidden }),
-        ...(data.isFeatured !== undefined && { isFeatured: data.isFeatured }),
-      },
-    });
-
-    // 4. Log activity
-    await this.activityLogService.log({
-      adminId,
-      action: 'UPDATE_REVIEW',
-      module: 'PRODUCT',
-      targetId: review.id,
-      targetLabel: review.orderItem.product.title, // or any label you want
-      oldValue: { isHidden: review.isHidden, isFeatured: review.isFeatured },
-      newValue: { isHidden: updated.isHidden, isFeatured: updated.isFeatured },
-    });
-
-    return updated;
   }
 }

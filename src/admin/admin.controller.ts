@@ -47,6 +47,7 @@ import { UpdatePromoBannerDto } from 'src/cms/dto/update-promo-banner.dto';
 import { CreatePromoBannerDto } from 'src/cms/dto/create-promo-banner.dto';
 import { OrderService } from 'src/order/order.service';
 import { OrderStatus } from '@prisma/client';
+import { ReviewService } from 'src/review/review.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -58,6 +59,7 @@ export class AdminController {
     private readonly productService: ProductService,
     private readonly activityLogService: ActivityLogService,
     private readonly orderService: OrderService,
+    private readonly reviewService: ReviewService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
@@ -347,7 +349,7 @@ export class AdminController {
   ) {
     // req.user.userId assumes you have an AuthGuard providing the user
     const adminId = req?.user?.userId;
-    return this.productService.updateReview(id, updateData, adminId);
+    return this.reviewService.updateReview(id, updateData, adminId);
   }
 
   // @Get('product-sync-prices')

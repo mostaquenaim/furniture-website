@@ -4,6 +4,7 @@ import { ProductService } from './product.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { BarcodeService } from 'src/barcode/barcode.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { ReviewService } from 'src/review/review.service';
 
 @Module({
   controllers: [ProductController],
@@ -12,6 +13,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
     PrismaService,
     BarcodeService,
     ActivityLogService,
+    ReviewService,
   ],
 })
 export class ProductModule {}
