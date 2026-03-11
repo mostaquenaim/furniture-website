@@ -24,6 +24,8 @@ import { RedxProvider } from './providers/redx.provider';
 import { PaperflyProvider } from './providers/paperfly.provider';
 import { PathaoProvider } from './providers/pathao.provider';
 import { CalculateRateDto } from './dto/calculate-rate.dto';
+import { CreateCourierProviderDto } from './dto/create-courier-provider.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class CourierService {
@@ -32,6 +34,7 @@ export class CourierService {
 
   constructor(
     private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
     private httpService: HttpService,
     private configService: ConfigService,
   ) {
@@ -56,6 +59,31 @@ export class CourierService {
       'pathao',
       new PathaoProvider(this.httpService, this.configService),
     );
+  }
+
+  async addProvider(dto: CreateCourierProviderDto, adminId: number) {
+    const created = await this.prisma.courierProvider.create({
+      data: {
+        name: dto.name.toLowerCase(),
+        displayName: dto.displayName,
+        isActive: dto.isActive ?? true,
+        config: dto.config ?? {},
+      },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_COURIER-PROVIDER',
+      module: 'SYSTEM',
+      targetId: created.id,
+      targetLabel: `${created.name}`,
+      newValue: {
+        name: created.name,
+        displayName: created.displayName,
+      },
+    });
+
+    return created;
   }
 
   async createShipment(dto: CreateCourierShipmentDto) {
@@ -109,7 +137,7 @@ export class CourierService {
       }
 
       // Prepare shipment data for provider
-      const shipmentData = await this.prepareShipmentData(order, provider);
+      const shipmentData = this.prepareShipmentData(order, provider);
 
       // Create shipment with provider
       let providerResponse;
@@ -439,33 +467,87 @@ export class CourierService {
   }
 
   private prepareShipmentData(order: any, provider: any) {
-    // Prepare data according to provider's requirements
-    return {
-      orderId: order.orderId,
-      customerName: order.customerName,
-      customerPhone: order.customerPhone,
-      customerAddress: order.shippingAddress,
+    // Get merchant store ID from provider config
+    const storeId =
+      provider.config?.store_id || provider.config?.merchant_store_id;
+
+    if (!storeId) {
+      throw new Error('store_id not configured for Pathao provider');
+    }
+
+    // Calculate total items quantity
+    const totalQuantity = order.items.reduce(
+      (sum: number, item: any) => sum + (item.quantity || 1),
+      0,
+    );
+
+    // Calculate total weight (default to 0.5 if not available)
+    const weight = this.calculateTotalWeight(order.items) || 0.5;
+
+    // Create item description from order items
+    const itemDescription = order.items
+      .map((item: any) => `${item.quantity}x ${item.productTitle}`)
+      .join(', ');
+
+    // Base data for all providers
+    const baseData = {
+      orderId: order.orderId || order.id,
+      customerName: order.customerName || order.shippingName,
+      customerPhone: order.customerPhone || order.phone,
+      shippingAddress: order.shippingAddress || order.address,
       district: order.district?.name || order.districtName,
       postCode: order.postCode,
       amount: order.total,
       codAmount: order.paymentMethod === 'COD' ? order.total : 0,
-      items: order.items.map((item: any) => ({
-        name: item.productTitle,
-        quantity: item.quantity,
-        price: item.priceAtPurchase,
-      })),
-      weight: this.calculateTotalWeight(order.items),
-      ...(provider.config as any),
+      totalQuantity,
+      weight: weight.toString(), // Convert to string for Pathao
+      itemDescription: itemDescription.substring(0, 500), // Limit length
     };
+
+    // Provider-specific data transformation
+    switch (provider.name.toLowerCase()) {
+      case 'pathao':
+        return {
+          ...baseData,
+          store_id: storeId,
+          merchant_store_id: storeId,
+          recipient_name: baseData.customerName,
+          recipient_phone: baseData.customerPhone,
+          recipient_address: baseData.shippingAddress,
+          delivery_type: 48, // Standard delivery
+          item_type: 2, // Document/Parcel
+          special_instruction: order.specialInstructions || '',
+          item_quantity: baseData.totalQuantity,
+          item_weight: baseData.weight,
+          item_description: baseData.itemDescription,
+          amount_to_collect: baseData.codAmount,
+        };
+
+      case 'redx':
+        // RedX specific transformation
+        return {
+          ...baseData,
+          // RedX specific fields
+        };
+
+      default:
+        return baseData;
+    }
   }
 
   private calculateTotalWeight(items: any[]): number {
-    // Calculate total weight based on items
-    // This should be implemented based on your product weights
-    return items.reduce(
-      (total, item) => total + (item.product?.weight || 0.5) * item.quantity,
-      0,
-    );
+    if (!items || items.length === 0) {
+      return 0.5; // Default weight
+    }
+
+    const totalWeight = items.reduce((sum, item) => {
+      const itemWeight = item.product?.weight || item.weight || 0;
+      const quantity = item.quantity || 1;
+      return sum + itemWeight * quantity;
+    }, 0);
+
+    // Minimum weight check (Pathao requires at least 0.5 kg)
+    return Math.max(totalWeight, 0.5);
   }
 
   private mapProviderStatus(providerStatus: string): CourierStatus {

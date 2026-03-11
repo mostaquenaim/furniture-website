@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 // src/courier/courier.controller.ts
 import {
@@ -11,6 +13,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { CourierService } from './courier.service';
 import { CreateCourierShipmentDto } from './dto/create-courier-shipment.dto';
@@ -19,6 +22,7 @@ import { CourierWebhookDto } from './dto/courier-webhook.dto';
 import { CalculateRateDto } from './dto/calculate-rate.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
+import { CreateCourierProviderDto } from './dto/create-courier-provider.dto';
 
 @Controller('courier')
 export class CourierController {
@@ -33,6 +37,12 @@ export class CourierController {
   @Get('providers')
   getProviders() {
     return this.courierService.getProviders();
+  }
+
+  @Post('providers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  addProvider(@Body() dto: CreateCourierProviderDto, @Req() req: any) {
+    return this.courierService.addProvider(dto, req?.user?.userId);
   }
 
   @Post('rates/calculate')
