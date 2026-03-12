@@ -39,12 +39,6 @@ export class CourierController {
     return this.courierService.getProviders();
   }
 
-  @Post('providers')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  addProvider(@Body() dto: CreateCourierProviderDto, @Req() req: any) {
-    return this.courierService.addProvider(dto, req?.user?.userId);
-  }
-
   @Post('rates/calculate')
   async calculateRates(@Body() dto: CalculateRateDto) {
     return this.courierService.calculateRates(dto);

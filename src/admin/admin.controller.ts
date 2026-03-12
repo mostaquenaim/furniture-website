@@ -48,6 +48,9 @@ import { CreatePromoBannerDto } from 'src/cms/dto/create-promo-banner.dto';
 import { OrderService } from 'src/order/order.service';
 import { OrderStatus } from '@prisma/client';
 import { ReviewService } from 'src/review/review.service';
+import { CreateCourierProviderDto } from 'src/courier/dto/create-courier-provider.dto';
+import { CourierService } from 'src/courier/courier.service';
+import { UpdateCourierProviderDto } from 'src/courier/dto/update-courier-provider.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -60,6 +63,7 @@ export class AdminController {
     private readonly activityLogService: ActivityLogService,
     private readonly orderService: OrderService,
     private readonly reviewService: ReviewService,
+    private readonly courierService: CourierService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
@@ -394,6 +398,25 @@ export class AdminController {
     @Body('status') status: OrderStatus,
   ) {
     return this.orderService.updateOrderStatus(id, status, req?.user?.userId);
+  }
+
+  @Post('providers')
+  addProvider(@Body() dto: CreateCourierProviderDto, @Req() req: any) {
+    return this.courierService.addProvider(dto, req?.user?.userId);
+  }
+
+  @Patch('providers/:id')
+  updateProvider(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCourierProviderDto,
+    @Req() req: any,
+  ) {
+    return this.courierService.updateProvider(id, dto, req?.user?.userId);
+  }
+
+  @Delete('providers/:id')
+  deleteProvider(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.courierService.deleteProvider(id, req?.user?.userId);
   }
 
   // @Post('create-mock-coupons')

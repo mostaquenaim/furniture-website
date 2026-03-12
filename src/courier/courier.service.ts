@@ -26,6 +26,7 @@ import { PathaoProvider } from './providers/pathao.provider';
 import { CalculateRateDto } from './dto/calculate-rate.dto';
 import { CreateCourierProviderDto } from './dto/create-courier-provider.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { UpdateCourierProviderDto } from './dto/update-courier-provider.dto';
 
 @Injectable()
 export class CourierService {
@@ -61,6 +62,7 @@ export class CourierService {
     );
   }
 
+  // courier providers
   async addProvider(dto: CreateCourierProviderDto, adminId: number) {
     const created = await this.prisma.courierProvider.create({
       data: {
@@ -84,6 +86,78 @@ export class CourierService {
     });
 
     return created;
+  }
+
+  async updateProvider(
+    id: number,
+    dto: UpdateCourierProviderDto,
+    adminId: number,
+  ) {
+    const existing = await this.prisma.courierProvider.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Courier provider not found');
+    }
+
+    const updated = await this.prisma.courierProvider.update({
+      where: { id },
+      data: {
+        name: dto.name?.toLowerCase(),
+        displayName: dto.displayName,
+        isActive: dto.isActive,
+        config: dto.config,
+      },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_COURIER-PROVIDER',
+      module: 'SYSTEM',
+      targetId: updated.id,
+      targetLabel: updated.name,
+      oldValue: {
+        name: existing.name,
+        displayName: existing.displayName,
+        isActive: existing.isActive,
+      },
+      newValue: {
+        name: updated.name,
+        displayName: updated.displayName,
+        isActive: updated.isActive,
+      },
+    });
+
+    return updated;
+  }
+
+  async deleteProvider(id: number, adminId: number) {
+    const existing = await this.prisma.courierProvider.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Courier provider not found');
+    }
+
+    await this.prisma.courierProvider.delete({
+      where: { id },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'DELETE_COURIER-PROVIDER',
+      module: 'SYSTEM',
+      targetId: existing.id,
+      targetLabel: existing.name,
+      oldValue: {
+        name: existing.name,
+        displayName: existing.displayName,
+      },
+    });
+
+    return { message: 'Provider deleted successfully' };
   }
 
   async createShipment(dto: CreateCourierShipmentDto) {

@@ -12,9 +12,17 @@ import { OrderService } from 'src/order/order.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { BullModule } from '@nestjs/bull';
 import { ReviewService } from 'src/review/review.service';
+import { CourierService } from 'src/courier/courier.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [BullModule.registerQueue({ name: 'notification' })],
+  imports: [
+    BullModule.registerQueue({ name: 'notification' }),
+    HttpModule.register({
+      timeout: 10000,
+      maxRedirects: 5,
+    }),
+  ],
   controllers: [AdminController],
   providers: [
     AdminService,
@@ -28,6 +36,7 @@ import { ReviewService } from 'src/review/review.service';
     OrderService,
     NotificationsService,
     ReviewService,
+    CourierService,
   ],
 })
 export class AdminModule {}
