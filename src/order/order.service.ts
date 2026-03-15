@@ -764,6 +764,8 @@ export class OrderService {
       PROCESSING: 0,
       RETURN_REQUESTED: 0,
       FAILED: 0,
+      ON_HOLD: 0,
+      PARTIALLY_DELIVERED: 0,
     };
 
     statusGroups.forEach((g) => {
@@ -900,6 +902,8 @@ export class OrderService {
       PROCESSING: 'Processing',
       RETURN_REQUESTED: 'Return Requested',
       FAILED: 'Failed',
+      ON_HOLD: 'On Hold',
+      PARTIALLY_DELIVERED: 'Partially Delivered',
     };
 
     const isSpecialStatus = ['CANCELLED', 'RETURNED'].includes(order.status);

@@ -577,9 +577,11 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  FAILED 
+  RETURNED 
+  ON_HOLD 
+  PARTIALLY_DELIVERED 
   RETURN_REQUESTED
-  RETURNED
-  FAILED
 }
 
 model OrderStatusHistory {
@@ -698,14 +700,14 @@ model CourierShipment {
   errorMessage String?
   metadata     Json?
 
-  weight             Float?
-  itemDescription    String?
+  weight              Float?
+  itemDescription     String?
   special_instruction String?
-  recipientName      String?
-  recipientPhone     String?
-  recipientAddress   String?
-  deliveryType       Int?
-  itemType           Int?
+  recipientName       String?
+  recipientPhone      String?
+  recipientAddress    String?
+  deliveryType        Int?
+  itemType            Int?
 
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt

@@ -78,6 +78,8 @@ export class CourierWebhookService {
       DELIVERED: 5,
       CANCELLED: 5,
       FAILED: 5,
+      ON_HOLD: 2,
+      PARTIALLY_DELIVERED: 5,
       RETURN_REQUESTED: 6,
       RETURNED: 7,
     };

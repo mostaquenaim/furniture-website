@@ -162,6 +162,83 @@ export class CourierService {
     return { message: 'Provider deleted successfully' };
   }
 
+  private prepareShipmentData(
+    orderData: any,
+    provider: any,
+    specialInstructions?: string,
+  ) {
+    // console.log('orderdata', orderData, 'orderdata');
+    // Get merchant store ID from provider config
+    console.log(provider, 'provider data', provider.config.store_id);
+    const storeId =
+      provider.config?.store_id || provider.config?.merchant_store_id;
+
+    if (!storeId) {
+      throw new Error('store_id not configured for Pathao provider');
+    }
+
+    // Calculate total items quantity
+    const totalQuantity = orderData.items.reduce(
+      (sum: number, item: any) => sum + (item.quantity || 1),
+      0,
+    );
+
+    // Calculate total weight (default to 0.5 if not available)
+    const weight = this.calculateTotalWeight(orderData.items) || 0.5;
+
+    // Create item description from order items
+    const itemDescription = orderData.items
+      .map((item: any) => `${item.quantity}x ${item.productTitle}`)
+      .join(', ');
+
+    // Base data for all providers
+    const baseData = {
+      orderId: orderData.orderId || orderData.id,
+      customerName: orderData.customerName || orderData.shippingName,
+      customerPhone: this.normalizeBDPhone(
+        orderData.customerPhone || orderData.phone,
+      ),
+      shippingAddress: orderData.shippingAddress || orderData.address,
+      district: orderData.district?.name || orderData.districtName,
+      postCode: orderData.postCode,
+      amount: orderData.total,
+      codAmount: orderData.paymentMethod === 'COD' ? orderData.total : 0,
+      totalQuantity,
+      weight: weight.toString(), // Convert to string for Pathao
+      itemDescription: itemDescription.substring(0, 500), // Limit length
+    };
+
+    // Provider-specific data transformation
+    switch (provider.name.toLowerCase()) {
+      case 'pathao':
+        return {
+          ...baseData,
+          store_id: storeId,
+          merchant_store_id: storeId,
+          recipient_name: baseData.customerName,
+          recipient_phone: baseData.customerPhone,
+          recipient_address: baseData.shippingAddress,
+          delivery_type: 48, // Standard delivery
+          item_type: 2, // Document/Parcel
+          special_instruction: specialInstructions || '',
+          item_quantity: baseData.totalQuantity,
+          item_weight: baseData.weight,
+          item_description: baseData.itemDescription,
+          amount_to_collect: baseData.codAmount,
+        };
+
+      case 'redx':
+        // RedX specific transformation
+        return {
+          ...baseData,
+          // RedX specific fields
+        };
+
+      default:
+        return baseData;
+    }
+  }
+
   async createShipment(dto: CreateCourierShipmentDto, adminId: number) {
     return this.prisma.$transaction(async (tx) => {
       // Get order details
@@ -332,6 +409,8 @@ export class CourierService {
       DELIVERED: 5,
       CANCELLED: 5,
       FAILED: 5,
+      ON_HOLD: 2,
+      PARTIALLY_DELIVERED: 5,
       RETURN_REQUESTED: 6,
       RETURNED: 7,
     };
@@ -484,83 +563,6 @@ export class CourierService {
     }
 
     return shipments;
-  }
-
-  private prepareShipmentData(
-    orderData: any,
-    provider: any,
-    specialInstructions?: string,
-  ) {
-    // console.log('orderdata', orderData, 'orderdata');
-    // Get merchant store ID from provider config
-    console.log(provider, 'provider data', provider.config.store_id);
-    const storeId =
-      provider.config?.store_id || provider.config?.merchant_store_id;
-
-    if (!storeId) {
-      throw new Error('store_id not configured for Pathao provider');
-    }
-
-    // Calculate total items quantity
-    const totalQuantity = orderData.items.reduce(
-      (sum: number, item: any) => sum + (item.quantity || 1),
-      0,
-    );
-
-    // Calculate total weight (default to 0.5 if not available)
-    const weight = this.calculateTotalWeight(orderData.items) || 0.5;
-
-    // Create item description from order items
-    const itemDescription = orderData.items
-      .map((item: any) => `${item.quantity}x ${item.productTitle}`)
-      .join(', ');
-
-    // Base data for all providers
-    const baseData = {
-      orderId: orderData.orderId || orderData.id,
-      customerName: orderData.customerName || orderData.shippingName,
-      customerPhone: this.normalizeBDPhone(
-        orderData.customerPhone || orderData.phone,
-      ),
-      shippingAddress: orderData.shippingAddress || orderData.address,
-      district: orderData.district?.name || orderData.districtName,
-      postCode: orderData.postCode,
-      amount: orderData.total,
-      codAmount: orderData.paymentMethod === 'COD' ? orderData.total : 0,
-      totalQuantity,
-      weight: weight.toString(), // Convert to string for Pathao
-      itemDescription: itemDescription.substring(0, 500), // Limit length
-    };
-
-    // Provider-specific data transformation
-    switch (provider.name.toLowerCase()) {
-      case 'pathao':
-        return {
-          ...baseData,
-          store_id: storeId,
-          merchant_store_id: storeId,
-          recipient_name: baseData.customerName,
-          recipient_phone: baseData.customerPhone,
-          recipient_address: baseData.shippingAddress,
-          delivery_type: 48, // Standard delivery
-          item_type: 2, // Document/Parcel
-          special_instruction: specialInstructions || '',
-          item_quantity: baseData.totalQuantity,
-          item_weight: baseData.weight,
-          item_description: baseData.itemDescription,
-          amount_to_collect: baseData.codAmount,
-        };
-
-      case 'redx':
-        // RedX specific transformation
-        return {
-          ...baseData,
-          // RedX specific fields
-        };
-
-      default:
-        return baseData;
-    }
   }
 
   private calculateTotalWeight(items: any[]): number {
