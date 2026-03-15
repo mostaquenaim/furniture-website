@@ -761,6 +761,9 @@ export class OrderService {
       DELIVERED: 0,
       CANCELLED: 0,
       RETURNED: 0,
+      PROCESSING: 0,
+      RETURN_REQUESTED: 0,
+      FAILED: 0,
     };
 
     statusGroups.forEach((g) => {
@@ -894,6 +897,9 @@ export class OrderService {
       DELIVERED: 'Delivered',
       CANCELLED: 'Cancelled',
       RETURNED: 'Returned',
+      PROCESSING: 'Processing',
+      RETURN_REQUESTED: 'Return Requested',
+      FAILED: 'Failed',
     };
 
     const isSpecialStatus = ['CANCELLED', 'RETURNED'].includes(order.status);
@@ -924,6 +930,7 @@ export class OrderService {
     });
 
     const baseResponse = {
+      id: order.id,
       orderNumber: order.orderId,
       trackingToken: order.trackingToken,
       orderDate: new Date(order.createdAt).toLocaleDateString('en-US', {

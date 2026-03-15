@@ -9,13 +9,11 @@ import {
   UseGuards,
   Req,
   Query,
-  Res,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from '@prisma/client';
-import type { Response } from 'express';
 
 @UseGuards(JwtAuthGuard)
 @Controller('orders')

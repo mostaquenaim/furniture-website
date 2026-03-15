@@ -51,6 +51,7 @@ import { ReviewService } from 'src/review/review.service';
 import { CreateCourierProviderDto } from 'src/courier/dto/create-courier-provider.dto';
 import { CourierService } from 'src/courier/courier.service';
 import { UpdateCourierProviderDto } from 'src/courier/dto/update-courier-provider.dto';
+import { CreateCourierShipmentDto } from 'src/courier/dto/create-courier-shipment.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -400,6 +401,10 @@ export class AdminController {
     return this.orderService.updateOrderStatus(id, status, req?.user?.userId);
   }
 
+  //////////////////////
+  ////// COURIER //////
+  ////////////////////
+
   @Post('providers')
   addProvider(@Body() dto: CreateCourierProviderDto, @Req() req: any) {
     return this.courierService.addProvider(dto, req?.user?.userId);
@@ -417,6 +422,28 @@ export class AdminController {
   @Delete('providers/:id')
   deleteProvider(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.courierService.deleteProvider(id, req?.user?.userId);
+  }
+
+  @Post('courier/shipments')
+  async createShipment(@Body() dto: CreateCourierShipmentDto, @Req() req: any) {
+    return this.courierService.createShipment(dto, req?.user?.userId);
+  }
+
+  @Get('courier/shipments')
+  getShipments(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('provider') provider?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.courierService.getShipments({
+      page: Number(page),
+      limit: Number(limit),
+      provider,
+      status,
+      search,
+    });
   }
 
   // @Post('create-mock-coupons')

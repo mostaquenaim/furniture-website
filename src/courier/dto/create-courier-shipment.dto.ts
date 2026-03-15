@@ -6,7 +6,6 @@ import {
   IsObject,
   IsPositive,
   Min,
-  Max,
   ValidateNested,
   IsNotEmpty,
   MinLength,
@@ -24,6 +23,10 @@ export class CreateCourierShipmentDto {
   @IsPositive({ message: 'providerId must be a positive number' })
   @IsNotEmpty({ message: 'providerId is required' })
   providerId: number;
+
+  @IsOptional()
+  @IsString()
+  special_instruction?: string;
 
   @IsOptional()
   @IsString({ message: 'consignmentId must be a string' })

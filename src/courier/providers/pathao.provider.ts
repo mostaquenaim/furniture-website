@@ -10,6 +10,7 @@ import { firstValueFrom } from 'rxjs';
 import { Injectable, Logger } from '@nestjs/common';
 import { CourierProviderInterface } from './courier-provider.interface';
 import axios from 'axios';
+import { CourierStatus } from '@prisma/client';
 
 @Injectable()
 export class PathaoProvider implements CourierProviderInterface {
@@ -28,7 +29,7 @@ export class PathaoProvider implements CourierProviderInterface {
     private configService: ConfigService,
   ) {
     this.baseUrl = this.configService.get(
-      'PATHAO_API_URL',
+      'PATHAO_BASE_URL',
       'https://api-hermes.pathao.com',
     );
     this.clientId = this.configService.get('PATHAO_CLIENT_ID');
@@ -37,8 +38,13 @@ export class PathaoProvider implements CourierProviderInterface {
     this.password = this.configService.get('PATHAO_PASSWORD');
   }
 
+  refreshToken() {
+    throw new Error('Method not implemented.');
+  }
+
   private async getPathaoAccessToken(): Promise<string> {
     const now = Date.now();
+
     if (this.accessToken && this.tokenExpiry && now < this.tokenExpiry) {
       return this.accessToken;
     }
@@ -50,6 +56,8 @@ export class PathaoProvider implements CourierProviderInterface {
       username: this.username,
       password: this.password,
     };
+
+    console.log(data, 'access-data');
 
     try {
       const res = await axios.post(
@@ -64,6 +72,7 @@ export class PathaoProvider implements CourierProviderInterface {
       this.tokenExpiry = now + res.data.expires_in * 1000;
 
       this.logger.debug('Pathao access token refreshed successfully');
+
       return this.accessToken;
     } catch (err) {
       this.logger.error('Token Error:', err.response?.data || err.message);
@@ -76,10 +85,14 @@ export class PathaoProvider implements CourierProviderInterface {
   // provider.ts
   async createShipment(data: any): Promise<any> {
     try {
+      const token = await this.getPathaoAccessToken();
+
       // Validate required fields
       if (!data.store_id) {
         throw new Error('store_id is required for Pathao shipment');
       }
+
+      // console.log('shipment data', data, 'shipment data');
 
       const response = await firstValueFrom(
         this.httpService.post(
@@ -101,20 +114,20 @@ export class PathaoProvider implements CourierProviderInterface {
           },
           {
             headers: {
-              Authorization: `Bearer ${this.accessToken}`, // Pathao uses Bearer token
+              Authorization: `Bearer ${token}`, // Pathao uses Bearer token
               'Content-Type': 'application/json',
             },
           },
         ),
       );
 
+      const result = response.data?.data;
+
       return {
-        consignmentId: response.data.data.consignment_id, // Pathao wraps response in 'data'
-        trackingNumber: response.data.data.tracking_code,
-        trackingUrl: `https://pathao.com/track/${response.data.data.tracking_code}`,
-        status: response.data.data.order_status,
-        labelUrl: response.data.data.label_url,
-        deliveryCharge: response.data.data.delivery_charge,
+        consignmentId: result.consignment_id,
+        merchantOrderId: result.merchant_order_id,
+        status: result.order_status,
+        deliveryFee: result.delivery_fee,
         metadata: response.data,
       };
     } catch (error) {
@@ -186,15 +199,16 @@ export class PathaoProvider implements CourierProviderInterface {
     };
   }
 
-  private mapStatus(status: string): string {
-    const map: Record<string, string> = {
-      pending: 'PENDING',
-      delivered: 'DELIVERED',
-      cancelled: 'CANCELLED',
-      return: 'RETURNED',
-      in_review: 'ON_HOLD',
-      transit: 'IN_TRANSIT',
+  mapStatus(status: string): CourierStatus {
+    const map: Record<string, CourierStatus> = {
+      pending: CourierStatus.PENDING,
+      delivered: CourierStatus.DELIVERED,
+      cancelled: CourierStatus.CANCELLED,
+      return: CourierStatus.RETURNED,
+      in_review: CourierStatus.ON_HOLD,
+      transit: CourierStatus.IN_TRANSIT,
     };
-    return map[status?.toLowerCase()] || 'PENDING';
+
+    return map[status?.toLowerCase()] || CourierStatus.PENDING;
   }
 }

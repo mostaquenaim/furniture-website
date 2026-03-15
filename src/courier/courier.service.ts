@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -12,14 +13,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CourierStatus } from '@prisma/client';
+import { CourierStatus, OrderStatus, Prisma } from '@prisma/client';
 import { CreateCourierShipmentDto } from './dto/create-courier-shipment.dto';
 import { UpdateShipmentStatusDto } from './dto/update-shipment-status.dto';
 import { CourierWebhookDto } from './dto/courier-webhook.dto';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { CourierProviderInterface } from './providers/courier-provider.interface';
-import { SteadfastCourierProvider } from './providers/steadfast.provider';
+import { SteadfastProvider } from './providers/steadfast.provider';
 import { RedxProvider } from './providers/redx.provider';
 import { PaperflyProvider } from './providers/paperfly.provider';
 import { PathaoProvider } from './providers/pathao.provider';
@@ -27,6 +28,7 @@ import { CalculateRateDto } from './dto/calculate-rate.dto';
 import { CreateCourierProviderDto } from './dto/create-courier-provider.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { UpdateCourierProviderDto } from './dto/update-courier-provider.dto';
+import { COURIER_TO_ORDER_STATUS } from './courier-status.map';
 
 @Injectable()
 export class CourierService {
@@ -46,7 +48,7 @@ export class CourierService {
     // Register available courier providers
     this.providers.set(
       'steadfast',
-      new SteadfastCourierProvider(this.httpService, this.configService),
+      new SteadfastProvider(this.httpService, this.configService),
     );
     this.providers.set(
       'redx',
@@ -160,7 +162,7 @@ export class CourierService {
     return { message: 'Provider deleted successfully' };
   }
 
-  async createShipment(dto: CreateCourierShipmentDto) {
+  async createShipment(dto: CreateCourierShipmentDto, adminId: number) {
     return this.prisma.$transaction(async (tx) => {
       // Get order details
       const order = await tx.order.findUnique({
@@ -211,8 +213,13 @@ export class CourierService {
       }
 
       // Prepare shipment data for provider
-      const shipmentData = this.prepareShipmentData(order, provider);
+      const shipmentData = this.prepareShipmentData(
+        order,
+        provider,
+        dto.special_instruction,
+      );
 
+      // console.log('shipmentData', shipmentData.store_id);
       // Create shipment with provider
       let providerResponse;
       try {
@@ -223,7 +230,6 @@ export class CourierService {
           error,
         );
 
-        // Create failed shipment record
         await tx.courierShipment.create({
           data: {
             status: 'FAILED',
@@ -244,15 +250,36 @@ export class CourierService {
           orderId: dto.orderId,
           providerId: dto.providerId,
           consignmentId: providerResponse.consignmentId,
-          trackingNumber: providerResponse.trackingNumber,
+          trackingNumber:
+            providerResponse.trackingNumber || providerResponse.consignmentId,
           trackingUrl: providerResponse.trackingUrl,
-          labelUrl: providerResponse.labelUrl,
-          manifestUrl: providerResponse.manifestUrl,
           status: this.mapProviderStatus(providerResponse.status),
           providerStatus: providerResponse.status,
-          deliveryCharge: dto.deliveryCharge || providerResponse.deliveryCharge,
+          deliveryCharge:
+            dto.deliveryCharge || providerResponse.deliveryFee || 0,
           codAmount: dto.codAmount || order.total,
           metadata: providerResponse.metadata,
+        },
+      });
+
+      await this.syncOrderStatusFromShipment(shipment.id, tx);
+
+      await this.activityLogService.log({
+        adminId,
+        action: 'CREATE_SHIPMENT',
+        module: 'ORDER',
+        targetId: shipment.id,
+        targetLabel: `Order no. ${shipment.orderId}`,
+        newValue: {
+          orderId: shipment.orderId,
+          providerId: shipment.providerId,
+          consignmentId: shipment.consignmentId,
+          trackingNumber: shipment.trackingNumber,
+          status: shipment.status,
+          providerStatus: shipment.providerStatus,
+          deliveryCharge: shipment.deliveryCharge,
+          codAmount: shipment.codAmount,
+          metadata: shipment.metadata,
         },
       });
 
@@ -279,54 +306,128 @@ export class CourierService {
     });
   }
 
-  async updateShipmentStatus(id: number, dto: UpdateShipmentStatusDto) {
-    const shipment = await this.prisma.courierShipment.findUnique({
-      where: { id },
-      include: {
-        provider: true,
-      },
+  // sync order status shipments
+  async syncOrderStatusFromShipment(
+    shipmentId: number,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prisma;
+
+    const shipment = await db.courierShipment.findUnique({
+      where: { id: shipmentId },
+      include: { order: true, provider: true },
     });
+    if (!shipment) return;
 
-    if (!shipment) {
-      throw new NotFoundException('Shipment not found');
-    }
+    const mappedStatus = COURIER_TO_ORDER_STATUS[shipment.status];
+    if (!mappedStatus) return;
 
-    const mappedStatus = this.mapProviderStatus(dto.status);
+    // Only move forward — never downgrade order status
+    const ORDER_RANK: Record<OrderStatus, number> = {
+      PENDING: 0,
+      CONFIRMED: 1,
+      PROCESSING: 2,
+      PACKED: 3,
+      SHIPPED: 4,
+      DELIVERED: 5,
+      CANCELLED: 5,
+      FAILED: 5,
+      RETURN_REQUESTED: 6,
+      RETURNED: 7,
+    };
 
-    // Update shipment
-    const updatedShipment = await this.prisma.courierShipment.update({
-      where: { id },
+    const currentRank = ORDER_RANK[shipment.order.status] ?? 0;
+    const newRank = ORDER_RANK[mappedStatus] ?? 0;
+
+    if (newRank <= currentRank) return;
+
+    await db.order.update({
+      where: { id: shipment.orderId },
       data: {
         status: mappedStatus,
-        providerStatus: dto.providerStatus || dto.status,
-        trackingNumber: dto.trackingNumber,
-        trackingUrl: dto.trackingUrl,
-        metadata: dto.metadata,
-        ...(mappedStatus === 'DELIVERED' && { deliveredAt: new Date() }),
+        // set AWB when first tracking number arrives
+        ...(shipment.trackingNumber && !shipment.order.awbNumber
+          ? { awbNumber: shipment.trackingNumber }
+          : {}),
       },
     });
 
-    // If delivered, update order status
-    if (mappedStatus === 'DELIVERED') {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: shipment.orderId },
-          data: {
-            status: 'DELIVERED',
-          },
-        });
+    // Write to history log
+    await db.orderStatusHistory.create({
+      data: {
+        orderId: shipment.orderId,
+        status: mappedStatus,
+        note: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,
+      },
+    });
+  }
 
-        await tx.orderStatusHistory.create({
-          data: {
-            orderId: shipment.orderId,
-            status: 'DELIVERED',
-            note: 'Order delivered successfully',
-          },
-        });
-      });
+  // get shipments
+  async getShipments({
+    page = 1,
+    limit = 10,
+    provider,
+    status,
+    search,
+  }: {
+    page?: number;
+    limit?: number;
+    provider?: string;
+    status?: string;
+    search?: string;
+  }) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (provider) {
+      where.provider = provider;
     }
 
-    return updatedShipment;
+    if (status) {
+      where.status = status;
+    }
+
+    if (search) {
+      where.OR = [
+        { trackingNumber: { contains: search, mode: 'insensitive' } },
+        { orderId: { contains: search, mode: 'insensitive' } },
+        { recipientName: { contains: search, mode: 'insensitive' } },
+        { recipientPhone: { contains: search } },
+      ];
+    }
+
+    const [shipments, total] = await this.prisma.$transaction([
+      this.prisma.courierShipment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          order: {
+            select: {
+              id: true,
+              orderId: true,
+              total: true,
+            },
+          },
+        },
+      }),
+
+      this.prisma.courierShipment.count({ where }),
+    ]);
+
+    return {
+      data: shipments,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async getShipmentTracking(orderId: number, providerId?: number) {
@@ -385,59 +486,157 @@ export class CourierService {
     return shipments;
   }
 
-  async handleWebhook(dto: CourierWebhookDto) {
-    this.logger.log(`Received webhook from ${dto.provider}: ${dto.eventType}`);
+  private prepareShipmentData(
+    orderData: any,
+    provider: any,
+    specialInstructions?: string,
+  ) {
+    // console.log('orderdata', orderData, 'orderdata');
+    // Get merchant store ID from provider config
+    console.log(provider, 'provider data', provider.config.store_id);
+    const storeId =
+      provider.config?.store_id || provider.config?.merchant_store_id;
 
-    // Find related shipment
-    let shipment;
-    if (dto.shipmentId) {
-      shipment = await this.prisma.courierShipment.findFirst({
-        where: {
-          OR: [
-            { consignmentId: dto.shipmentId },
-            { trackingNumber: dto.shipmentId },
-          ],
-        },
-        include: { provider: true },
-      });
+    if (!storeId) {
+      throw new Error('store_id not configured for Pathao provider');
     }
 
-    // Log webhook
-    const webhookLog = await this.prisma.courierWebhookLog.create({
-      data: {
-        provider: dto.provider,
-        eventType: dto.eventType,
-        payload: dto.payload as any,
-        shipmentId: shipment?.id,
-      },
+    // Calculate total items quantity
+    const totalQuantity = orderData.items.reduce(
+      (sum: number, item: any) => sum + (item.quantity || 1),
+      0,
+    );
+
+    // Calculate total weight (default to 0.5 if not available)
+    const weight = this.calculateTotalWeight(orderData.items) || 0.5;
+
+    // Create item description from order items
+    const itemDescription = orderData.items
+      .map((item: any) => `${item.quantity}x ${item.productTitle}`)
+      .join(', ');
+
+    // Base data for all providers
+    const baseData = {
+      orderId: orderData.orderId || orderData.id,
+      customerName: orderData.customerName || orderData.shippingName,
+      customerPhone: this.normalizeBDPhone(
+        orderData.customerPhone || orderData.phone,
+      ),
+      shippingAddress: orderData.shippingAddress || orderData.address,
+      district: orderData.district?.name || orderData.districtName,
+      postCode: orderData.postCode,
+      amount: orderData.total,
+      codAmount: orderData.paymentMethod === 'COD' ? orderData.total : 0,
+      totalQuantity,
+      weight: weight.toString(), // Convert to string for Pathao
+      itemDescription: itemDescription.substring(0, 500), // Limit length
+    };
+
+    // Provider-specific data transformation
+    switch (provider.name.toLowerCase()) {
+      case 'pathao':
+        return {
+          ...baseData,
+          store_id: storeId,
+          merchant_store_id: storeId,
+          recipient_name: baseData.customerName,
+          recipient_phone: baseData.customerPhone,
+          recipient_address: baseData.shippingAddress,
+          delivery_type: 48, // Standard delivery
+          item_type: 2, // Document/Parcel
+          special_instruction: specialInstructions || '',
+          item_quantity: baseData.totalQuantity,
+          item_weight: baseData.weight,
+          item_description: baseData.itemDescription,
+          amount_to_collect: baseData.codAmount,
+        };
+
+      case 'redx':
+        // RedX specific transformation
+        return {
+          ...baseData,
+          // RedX specific fields
+        };
+
+      default:
+        return baseData;
+    }
+  }
+
+  private calculateTotalWeight(items: any[]): number {
+    if (!items || items.length === 0) {
+      return 0.5; // Default weight
+    }
+
+    const totalWeight = items.reduce((sum, item) => {
+      const itemWeight = item.product?.weight || item.weight || 0;
+      const quantity = item.quantity || 1;
+      return sum + itemWeight * quantity;
+    }, 0);
+
+    // Minimum weight check (Pathao requires at least 0.5 kg)
+    return Math.max(totalWeight, 0.5);
+  }
+
+  private mapProviderStatus(providerStatus: string): CourierStatus {
+    // Normalize the status string
+    const normalized = providerStatus.toLowerCase().trim();
+
+    const statusMap: Record<string, CourierStatus> = {
+      // Pathao specific statuses
+      pending: 'PENDING',
+      pickup_requested: 'PICKUP_ASSIGNED',
+      assigned_for_pickup: 'PICKUP_ASSIGNED',
+      pickup: 'PICKED_UP',
+      pickup_failed: 'FAILED',
+      pickup_cancelled: 'CANCELLED',
+      at_the_sorting_hub: 'IN_TRANSIT',
+      in_transit: 'IN_TRANSIT',
+      'in-transit': 'IN_TRANSIT', // Handle hyphenated version
+      received_at_last_mile_hub: 'OUT_FOR_DELIVERY',
+      assigned_for_delivery: 'OUT_FOR_DELIVERY',
+      delivered: 'DELIVERED',
+      partial_delivery: 'PARTIALLY_DELIVERED',
+      return: 'RETURNED',
+      delivery_failed: 'FAILED',
+      on_hold: 'ON_HOLD',
+      cancelled: 'CANCELLED',
+
+      // Keep existing mappings for other providers
+      booked: 'BOOKED',
+      pickup_assigned: 'PICKUP_ASSIGNED',
+      picked_up: 'PICKED_UP',
+      out_for_delivery: 'OUT_FOR_DELIVERY',
+      partial_delivered: 'PARTIALLY_DELIVERED',
+      returned: 'RETURNED',
+      failed: 'FAILED',
+    };
+
+    return statusMap[normalized] || 'PENDING';
+  }
+
+  getProviders() {
+    return this.prisma.courierProvider.findMany({
+      where: { isActive: true },
+      orderBy: { priority: 'asc' },
     });
+  }
 
-    // Process webhook based on provider and event type
-    try {
-      const processed = await this.processWebhook(dto, shipment);
+  private normalizeBDPhone(phone: string): string {
+    if (!phone) return phone;
 
-      // Update webhook log as processed
-      await this.prisma.courierWebhookLog.update({
-        where: { id: webhookLog.id },
-        data: {
-          processed: true,
-          processedAt: new Date(),
-        },
-      });
+    // remove spaces and dashes
+    phone = phone.replace(/[\s-]/g, '');
 
-      return processed;
-    } catch (error) {
-      this.logger.error('Failed to process webhook:', error);
-
-      await this.prisma.courierWebhookLog.update({
-        where: { id: webhookLog.id },
-        data: {
-          error: error.message,
-        },
-      });
-
-      throw error;
+    if (phone.startsWith('+880')) {
+      return '0' + phone.slice(4);
     }
+
+    if (phone.startsWith('880')) {
+      return '0' + phone.slice(3);
+    }
+
+    return phone;
   }
 
   async calculateRates(dto: CalculateRateDto) {
@@ -492,229 +691,5 @@ export class CourierService {
     }
 
     return rates.sort((a, b) => a.totalCharge - b.totalCharge);
-  }
-
-  getProviders() {
-    return this.prisma.courierProvider.findMany({
-      where: { isActive: true },
-      orderBy: { priority: 'asc' },
-    });
-  }
-
-  async syncShipmentStatus(shipmentId: number) {
-    const shipment = await this.prisma.courierShipment.findUnique({
-      where: { id: shipmentId },
-      include: { provider: true },
-    });
-
-    if (!shipment) {
-      throw new NotFoundException('Shipment not found');
-    }
-
-    const providerImpl = this.providers.get(
-      shipment.provider.name.toLowerCase(),
-    );
-    if (!providerImpl) {
-      throw new BadRequestException(
-        `Provider ${shipment.provider.name} implementation not found`,
-      );
-    }
-
-    try {
-      const status = await providerImpl.trackShipment(
-        shipment.consignmentId || shipment.trackingNumber || '',
-      );
-
-      await this.updateShipmentStatus(shipmentId, {
-        status: status.status,
-        providerStatus: status.providerStatus,
-        trackingNumber: status.trackingNumber,
-        trackingUrl: status.trackingUrl,
-        metadata: status.metadata,
-      });
-
-      return { success: true, status };
-    } catch (error) {
-      this.logger.error(`Failed to sync shipment ${shipmentId}:`, error);
-      throw new BadRequestException(`Failed to sync: ${error.message}`);
-    }
-  }
-
-  private prepareShipmentData(order: any, provider: any) {
-    // Get merchant store ID from provider config
-    const storeId =
-      provider.config?.store_id || provider.config?.merchant_store_id;
-
-    if (!storeId) {
-      throw new Error('store_id not configured for Pathao provider');
-    }
-
-    // Calculate total items quantity
-    const totalQuantity = order.items.reduce(
-      (sum: number, item: any) => sum + (item.quantity || 1),
-      0,
-    );
-
-    // Calculate total weight (default to 0.5 if not available)
-    const weight = this.calculateTotalWeight(order.items) || 0.5;
-
-    // Create item description from order items
-    const itemDescription = order.items
-      .map((item: any) => `${item.quantity}x ${item.productTitle}`)
-      .join(', ');
-
-    // Base data for all providers
-    const baseData = {
-      orderId: order.orderId || order.id,
-      customerName: order.customerName || order.shippingName,
-      customerPhone: order.customerPhone || order.phone,
-      shippingAddress: order.shippingAddress || order.address,
-      district: order.district?.name || order.districtName,
-      postCode: order.postCode,
-      amount: order.total,
-      codAmount: order.paymentMethod === 'COD' ? order.total : 0,
-      totalQuantity,
-      weight: weight.toString(), // Convert to string for Pathao
-      itemDescription: itemDescription.substring(0, 500), // Limit length
-    };
-
-    // Provider-specific data transformation
-    switch (provider.name.toLowerCase()) {
-      case 'pathao':
-        return {
-          ...baseData,
-          store_id: storeId,
-          merchant_store_id: storeId,
-          recipient_name: baseData.customerName,
-          recipient_phone: baseData.customerPhone,
-          recipient_address: baseData.shippingAddress,
-          delivery_type: 48, // Standard delivery
-          item_type: 2, // Document/Parcel
-          special_instruction: order.specialInstructions || '',
-          item_quantity: baseData.totalQuantity,
-          item_weight: baseData.weight,
-          item_description: baseData.itemDescription,
-          amount_to_collect: baseData.codAmount,
-        };
-
-      case 'redx':
-        // RedX specific transformation
-        return {
-          ...baseData,
-          // RedX specific fields
-        };
-
-      default:
-        return baseData;
-    }
-  }
-
-  private calculateTotalWeight(items: any[]): number {
-    if (!items || items.length === 0) {
-      return 0.5; // Default weight
-    }
-
-    const totalWeight = items.reduce((sum, item) => {
-      const itemWeight = item.product?.weight || item.weight || 0;
-      const quantity = item.quantity || 1;
-      return sum + itemWeight * quantity;
-    }, 0);
-
-    // Minimum weight check (Pathao requires at least 0.5 kg)
-    return Math.max(totalWeight, 0.5);
-  }
-
-  private mapProviderStatus(providerStatus: string): CourierStatus {
-    const statusMap: Record<string, CourierStatus> = {
-      pending: 'PENDING',
-      booked: 'BOOKED',
-      pickup_assigned: 'PICKUP_ASSIGNED',
-      picked_up: 'PICKED_UP',
-      in_transit: 'IN_TRANSIT',
-      out_for_delivery: 'OUT_FOR_DELIVERY',
-      delivered: 'DELIVERED',
-      partial_delivered: 'PARTIALLY_DELIVERED',
-      returned: 'RETURNED',
-      cancelled: 'CANCELLED',
-      on_hold: 'ON_HOLD',
-      failed: 'FAILED',
-    };
-
-    return statusMap[providerStatus.toLowerCase()] || 'PENDING';
-  }
-
-  private async processWebhook(dto: CourierWebhookDto, shipment?: any) {
-    // Process different event types
-    switch (dto.eventType) {
-      case 'shipment.created':
-      case 'shipment.booked':
-        if (shipment) {
-          await this.updateShipmentStatus(shipment.id, {
-            status: 'BOOKED',
-            providerStatus: dto.eventType,
-            trackingNumber: dto.payload.tracking_number,
-            trackingUrl: dto.payload.tracking_url,
-          });
-        }
-        break;
-
-      case 'shipment.picked_up':
-        if (shipment) {
-          await this.updateShipmentStatus(shipment.id, {
-            status: 'PICKED_UP',
-            providerStatus: dto.eventType,
-          });
-        }
-        break;
-
-      case 'shipment.in_transit':
-        if (shipment) {
-          await this.updateShipmentStatus(shipment.id, {
-            status: 'IN_TRANSIT',
-            providerStatus: dto.eventType,
-          });
-        }
-        break;
-
-      case 'shipment.out_for_delivery':
-        if (shipment) {
-          await this.updateShipmentStatus(shipment.id, {
-            status: 'OUT_FOR_DELIVERY',
-            providerStatus: dto.eventType,
-          });
-        }
-        break;
-
-      case 'shipment.delivered':
-        if (shipment) {
-          await this.updateShipmentStatus(shipment.id, {
-            status: 'DELIVERED',
-            providerStatus: dto.eventType,
-            metadata: { deliveredAt: dto.payload.delivered_at },
-          });
-        }
-        break;
-
-      case 'shipment.returned':
-        if (shipment) {
-          await this.updateShipmentStatus(shipment.id, {
-            status: 'RETURNED',
-            providerStatus: dto.eventType,
-          });
-        }
-        break;
-
-      case 'shipment.failed':
-        if (shipment) {
-          await this.updateShipmentStatus(shipment.id, {
-            status: 'FAILED',
-            providerStatus: dto.eventType,
-            metadata: { failureReason: dto.payload.reason },
-          });
-        }
-        break;
-    }
-
-    return { received: true };
   }
 }

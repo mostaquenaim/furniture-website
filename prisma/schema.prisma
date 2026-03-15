@@ -572,11 +572,14 @@ model OrderItem {
 enum OrderStatus {
   PENDING
   CONFIRMED
+  PROCESSING
   PACKED
   SHIPPED
   DELIVERED
   CANCELLED
+  RETURN_REQUESTED
   RETURNED
+  FAILED
 }
 
 model OrderStatusHistory {
@@ -671,9 +674,8 @@ model CourierProvider {
 model CourierShipment {
   id Int @id @default(autoincrement())
 
-  orderId Int
-  order   Order @relation(fields: [orderId], references: [id])
-
+  orderId    Int
+  order      Order           @relation(fields: [orderId], references: [id])
   providerId Int
   provider   CourierProvider @relation(fields: [providerId], references: [id])
 
@@ -687,8 +689,7 @@ model CourierShipment {
   status         CourierStatus @default(PENDING)
   providerStatus String?
 
-  lastSyncAt DateTime?
-
+  lastSyncAt  DateTime?
   deliveredAt DateTime?
 
   deliveryCharge Float?
@@ -696,6 +697,15 @@ model CourierShipment {
 
   errorMessage String?
   metadata     Json?
+
+  weight             Float?
+  itemDescription    String?
+  special_instruction String?
+  recipientName      String?
+  recipientPhone     String?
+  recipientAddress   String?
+  deliveryType       Int?
+  itemType           Int?
 
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
