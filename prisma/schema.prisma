@@ -1245,3 +1245,44 @@ model SEO {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// =====================
+// COMPANY INFO
+// =====================
+model CompanyInfo {
+  id          Int      @id @default(autoincrement())
+
+  // Basic
+  name        String   @default("Sakigai")
+  logo        String?  // Cloudinary URL
+  favicon     String?  // Cloudinary URL
+  tagline     String?
+  about       String?  @db.Text
+
+  // Contact
+  email       String?
+  phone       String?
+  whatsapp    String?
+  address     String?
+  city        String?
+  country     String?
+  googleMapUrl String?
+
+  // Social
+  facebook    String?
+  instagram   String?
+  youtube     String?
+  tiktok      String?
+  twitter     String?
+  linkedin    String?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?  // Open Graph image URL
+
+  updatedAt   DateTime @updatedAt
+  updatedBy   Int?     // last admin user id
+
+  @@map("company_info")
+}

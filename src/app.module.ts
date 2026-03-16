@@ -39,6 +39,7 @@ import { BarcodeModule } from './barcode/barcode.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { CourierModule } from './courier/courier.module';
 import { AdminUserModule } from './admin-user/admin-user.module';
+import { CompanyModule } from './company/company.module';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { AdminUserModule } from './admin-user/admin-user.module';
     ActivityLogModule,
     CourierModule,
     AdminUserModule,
+    CompanyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

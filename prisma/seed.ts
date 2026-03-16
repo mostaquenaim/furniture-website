@@ -924,6 +924,7 @@ async function main() {
   //     }
   //   }
   // }
+
   // console.log('✅ Sakigai catalog seeded successfully');
   // console.log('Seeding districts...');
   // for (const district of districtsData) {
@@ -965,6 +966,17 @@ async function main() {
       result ? created++ : updated++;
     }
   }
+
+  await prisma.companyInfo.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      id: 1,
+      name: 'Sakigai',
+      email: 'hello@sakigai.com',
+      country: 'Bangladesh',
+    },
+  });
 
   console.log(
     `Seeded ${MANAGEABLE_ROLES.length * allActions.length} permission rows`,
