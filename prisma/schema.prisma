@@ -78,24 +78,15 @@ model Visitor {
 // =====================
 // Permission
 // =====================
-model FrontendPermission {
-  id        Int        @id @default(autoincrement())
-  name      String     @unique // e.g., VIEW_USER_MANAGEMENT
-  path      String     @unique // e.g., /admin/users, /dashboard/analytics
-  component String? // Component/Page name
-  roles     UserRole[]
-}
+model RolePermission {
+  id        Int      @id @default(autoincrement())
+  role      UserRole
+  action    String
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
 
-model BackendPermission {
-  id       Int        @id @default(autoincrement())
-  name     String     @unique // e.g., MANAGE_USERS
-  endpoint String // e.g., /api/admin/users
-  method   String? // GET, POST, PUT, DELETE, etc.
-  resource String? // users, products, orders, etc.
-  action   String? // create, read, update, delete, list
-  roles    UserRole[]
-
-  @@unique([endpoint, method]) // ✅ composite unique constraint
+  @@unique([role, action])
+  @@map("role_permissions")
 }
 
 // =====================
@@ -218,6 +209,7 @@ model Product {
   basePrice        Int
   price            Int?
   brand            String?
+  weight           Float?
   hasColorVariants Boolean @default(true)
   showColor        Boolean @default(true)
 
@@ -577,10 +569,10 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
-  FAILED 
-  RETURNED 
-  ON_HOLD 
-  PARTIALLY_DELIVERED 
+  FAILED
+  RETURNED
+  ON_HOLD
+  PARTIALLY_DELIVERED
   RETURN_REQUESTED
 }
 

@@ -172,8 +172,6 @@ export class CmsController {
     return this.cmsService.getDistricts();
   }
 
-  //INVOICE
-
   //invoice
   @Get('invoices/:id')
   async getInvoice(@Param('id') id: string) {

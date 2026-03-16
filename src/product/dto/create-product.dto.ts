@@ -27,6 +27,10 @@ export class CreateProductDto {
   deliveryEstimate?: string;
 
   @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  weight?: number;
+
+  @IsOptional()
   @IsString()
   description?: string;
 

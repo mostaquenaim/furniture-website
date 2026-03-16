@@ -52,6 +52,9 @@ import { CreateCourierProviderDto } from 'src/courier/dto/create-courier-provide
 import { CourierService } from 'src/courier/courier.service';
 import { UpdateCourierProviderDto } from 'src/courier/dto/update-courier-provider.dto';
 import { CreateCourierShipmentDto } from 'src/courier/dto/create-courier-shipment.dto';
+import { Action } from 'src/permission/action.enum';
+import { Permission } from 'src/permission/permission.decorator';
+import { SkipPermission } from 'src/permission/skip-permission.decorator';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -69,12 +72,14 @@ export class AdminController {
 
   // ADMIN DASHBOARD BASIC INFO
   @Get('all-series')
+  @Permission(Action.CATEGORY_VIEW)
   findAll() {
     return this.categoryService.getAllSeries(true);
   }
 
   // series, category and subcategory creation
   @Post('series')
+  @Permission(Action.CATEGORY_CREATE)
   createSeries(@Body() createSeriesDto: CreateSeriesDto, @Req() req: any) {
     return this.categoryService.createSeries(
       createSeriesDto,
@@ -83,6 +88,7 @@ export class AdminController {
   }
 
   @Post('category')
+  @Permission(Action.CATEGORY_CREATE)
   createCategory(
     @Body() createCategoryDto: CreateCategoryDto,
     @Req() req: any,
@@ -94,6 +100,7 @@ export class AdminController {
   }
 
   @Post('subcategory')
+  @Permission(Action.CATEGORY_CREATE)
   createSubCategory(
     @Body() createSubCategoryDto: CreateSubCategoryDto,
     @Req() req: any,
@@ -106,6 +113,7 @@ export class AdminController {
 
   // update series order
   @Patch('series/reorder')
+  @Permission(Action.CATEGORY_REORDER)
   async reorderSeries(
     @Req() req: any,
     @Body('orders') orders: { id: number; sortOrder: number }[],
@@ -115,6 +123,7 @@ export class AdminController {
 
   // update category order
   @Patch('categories/reorder')
+  @Permission(Action.CATEGORY_REORDER)
   async reorderCategories(
     @Req() req: any,
     @Body('orders') orders: { id: number; sortOrder: number }[],
@@ -127,6 +136,7 @@ export class AdminController {
 
   // update category order
   @Patch('subcategories/reorder')
+  @Permission(Action.CATEGORY_REORDER)
   async reorderSubcategories(
     @Req() req: any,
     @Body('orders') orders: { id: number; sortOrder: number }[],
@@ -139,6 +149,7 @@ export class AdminController {
 
   // update categories
   @Patch('series/:slug')
+  @Permission(Action.CATEGORY_UPDATE)
   async updateSeries(
     @Req() req: any,
     @Param('slug') slug: string,
@@ -158,6 +169,7 @@ export class AdminController {
 
   // update categories
   @Patch('category/:slug')
+  @Permission(Action.CATEGORY_UPDATE)
   async updateCategory(
     @Req() req: any,
     @Param('slug') slug: string,
@@ -177,6 +189,7 @@ export class AdminController {
 
   // update categories
   @Patch('subcategory/:slug')
+  @Permission(Action.CATEGORY_UPDATE)
   async updatesSubcategory(
     @Req() req: any,
     @Param('slug') slug: string,
@@ -196,11 +209,13 @@ export class AdminController {
 
   // ADMIN PROFILE
   @Get('profile')
+  @SkipPermission()
   getAdminProfile(@Req() req) {
     return req?.user;
   }
 
   @Get('cloudinary-signature')
+  @Permission(Action.PRODUCT_CREATE)
   getCloudinarySignature() {
     // console.log('cloudinary-signature');
     const timestamp = Math.round(Date.now() / 1000);
@@ -224,17 +239,20 @@ export class AdminController {
 
   ////COLOR////
   @Post('colors')
+  @Permission(Action.CMS_COLOR_MANAGE)
   addColor(@Body() createColorDto: CreateColorDto, @Req() req: any) {
     return this.cmsService.createColor(createColorDto, req?.user?.userId);
   }
 
   @Delete('/colors/:colorId')
+  @Permission(Action.CMS_COLOR_MANAGE)
   deleteColor(@Req() req: any, @Param('colorId') colorId: number) {
     return this.cmsService.deleteColor(req?.user?.userId, colorId);
   }
 
   // update color
   @Patch('colors/:colorId')
+  @Permission(Action.CMS_COLOR_MANAGE)
   updateColor(
     @Req() req: any,
     @Param('colorId') colorId: number,
@@ -244,18 +262,21 @@ export class AdminController {
   }
 
   @Post('sizes')
+  @Permission(Action.CMS_SIZE_MANAGE)
   addSize(@Body() createSizeDto: CreateSizeDto, @Req() req: any) {
     return this.cmsService.createSize(createSizeDto, req?.user?.userId);
   }
 
   // delete size
   @Delete('/sizes/:sizeId')
+  @Permission(Action.CMS_SIZE_MANAGE)
   deleteSize(@Req() req: any, @Param('sizeId') sizeId: number) {
     return this.cmsService.deleteSize(req?.user?.userId, sizeId);
   }
 
   // update size
   @Patch('sizes/:sizeId')
+  @Permission(Action.CMS_SIZE_MANAGE)
   updateSize(
     @Req() req: any,
     @Param('sizeId') sizeId: number,
@@ -265,18 +286,21 @@ export class AdminController {
   }
 
   @Post('variants')
+  @Permission(Action.CMS_VARIANT_MANAGE)
   addVariant(@Body() createVariantDto: CreateVariantDto, @Req() req: any) {
     return this.cmsService.createVariant(createVariantDto, req?.user?.userId);
   }
 
   // delete variant
   @Delete('/variants/:variantId')
+  @Permission(Action.CMS_VARIANT_MANAGE)
   deleteVariant(@Req() req: any, @Param('variantId') variantId: number) {
     return this.cmsService.deleteVariant(req?.user?.userId, variantId);
   }
 
   // update variant
   @Patch('variants/:variantId')
+  @Permission(Action.CMS_VARIANT_MANAGE)
   updateVariant(
     @Req() req: any,
     @Param('variantId') variantId: number,
@@ -291,12 +315,14 @@ export class AdminController {
 
   // create new material
   @Post('materials')
+  @Permission(Action.CMS_MATERIAL_MANAGE)
   addMaterial(@Body() createMaterialDto: CreateMaterialDto, @Req() req: any) {
     return this.cmsService.addMaterial(createMaterialDto, req?.user?.userId);
   }
 
   // update material
   @Patch('materials/:materialId')
+  @Permission(Action.CMS_MATERIAL_MANAGE)
   updateMaterial(
     @Req() req: any,
     @Param('materialId') materialId: number,
@@ -311,6 +337,7 @@ export class AdminController {
 
   // delete material
   @Delete('/materials/:materialId')
+  @Permission(Action.CMS_MATERIAL_MANAGE)
   deleteMaterial(@Req() req: any, @Param('materialId') materialId: number) {
     return this.cmsService.deleteMaterial(req?.user?.userId, materialId);
   }
@@ -319,6 +346,7 @@ export class AdminController {
   ////// PRODUCT //////
   ////////////////////
   @Post('products')
+  @Permission(Action.PRODUCT_CREATE)
   async createProduct(@Body() dto: CreateProductDto, @Req() req: any) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     // return true
@@ -326,6 +354,7 @@ export class AdminController {
   }
 
   @Patch('product/:productId')
+  @Permission(Action.PRODUCT_UPDATE)
   async updateProduct(
     @Param('productId') productId: string,
     @Body() dto: UpdateProductDto,
@@ -336,17 +365,20 @@ export class AdminController {
   }
 
   @Patch('set-trend-score')
+  @Permission(Action.PRODUCT_SYNC)
   async setTrendScore(@Req() req: any) {
     return this.productService.setTrendScore(req?.user?.userId);
   }
 
   @Patch('sync-product-quantity')
+  @Permission(Action.PRODUCT_SYNC)
   async syncProductQuantity(@Req() req: any) {
     return this.productService.syncProductQuantity(req?.user?.userId);
   }
 
   // Review update
   @Patch('reviews/:reviewId')
+  @Permission(Action.REVIEW_MANAGE)
   updateReview(
     @Param('reviewId', ParseIntPipe) id: number,
     @Body() updateData: { isHidden?: boolean; isFeatured?: boolean },
@@ -367,12 +399,14 @@ export class AdminController {
   ////// BLOG //////
   ////////////////////
   @Post('/blogs')
+  @Permission(Action.BLOG_CREATE)
   async createBlog(@Body() dto: CreateBlogDto, @Req() req: any) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.blogService.createBlog(dto, req?.user?.userId);
   }
 
   @Post('blog-categories')
+  @Permission(Action.BLOG_CATEGORY_CREATE)
   async createBlogCategory(
     @Body() dto: CreateBlogCategoryDto,
     @Req() req: any,
@@ -387,12 +421,14 @@ export class AdminController {
 
   //create coupons
   @Post('create-coupon')
+  @Permission(Action.COUPON_CREATE)
   async createCoupon(@Body() dto: CreateCouponDto, @Req() req: any) {
     return await this.cmsService.createCoupon(dto, req?.user?.userId);
   }
 
   // update order status
   @Patch('orders/:orderId/status')
+  @Permission(Action.ORDER_UPDATE_STATUS)
   updateOrderStatus(
     @Param('orderId') id: string,
     @Req() req: any,
@@ -406,11 +442,13 @@ export class AdminController {
   ////////////////////
 
   @Post('providers')
+  @Permission(Action.COURIER_MANAGE)
   addProvider(@Body() dto: CreateCourierProviderDto, @Req() req: any) {
     return this.courierService.addProvider(dto, req?.user?.userId);
   }
 
   @Patch('providers/:id')
+  @Permission(Action.COURIER_MANAGE)
   updateProvider(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCourierProviderDto,
@@ -420,16 +458,19 @@ export class AdminController {
   }
 
   @Delete('providers/:id')
+  @Permission(Action.COURIER_MANAGE)
   deleteProvider(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.courierService.deleteProvider(id, req?.user?.userId);
   }
 
   @Post('courier/shipments')
+  @Permission(Action.COURIER_MANAGE)
   async createShipment(@Body() dto: CreateCourierShipmentDto, @Req() req: any) {
     return this.courierService.createShipment(dto, req?.user?.userId);
   }
 
   @Get('courier/shipments')
+  @Permission(Action.COURIER_VIEW)
   getShipments(
     @Query('page') page = 1,
     @Query('limit') limit = 10,
@@ -457,11 +498,13 @@ export class AdminController {
 
   ///DISTRICTS///
   @Post('create-initial-districts')
+  @Permission(Action.DISTRICT_MANAGE)
   async createInitialDistrict(@Req() req: any) {
     return this.cmsService.createInitialDistrict(req?.user?.userId);
   }
 
   @Post('create-districts')
+  @Permission(Action.DISTRICT_MANAGE)
   async createDistrict(
     @Req() req: any,
     @Body() districtDto: CreateDistrictDto,
@@ -471,18 +514,21 @@ export class AdminController {
 
   // delete coupon
   @Delete('districts/:id')
+  @Permission(Action.DISTRICT_MANAGE)
   async deleteDistrict(@Req() req: any, @Param('id') id: number) {
     return await this.cmsService.deleteDistrict(req?.user?.userId, id);
   }
 
   // tags
   @Post('tags')
+  @Permission(Action.TAG_CREATE)
   async createTags(@Body('name') name: string, @Req() req: any) {
     return this.cmsService.createNewTag(name, req?.user?.userId);
   }
 
   // district id
   @Patch('districts/:id')
+  @SkipPermission()
   async updateDistrict(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDistrictDto: UpdateDistrictDto,
@@ -496,6 +542,7 @@ export class AdminController {
   }
 
   @Get('activity-log')
+  @Permission(Action.CMS_VIEW)
   async getActivityLogs(@Query() query: any) {
     return this.activityLogService.getLogs({
       module: query.module,
@@ -506,6 +553,7 @@ export class AdminController {
 
   // UPDATE PROMO BANNER
   @Put('promo-banners/:id')
+  @Permission(Action.BANNER_MANAGE)
   updatePromoBanner(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePromoBannerDto,
@@ -516,12 +564,14 @@ export class AdminController {
 
   // DELETE PROMO BANNER
   @Delete('promo-banners/:id')
+  @Permission(Action.BANNER_MANAGE)
   removePromoBanner(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.cmsService.removePromoBanner(id, req?.user?.userId);
   }
 
   // CREATE PROMO BANNER
   @Post('promo-banners')
+  @Permission(Action.BANNER_MANAGE)
   createPromoBanner(@Body() dto: CreatePromoBannerDto) {
     // console.log(dto);
     return this.cmsService.createPromoBanner(dto);

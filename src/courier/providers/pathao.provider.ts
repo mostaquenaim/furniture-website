@@ -39,7 +39,7 @@ export class PathaoProvider implements CourierProviderInterface {
   }
 
   refreshToken() {
-    throw new Error('Method not implemented.');
+    console.log('Method not implemented.');
   }
 
   private async getPathaoAccessToken(): Promise<string> {
@@ -141,28 +141,30 @@ export class PathaoProvider implements CourierProviderInterface {
     }
   }
 
-  async trackShipment(trackingId: string): Promise<any> {
+  // track shipment
+  async trackShipment(consignmentId: string): Promise<any> {
+    const token = await this.getPathaoAccessToken();
     try {
+      // Pathao uses /aladdin/api/v1/orders/{consignment_id} for details/tracking
       const response = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/status/${trackingId}`, {
-          // headers: {
-          //   'Api-Key': this.apiKey,
-          //   'Secret-Key': this.secretKey,
-          // },
-        }),
+        this.httpService.get(
+          `${this.baseUrl}/aladdin/api/v1/orders/${consignmentId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        ),
       );
-
+      const data = response.data.data;
       return {
-        status: this.mapStatus(response.data.delivery_status),
-        providerStatus: response.data.delivery_status,
-        trackingNumber: trackingId,
-        estimatedDelivery: response.data.estimated_delivery,
-        currentLocation: response.data.current_location,
-        metadata: response.data,
+        status: this.mapStatus(data.order_status),
+        providerStatus: data.order_status,
+        trackingNumber: consignmentId,
+        metadata: data,
       };
     } catch (error) {
-      this.logger.error('Pathao tracking error:', error);
-      throw new Error(`Failed to track shipment: ${error.message}`);
+      throw new Error(
+        `Pathao Track: ${error.response?.data?.message || error.message}`,
+      );
     }
   }
 
@@ -191,12 +193,34 @@ export class PathaoProvider implements CourierProviderInterface {
     }
   }
 
-  calculateRate(data: any): any {
-    // Pathao might have a rate calculation endpoint
-    return {
-      deliveryCharge: 120, // Default rate
-      codFee: data.codAmount ? data.codAmount * 0.01 : 0, // 1% COD fee
-    };
+  // calculate shipment
+  async calculateRate(data: any): Promise<any> {
+    const token = await this.getPathaoAccessToken();
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${this.baseUrl}/aladdin/api/v1/price-calculation`,
+          {
+            store_id: parseInt(data.store_id),
+            item_type: data.item_type || 2,
+            delivery_type: data.delivery_type || 48,
+            item_weight: data.item_weight || '0.5',
+            recipient_city: data.recipient_city,
+            recipient_zone: data.recipient_zone,
+          },
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      );
+      return {
+        deliveryCharge: response.data.data.price,
+        totalCharge: response.data.data.final_price,
+        codFee: response.data.data.cod_charge,
+      };
+    } catch (error) {
+      throw new Error(
+        `Pathao Price: ${error.response?.data?.message || error.message}`,
+      );
+    }
   }
 
   mapStatus(status: string): CourierStatus {
@@ -210,5 +234,30 @@ export class PathaoProvider implements CourierProviderInterface {
     };
 
     return map[status?.toLowerCase()] || CourierStatus.PENDING;
+  }
+
+  // get cities
+  async getCities() {
+    const token = await this.getPathaoAccessToken();
+    const response = await firstValueFrom(
+      this.httpService.get(`${this.baseUrl}/aladdin/api/v1/cities`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    );
+    return response.data.data;
+  }
+
+  // get zones
+  async getZones(cityId: number) {
+    const token = await this.getPathaoAccessToken();
+    const response = await firstValueFrom(
+      this.httpService.get(
+        `${this.baseUrl}/aladdin/api/v1/cities/${cityId}/zones`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      ),
+    );
+    return response.data.data;
   }
 }

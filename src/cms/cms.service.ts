@@ -9,6 +9,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateAboutDto } from './dto/create-about.dto';
@@ -38,6 +39,8 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class CmsService {
+  private readonly logger = new Logger(CmsService.name);
+
   constructor(
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
@@ -980,6 +983,44 @@ export class CmsService {
   }
 
   // get all districts
+  // async getDistricts() {
+  //   try {
+  //     // 1. Attempt to get cities from Pathao
+  //     const pathaoCities = await this.pathaoProvider.getCities();
+
+  //     // Check if pathaoCities is valid and has data
+  //     if (pathaoCities && pathaoCities.length > 0) {
+  //       this.logger.log('Fetching districts from Pathao API');
+
+  //       // Map Pathao's format to your District structure
+  //       return pathaoCities.map((city: any) => ({
+  //         id: city.city_id, // Pathao ID
+  //         name: city.city_name,
+  //         deliveryFee: null, // Pathao usually calculates this dynamically via calculateRate
+  //         isCODAvailable: true, // Pathao generally supports COD in all main cities
+  //         isExternal: true, // Optional flag to know this came from Pathao
+  //       }));
+  //     }
+  //   } catch (error) {
+  //     this.logger.warn(
+  //       `Failed to fetch Pathao cities, falling back to local DB: ${error.message}`,
+  //     );
+  //   }
+
+  //   // 2. Fallback to local Prisma database
+  //   this.logger.log('Fetching districts from local database');
+  //   return await this.prisma.district.findMany({
+  //     where: { isActive: true },
+  //     select: {
+  //       id: true,
+  //       name: true,
+  //       deliveryFee: true,
+  //       isCODAvailable: true,
+  //     },
+  //     orderBy: { name: 'asc' },
+  //   });
+  // }
+
   async getDistricts() {
     return await this.prisma.district.findMany({
       where: { isActive: true },

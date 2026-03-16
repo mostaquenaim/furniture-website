@@ -15,8 +15,6 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CourierStatus, OrderStatus, Prisma } from '@prisma/client';
 import { CreateCourierShipmentDto } from './dto/create-courier-shipment.dto';
-import { UpdateShipmentStatusDto } from './dto/update-shipment-status.dto';
-import { CourierWebhookDto } from './dto/courier-webhook.dto';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { CourierProviderInterface } from './providers/courier-provider.interface';
@@ -62,6 +60,13 @@ export class CourierService {
       'pathao',
       new PathaoProvider(this.httpService, this.configService),
     );
+  }
+
+  getProviders() {
+    return this.prisma.courierProvider.findMany({
+      where: { isActive: true },
+      orderBy: { priority: 'asc' },
+    });
   }
 
   // courier providers
@@ -239,6 +244,64 @@ export class CourierService {
     }
   }
 
+  // sync order status shipments
+  async syncOrderStatusFromShipment(
+    shipmentId: number,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prisma;
+
+    const shipment = await db.courierShipment.findUnique({
+      where: { id: shipmentId },
+      include: { order: true, provider: true },
+    });
+    if (!shipment) return;
+
+    const mappedStatus = COURIER_TO_ORDER_STATUS[shipment.status];
+    if (!mappedStatus) return;
+
+    // Only move forward — never downgrade order status
+    const ORDER_RANK: Record<OrderStatus, number> = {
+      PENDING: 0,
+      CONFIRMED: 1,
+      PROCESSING: 2,
+      PACKED: 3,
+      SHIPPED: 4,
+      DELIVERED: 5,
+      CANCELLED: 5,
+      FAILED: 5,
+      ON_HOLD: 2,
+      PARTIALLY_DELIVERED: 5,
+      RETURN_REQUESTED: 6,
+      RETURNED: 7,
+    };
+
+    const currentRank = ORDER_RANK[shipment.order.status] ?? 0;
+    const newRank = ORDER_RANK[mappedStatus] ?? 0;
+
+    if (newRank <= currentRank) return;
+
+    await db.order.update({
+      where: { id: shipment.orderId },
+      data: {
+        status: mappedStatus,
+        // set AWB when first tracking number arrives
+        ...(shipment.trackingNumber && !shipment.order.awbNumber
+          ? { awbNumber: shipment.trackingNumber }
+          : {}),
+      },
+    });
+
+    // Write to history log
+    await db.orderStatusHistory.create({
+      data: {
+        orderId: shipment.orderId,
+        status: mappedStatus,
+        note: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,
+      },
+    });
+  }
+
   async createShipment(dto: CreateCourierShipmentDto, adminId: number) {
     return this.prisma.$transaction(async (tx) => {
       // Get order details
@@ -383,64 +446,6 @@ export class CourierService {
     });
   }
 
-  // sync order status shipments
-  async syncOrderStatusFromShipment(
-    shipmentId: number,
-    tx?: Prisma.TransactionClient,
-  ) {
-    const db = tx ?? this.prisma;
-
-    const shipment = await db.courierShipment.findUnique({
-      where: { id: shipmentId },
-      include: { order: true, provider: true },
-    });
-    if (!shipment) return;
-
-    const mappedStatus = COURIER_TO_ORDER_STATUS[shipment.status];
-    if (!mappedStatus) return;
-
-    // Only move forward — never downgrade order status
-    const ORDER_RANK: Record<OrderStatus, number> = {
-      PENDING: 0,
-      CONFIRMED: 1,
-      PROCESSING: 2,
-      PACKED: 3,
-      SHIPPED: 4,
-      DELIVERED: 5,
-      CANCELLED: 5,
-      FAILED: 5,
-      ON_HOLD: 2,
-      PARTIALLY_DELIVERED: 5,
-      RETURN_REQUESTED: 6,
-      RETURNED: 7,
-    };
-
-    const currentRank = ORDER_RANK[shipment.order.status] ?? 0;
-    const newRank = ORDER_RANK[mappedStatus] ?? 0;
-
-    if (newRank <= currentRank) return;
-
-    await db.order.update({
-      where: { id: shipment.orderId },
-      data: {
-        status: mappedStatus,
-        // set AWB when first tracking number arrives
-        ...(shipment.trackingNumber && !shipment.order.awbNumber
-          ? { awbNumber: shipment.trackingNumber }
-          : {}),
-      },
-    });
-
-    // Write to history log
-    await db.orderStatusHistory.create({
-      data: {
-        orderId: shipment.orderId,
-        status: mappedStatus,
-        note: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,
-      },
-    });
-  }
-
   // get shipments
   async getShipments({
     page = 1,
@@ -485,13 +490,8 @@ export class CourierService {
           createdAt: 'desc',
         },
         include: {
-          order: {
-            select: {
-              id: true,
-              orderId: true,
-              total: true,
-            },
-          },
+          order: true,
+          provider: true,
         },
       }),
 
@@ -580,67 +580,6 @@ export class CourierService {
     return Math.max(totalWeight, 0.5);
   }
 
-  private mapProviderStatus(providerStatus: string): CourierStatus {
-    // Normalize the status string
-    const normalized = providerStatus.toLowerCase().trim();
-
-    const statusMap: Record<string, CourierStatus> = {
-      // Pathao specific statuses
-      pending: 'PENDING',
-      pickup_requested: 'PICKUP_ASSIGNED',
-      assigned_for_pickup: 'PICKUP_ASSIGNED',
-      pickup: 'PICKED_UP',
-      pickup_failed: 'FAILED',
-      pickup_cancelled: 'CANCELLED',
-      at_the_sorting_hub: 'IN_TRANSIT',
-      in_transit: 'IN_TRANSIT',
-      'in-transit': 'IN_TRANSIT', // Handle hyphenated version
-      received_at_last_mile_hub: 'OUT_FOR_DELIVERY',
-      assigned_for_delivery: 'OUT_FOR_DELIVERY',
-      delivered: 'DELIVERED',
-      partial_delivery: 'PARTIALLY_DELIVERED',
-      return: 'RETURNED',
-      delivery_failed: 'FAILED',
-      on_hold: 'ON_HOLD',
-      cancelled: 'CANCELLED',
-
-      // Keep existing mappings for other providers
-      booked: 'BOOKED',
-      pickup_assigned: 'PICKUP_ASSIGNED',
-      picked_up: 'PICKED_UP',
-      out_for_delivery: 'OUT_FOR_DELIVERY',
-      partial_delivered: 'PARTIALLY_DELIVERED',
-      returned: 'RETURNED',
-      failed: 'FAILED',
-    };
-
-    return statusMap[normalized] || 'PENDING';
-  }
-
-  getProviders() {
-    return this.prisma.courierProvider.findMany({
-      where: { isActive: true },
-      orderBy: { priority: 'asc' },
-    });
-  }
-
-  private normalizeBDPhone(phone: string): string {
-    if (!phone) return phone;
-
-    // remove spaces and dashes
-    phone = phone.replace(/[\s-]/g, '');
-
-    if (phone.startsWith('+880')) {
-      return '0' + phone.slice(4);
-    }
-
-    if (phone.startsWith('880')) {
-      return '0' + phone.slice(3);
-    }
-
-    return phone;
-  }
-
   async calculateRates(dto: CalculateRateDto) {
     const providers = await this.prisma.courierProvider.findMany({
       where: { isActive: true },
@@ -693,5 +632,59 @@ export class CourierService {
     }
 
     return rates.sort((a, b) => a.totalCharge - b.totalCharge);
+  }
+
+  private mapProviderStatus(providerStatus: string): CourierStatus {
+    // Normalize the status string
+    const normalized = providerStatus.toLowerCase().trim();
+
+    const statusMap: Record<string, CourierStatus> = {
+      // Pathao specific statuses
+      pending: 'PENDING',
+      pickup_requested: 'PICKUP_ASSIGNED',
+      assigned_for_pickup: 'PICKUP_ASSIGNED',
+      pickup: 'PICKED_UP',
+      pickup_failed: 'FAILED',
+      pickup_cancelled: 'CANCELLED',
+      at_the_sorting_hub: 'IN_TRANSIT',
+      in_transit: 'IN_TRANSIT',
+      'in-transit': 'IN_TRANSIT', // Handle hyphenated version
+      received_at_last_mile_hub: 'OUT_FOR_DELIVERY',
+      assigned_for_delivery: 'OUT_FOR_DELIVERY',
+      delivered: 'DELIVERED',
+      partial_delivery: 'PARTIALLY_DELIVERED',
+      return: 'RETURNED',
+      delivery_failed: 'FAILED',
+      on_hold: 'ON_HOLD',
+      cancelled: 'CANCELLED',
+
+      // Keep existing mappings for other providers
+      booked: 'BOOKED',
+      pickup_assigned: 'PICKUP_ASSIGNED',
+      picked_up: 'PICKED_UP',
+      out_for_delivery: 'OUT_FOR_DELIVERY',
+      partial_delivered: 'PARTIALLY_DELIVERED',
+      returned: 'RETURNED',
+      failed: 'FAILED',
+    };
+
+    return statusMap[normalized] || 'PENDING';
+  }
+
+  private normalizeBDPhone(phone: string): string {
+    if (!phone) return phone;
+
+    // remove spaces and dashes
+    phone = phone.replace(/[\s-]/g, '');
+
+    if (phone.startsWith('+880')) {
+      return '0' + phone.slice(4);
+    }
+
+    if (phone.startsWith('880')) {
+      return '0' + phone.slice(3);
+    }
+
+    return phone;
   }
 }

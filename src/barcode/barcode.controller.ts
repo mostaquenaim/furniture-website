@@ -27,6 +27,8 @@ import {
   PrintLabelsDto,
   UpdateQuantityDto,
 } from './dto/barcode.dto';
+import { Action } from 'src/permission/action.enum';
+import { Permission } from 'src/permission/permission.decorator';
 
 @Controller('barcodes')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,59 +38,56 @@ export class BarcodeController {
   // ── Barcodes ──────
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Permission(Action.BARCODE_CREATE)
   create(@Body() dto: CreateBarcodeDto, @Req() req: any) {
     return this.barcodeService.createBarcode(dto, req?.user?.userId);
   }
 
   @Get()
+  @Permission(Action.BARCODE_VIEW)
   getAll(@Query('lowStock') lowStock?: string) {
     return this.barcodeService.getAll(lowStock === 'true');
   }
 
   @Get('low-stock')
+  @Permission(Action.BARCODE_VIEW)
   getLowStock() {
     return this.barcodeService.getLowStock();
   }
 
   @Patch(':id/location')
+  @Permission(Action.BARCODE_UPDATE)
   assignLocation(@Param('id') id: string, @Body() dto: AssignLocationDto) {
     return this.barcodeService.assignLocation(id, dto);
   }
 
   @Patch(':id/quantity')
+  @Permission(Action.BARCODE_UPDATE)
   updateQuantity(@Param('id') id: string, @Body() dto: UpdateQuantityDto) {
     return this.barcodeService.updateQuantity(id, dto.delta);
   }
 
-  // ── Barcode images ────────────────────────────────────────────────────────
-
-  // @Get(':id/image')
-  // streamImage(@Param('id') id: string, @Res() res: Response) {
-  //   console.log('here image');
-  //   return this.barcodeService.streamBarcodeImage(id, res);
-  // }
-
   @Get('product/:productId')
+  @Permission(Action.BARCODE_VIEW)
   getByProduct(@Param('productId', ParseIntPipe) productId: number) {
     return this.barcodeService.getByProductId(productId);
   }
 
-  // ── Label printing ────────────────────────────────────────────────────────
-
   @Post('print')
+  @Permission(Action.BARCODE_VIEW)
   printLabels(@Body() dto: PrintLabelsDto, @Res() res: Response) {
     return this.barcodeService.printLabelSheet(dto.barcodeIds, res);
   }
 
-  // ── Locations ─────────────────────────────────────────────────────────────
-
   @Post('locations')
   @HttpCode(HttpStatus.CREATED)
+  @Permission(Action.LOCATION_CREATE)
   createLocation(@Body() dto: CreateLocationDto) {
     return this.barcodeService.createLocation(dto);
   }
 
   @Get('locations')
+  @Permission(Action.LOCATION_VIEW)
   getLocations() {
     return this.barcodeService.getLocations();
   }

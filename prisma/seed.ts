@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 import districtsData from 'src/cms/data/districtData';
+import { Action } from 'src/permission/action.enum';
 
 const prisma = new PrismaClient();
 
@@ -813,94 +816,161 @@ const sampleData = [
   },
 ];
 
-console.log('Districts seeding completed!');
+const MANAGEABLE_ROLES = [
+  UserRole.PRODUCTMANAGER,
+  UserRole.ORDERMANAGER,
+  UserRole.SUPPORT,
+];
+
+const DEFAULT_PERMISSIONS: Partial<Record<UserRole, Action[]>> = {
+  [UserRole.PRODUCTMANAGER]: [
+    Action.CATEGORY_VIEW,
+    Action.CATEGORY_CREATE,
+    Action.CATEGORY_UPDATE,
+    Action.CATEGORY_REORDER,
+    Action.PRODUCT_VIEW,
+    Action.PRODUCT_CREATE,
+    Action.PRODUCT_UPDATE,
+    Action.PRODUCT_SYNC,
+    Action.CMS_VIEW,
+    Action.CMS_COLOR_MANAGE,
+    Action.CMS_SIZE_MANAGE,
+    Action.CMS_VARIANT_MANAGE,
+    Action.CMS_MATERIAL_MANAGE,
+    Action.BLOG_CREATE,
+    Action.BLOG_CATEGORY_CREATE,
+    Action.REVIEW_MANAGE,
+    Action.BANNER_MANAGE,
+    Action.TAG_CREATE,
+    Action.BARCODE_VIEW,
+    Action.BARCODE_CREATE,
+    Action.BARCODE_UPDATE,
+    Action.LOCATION_VIEW,
+    Action.LOCATION_CREATE,
+  ],
+
+  [UserRole.ORDERMANAGER]: [
+    Action.ORDER_VIEW,
+    Action.ORDER_UPDATE_STATUS,
+    Action.COUPON_CREATE,
+    Action.COURIER_VIEW,
+    Action.COURIER_MANAGE,
+    Action.DISTRICT_MANAGE,
+    Action.BARCODE_VIEW,
+  ],
+
+  [UserRole.SUPPORT]: [
+    Action.ORDER_VIEW,
+    Action.REVIEW_MANAGE,
+    Action.COURIER_VIEW,
+    Action.BARCODE_VIEW,
+  ],
+};
 
 async function main() {
-  console.log('🌱 Seeding Sakigai catalog...');
+  // console.log('🌱 Seeding Sakigai catalog...');
+  // for (const seriesItem of sampleData) {
+  //   const series = await prisma.series.upsert({
+  //     where: { slug: seriesItem.slug },
+  //     update: {
+  //       name: seriesItem.name,
+  //       image: seriesItem.image,
+  //       notice: seriesItem.notice,
+  //     },
+  //     create: {
+  //       name: seriesItem.name,
+  //       slug: seriesItem.slug,
+  //       image: seriesItem.image,
+  //       notice: seriesItem.notice,
+  //       isActive: true,
+  //     },
+  //   });
+  //   for (const categoryItem of seriesItem.categories) {
+  //     const category = await prisma.category.upsert({
+  //       where: {
+  //         seriesId_slug: {
+  //           seriesId: series.id,
+  //           slug: categoryItem.slug,
+  //         },
+  //       },
+  //       update: {
+  //         name: categoryItem.name,
+  //       },
+  //       create: {
+  //         name: categoryItem.name,
+  //         slug: categoryItem.slug,
+  //         seriesId: series.id,
+  //         isActive: true,
+  //       },
+  //     });
+  //     for (const sub of categoryItem.subCategories) {
+  //       await prisma.subCategory.upsert({
+  //         where: {
+  //           categoryId_slug: {
+  //             categoryId: category.id,
+  //             slug: sub.slug,
+  //           },
+  //         },
+  //         update: {
+  //           name: sub.name,
+  //         },
+  //         create: {
+  //           name: sub.name,
+  //           slug: sub.slug,
+  //           categoryId: category.id,
+  //           isActive: true,
+  //         },
+  //       });
+  //     }
+  //   }
+  // }
+  // console.log('✅ Sakigai catalog seeded successfully');
+  // console.log('Seeding districts...');
+  // for (const district of districtsData) {
+  //   // Remove trailing spaces from names
+  //   const cleanName = district.name.trim();
+  //   // Check if district already exists
+  //   const existingDistrict = await prisma.district.findUnique({
+  //     where: { name: cleanName },
+  //   });
+  //   if (!existingDistrict) {
+  //     await prisma.district.create({
+  //       data: {
+  //         name: cleanName,
+  //         isActive: true,
+  //       },
+  //     });
+  //     console.log(`Created district: ${cleanName}`);
+  //   } else {
+  //     console.log(`District already exists: ${cleanName}`);
+  //   }
+  // }
 
-  for (const seriesItem of sampleData) {
-    const series = await prisma.series.upsert({
-      where: { slug: seriesItem.slug },
-      update: {
-        name: seriesItem.name,
-        image: seriesItem.image,
-        notice: seriesItem.notice,
-      },
-      create: {
-        name: seriesItem.name,
-        slug: seriesItem.slug,
-        image: seriesItem.image,
-        notice: seriesItem.notice,
-        isActive: true,
-      },
-    });
+  const allActions = Object.values(Action);
+  let created = 0;
+  let updated = 0;
 
-    for (const categoryItem of seriesItem.categories) {
-      const category = await prisma.category.upsert({
-        where: {
-          seriesId_slug: {
-            seriesId: series.id,
-            slug: categoryItem.slug,
-          },
-        },
-        update: {
-          name: categoryItem.name,
-        },
-        create: {
-          name: categoryItem.name,
-          slug: categoryItem.slug,
-          seriesId: series.id,
-          isActive: true,
-        },
+  for (const role of MANAGEABLE_ROLES) {
+    const defaultsForRole = DEFAULT_PERMISSIONS[role] ?? [];
+
+    for (const action of allActions) {
+      const enabled = defaultsForRole.includes(action);
+
+      const result = await prisma.rolePermission.upsert({
+        where: { role_action: { role, action } },
+        update: { enabled }, // re-running seed resets to defaults
+        create: { role, action, enabled },
       });
 
-      for (const sub of categoryItem.subCategories) {
-        await prisma.subCategory.upsert({
-          where: {
-            categoryId_slug: {
-              categoryId: category.id,
-              slug: sub.slug,
-            },
-          },
-          update: {
-            name: sub.name,
-          },
-          create: {
-            name: sub.name,
-            slug: sub.slug,
-            categoryId: category.id,
-            isActive: true,
-          },
-        });
-      }
+      result ? created++ : updated++;
     }
   }
 
-  console.log('✅ Sakigai catalog seeded successfully');
-
-  console.log('Seeding districts...');
-
-  for (const district of districtsData) {
-    // Remove trailing spaces from names
-    const cleanName = district.name.trim();
-
-    // Check if district already exists
-    const existingDistrict = await prisma.district.findUnique({
-      where: { name: cleanName },
-    });
-
-    if (!existingDistrict) {
-      await prisma.district.create({
-        data: {
-          name: cleanName,
-          isActive: true,
-        },
-      });
-      console.log(`Created district: ${cleanName}`);
-    } else {
-      console.log(`District already exists: ${cleanName}`);
-    }
-  }
+  console.log(
+    `Seeded ${MANAGEABLE_ROLES.length * allActions.length} permission rows`,
+  );
+  console.log(`Actions per role: ${allActions.length}`);
+  console.log(`Roles seeded: ${MANAGEABLE_ROLES.join(', ')}`);
 }
 
 main()
