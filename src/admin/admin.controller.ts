@@ -576,4 +576,8 @@ export class AdminController {
     // console.log(dto);
     return this.cmsService.createPromoBanner(dto);
   }
+
+  ///////////////////
+  /////////USER//////
+  //////////////////
 }

@@ -1,0 +1,59 @@
+// src/admin-users/admin-users.controller.ts
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Post,
+  Body,
+  Patch,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { SkipPermission } from 'src/permission/skip-permission.decorator';
+import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { UserRole } from '@prisma/client';
+import { AdminUsersService } from './admin-user.service';
+
+@Controller('admin/users')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class AdminUsersController {
+  constructor(private readonly adminUsersService: AdminUsersService) {}
+
+  @Get()
+  @SkipPermission()
+  getAdminUsers() {
+    return this.adminUsersService.getAdminUsers();
+  }
+
+  @Post()
+  @SkipPermission()
+  createAdminUser(@Body() dto: CreateAdminUserDto) {
+    return this.adminUsersService.createAdminUser(dto);
+  }
+
+  @Patch(':id/role')
+  @SkipPermission()
+  changeRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('role') role: UserRole,
+  ) {
+    return this.adminUsersService.changeRole(id, role);
+  }
+
+  @Patch(':id/status')
+  @SkipPermission()
+  toggleStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.adminUsersService.toggleStatus(id, isActive);
+  }
+
+  @Post(':id/reset-password')
+  @SkipPermission()
+  resetPassword(@Param('id', ParseIntPipe) id: number) {
+    return this.adminUsersService.resetPassword(id);
+  }
+}
