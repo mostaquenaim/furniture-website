@@ -7,9 +7,17 @@ import { OrderService } from 'src/order/order.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { BullModule } from '@nestjs/bull';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { CourierService } from 'src/courier/services/courier.service';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
-  imports: [BullModule.registerQueue({ name: 'notification' })],
+  imports: [
+    BullModule.registerQueue({ name: 'notification' }),
+    HttpModule.register({
+      timeout: 10000,
+      maxRedirects: 5,
+    }),
+  ],
   controllers: [CmsController],
   providers: [
     ActivityLogService,
@@ -18,6 +26,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
     CartService,
     OrderService,
     NotificationsService,
+    CourierService,
   ],
 })
 export class CmsModule {}

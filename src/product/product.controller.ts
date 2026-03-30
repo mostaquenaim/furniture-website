@@ -67,22 +67,45 @@ export class ProductController {
     @Query('categorySlug') categorySlug?: string,
     @Query('categoryIds') categoryIds?: string,
   ) {
-    const ids = productIds ? productIds.split(',').map(Number) : [];
+    const clean = (val?: string) =>
+      val && val !== 'undefined' && val !== 'null' && val !== ''
+        ? val
+        : undefined;
 
-    const catIds = categoryIds ? categoryIds.split(',').map(Number) : [];
+    const cleanProductIds = clean(productIds);
+    const cleanCategoryIds = clean(categoryIds);
+    const cleanProductSlug = clean(productSlug);
+    const cleanCategorySlug = clean(categorySlug);
 
-    if (categoryIds)
+    const ids = cleanProductIds
+      ? cleanProductIds
+          .split(',')
+          .map(Number)
+          .filter((n) => !isNaN(n))
+      : [];
+
+    const catIds = cleanCategoryIds
+      ? cleanCategoryIds
+          .split(',')
+          .map(Number)
+          .filter((n) => !isNaN(n))
+      : [];
+
+    console.log(ids, cleanProductSlug, cleanCategorySlug, catIds, 'cleaned');
+
+    if (catIds.length > 0) {
       return this.productService.getSubCategoryBasedRecommendations(
-        categorySlug,
+        cleanCategorySlug,
         catIds,
       );
-    else
-      return this.productService.youMayAlsoLike(
-        productSlug,
-        ids,
-        categorySlug,
-        catIds,
-      );
+    }
+
+    return this.productService.youMayAlsoLike(
+      cleanProductSlug,
+      ids,
+      cleanCategorySlug,
+      catIds,
+    );
   }
 
   // product.controller.ts

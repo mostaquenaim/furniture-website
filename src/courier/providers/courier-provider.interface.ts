@@ -8,4 +8,7 @@ export interface CourierProviderInterface {
   calculateRate(data: any): Promise<any>;
   mapStatus(providerStatus: string): CourierStatus;
   refreshToken();
+  getCities();
+  getZones(cityId: number);
+  getAreas(zoneId: number);
 }

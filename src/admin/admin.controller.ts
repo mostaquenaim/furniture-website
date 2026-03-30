@@ -49,12 +49,13 @@ import { OrderService } from 'src/order/order.service';
 import { OrderStatus } from '@prisma/client';
 import { ReviewService } from 'src/review/review.service';
 import { CreateCourierProviderDto } from 'src/courier/dto/create-courier-provider.dto';
-import { CourierService } from 'src/courier/courier.service';
+import { CourierService } from 'src/courier/services/courier.service';
 import { UpdateCourierProviderDto } from 'src/courier/dto/update-courier-provider.dto';
 import { CreateCourierShipmentDto } from 'src/courier/dto/create-courier-shipment.dto';
 import { Action } from 'src/permission/action.enum';
 import { Permission } from 'src/permission/permission.decorator';
 import { SkipPermission } from 'src/permission/skip-permission.decorator';
+import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-sync.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -68,6 +69,7 @@ export class AdminController {
     private readonly orderService: OrderService,
     private readonly reviewService: ReviewService,
     private readonly courierService: CourierService,
+    private readonly pathaoLocationSyncService: PathaoLocationSyncService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
@@ -510,6 +512,20 @@ export class AdminController {
     @Body() districtDto: CreateDistrictDto,
   ) {
     return this.cmsService.createDistrict(req?.user?.userId, districtDto);
+  }
+
+  @Get('sync-districts')
+  @Permission(Action.DISTRICT_MANAGE)
+  async getDistricts() {
+    const syncDistricts = await this.pathaoLocationSyncService.syncCities();
+    return syncDistricts;
+  }
+
+  @Get('sync-zones')
+  @Permission(Action.DISTRICT_MANAGE)
+  async getZones() {
+    const syncZones = await this.pathaoLocationSyncService.syncZones();
+    return syncZones;
   }
 
   // delete coupon

@@ -209,7 +209,7 @@ model Product {
   basePrice        Int
   price            Int?
   brand            String?
-  weight           Float?
+  weight           Decimal @default(0.50) @db.Decimal(5, 2)
   hasColorVariants Boolean @default(true)
   showColor        Boolean @default(true)
 
@@ -464,7 +464,7 @@ model Cart {
   visitor   Visitor?   @relation(fields: [visitorId], references: [id])
   visitorId String?
 
-  @@index([userId, status])
+  @@index([userId, visitorId, status])
 }
 
 model CartItem {
@@ -507,14 +507,14 @@ model Order {
   orderId       String @unique
   trackingToken String @unique
 
-  user            User?     @relation(fields: [userId], references: [id])
+  user            User?   @relation(fields: [userId], references: [id])
   userId          Int?
   customerName    String
   customerPhone   String
   customerEmail   String?
   shippingAddress String
   districtId      Int?
-  district        District? @relation(fields: [districtId], references: [id])
+  district        City?   @relation(fields: [districtId], references: [id])
   districtName    String?
   postCode        String?
 
@@ -612,7 +612,7 @@ enum DeliveryMethod {
   COURIER
 }
 
-model District {
+model City {
   id             Int           @id @default(autoincrement())
   name           String        @unique
   isActive       Boolean       @default(true)
@@ -622,6 +622,26 @@ model District {
   updatedAt      DateTime      @updatedAt
   orders         Order[]
   courierRates   CourierRate[]
+  zones          Zone[]
+
+  @@map("District")
+}
+
+model Zone {
+  id           Int    @id @default(autoincrement())
+  name         String
+  pathaoZoneId Int    @unique
+  cityId       Int
+  city         City   @relation(fields: [cityId], references: [id])
+  areas        Area[]
+}
+
+model Area {
+  id           Int    @id @default(autoincrement())
+  name         String
+  pathaoAreaId Int    @unique
+  zoneId       Int
+  zone         Zone   @relation(fields: [zoneId], references: [id])
 }
 
 model Coupon {
@@ -733,7 +753,7 @@ model CourierRate {
   provider   CourierProvider @relation(fields: [providerId], references: [id])
 
   districtId Int?
-  district   District? @relation(fields: [districtId], references: [id])
+  district   City? @relation(fields: [districtId], references: [id])
 
   weightMin Float
   weightMax Float
@@ -1250,39 +1270,39 @@ model SEO {
 // COMPANY INFO
 // =====================
 model CompanyInfo {
-  id          Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Basic
-  name        String   @default("Sakigai")
-  logo        String?  // Cloudinary URL
-  favicon     String?  // Cloudinary URL
-  tagline     String?
-  about       String?  @db.Text
+  name    String  @default("Sakigai")
+  logo    String? // Cloudinary URL
+  favicon String? // Cloudinary URL
+  tagline String?
+  about   String? @db.Text
 
   // Contact
-  email       String?
-  phone       String?
-  whatsapp    String?
-  address     String?
-  city        String?
-  country     String?
+  email        String?
+  phone        String?
+  whatsapp     String?
+  address      String?
+  city         String?
+  country      String?
   googleMapUrl String?
 
   // Social
-  facebook    String?
-  instagram   String?
-  youtube     String?
-  tiktok      String?
-  twitter     String?
-  linkedin    String?
+  facebook  String?
+  instagram String?
+  youtube   String?
+  tiktok    String?
+  twitter   String?
+  linkedin  String?
 
   // SEO
   metaTitle       String?
   metaDescription String?
-  ogImage         String?  // Open Graph image URL
+  ogImage         String? // Open Graph image URL
 
-  updatedAt   DateTime @updatedAt
-  updatedBy   Int?     // last admin user id
+  updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
 
   @@map("company_info")
 }

@@ -15,10 +15,9 @@ import {
   Res,
   Logger,
 } from '@nestjs/common';
-import { CourierService } from './courier.service';
 import { CourierWebhookGuard } from './guards/courier.guard';
 import type { Request, Response } from 'express';
-import { CourierWebhookService } from './courier-webhook.service';
+import { CourierWebhookService } from './services/courier-webhook.service';
 
 @Controller('webhook')
 export class CourierWebhookController {

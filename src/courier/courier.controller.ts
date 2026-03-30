@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 // src/courier/courier.controller.ts
 import { Controller, Get } from '@nestjs/common';
-import { CourierService } from './courier.service';
+import { CourierService } from './services/courier.service';
 
 @Controller('courier')
 export class CourierController {

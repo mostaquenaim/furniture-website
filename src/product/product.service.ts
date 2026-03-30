@@ -887,6 +887,14 @@ export class ProductService {
       });
     }
 
+    if (visitorId) {
+      await this.prisma.visitor.upsert({
+        where: { id: visitorId },
+        update: {},
+        create: { id: visitorId },
+      });
+    }
+
     return this.prisma.productView.create({
       data: {
         productId,
@@ -905,6 +913,10 @@ export class ProductService {
     catIds?: number[],
   ) {
     // Find the source product with its subcategories and material
+    if (!productSlug) {
+      return [];
+    }
+
     const sourceProduct = await this.prisma.product.findUnique({
       where: { slug: productSlug, isActive: true },
       select: {
@@ -1120,7 +1132,12 @@ export class ProductService {
     subCategoryIds?: number[],
     productIds?: number[],
   ) {
-    console.log(subCategoryIds, 'subCategoryIds');
+    console.log(
+      subCategoryIds,
+      subCategoryIds,
+      productIds,
+      'subCategoryIds and other ids in getSubCategoryBasedRecommendations',
+    );
 
     // const ids: number[] = subCategoryIds || [];
 

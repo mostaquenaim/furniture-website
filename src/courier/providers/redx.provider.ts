@@ -37,6 +37,12 @@ export class RedxProvider implements CourierProviderInterface {
     this.username = this.configService.get('REDX_USERNAME');
     this.password = this.configService.get('REDX_PASSWORD');
   }
+  getZones(cityId: number) {
+    throw new Error('Method not implemented.');
+  }
+  getAreas(zoneId: number) {
+    throw new Error('Method not implemented.');
+  }
 
   refreshToken() {
     throw new Error('Method not implemented.');
@@ -208,5 +214,9 @@ export class RedxProvider implements CourierProviderInterface {
     };
 
     return map[status?.toLowerCase()] || CourierStatus.PENDING;
+  }
+
+  getCities() {
+    console.log('to be implemented');
   }
 }

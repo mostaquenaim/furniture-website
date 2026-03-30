@@ -12,21 +12,21 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CourierStatus, OrderStatus, Prisma } from '@prisma/client';
-import { CreateCourierShipmentDto } from './dto/create-courier-shipment.dto';
+import { CreateCourierShipmentDto } from '../dto/create-courier-shipment.dto';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { CourierProviderInterface } from './providers/courier-provider.interface';
-import { SteadfastProvider } from './providers/steadfast.provider';
-import { RedxProvider } from './providers/redx.provider';
-import { PaperflyProvider } from './providers/paperfly.provider';
-import { PathaoProvider } from './providers/pathao.provider';
-import { CalculateRateDto } from './dto/calculate-rate.dto';
-import { CreateCourierProviderDto } from './dto/create-courier-provider.dto';
+import { CourierProviderInterface } from '../providers/courier-provider.interface';
+import { SteadfastProvider } from '../providers/steadfast.provider';
+import { RedxProvider } from '../providers/redx.provider';
+import { PaperflyProvider } from '../providers/paperfly.provider';
+import { PathaoProvider } from '../providers/pathao.provider';
+import { CalculateRateDto } from '../dto/calculate-rate.dto';
+import { CreateCourierProviderDto } from '../dto/create-courier-provider.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
-import { UpdateCourierProviderDto } from './dto/update-courier-provider.dto';
-import { COURIER_TO_ORDER_STATUS } from './courier-status.map';
+import { UpdateCourierProviderDto } from '../dto/update-courier-provider.dto';
+import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
 
 @Injectable()
 export class CourierService {
@@ -172,9 +172,7 @@ export class CourierService {
     provider: any,
     specialInstructions?: string,
   ) {
-    // console.log('orderdata', orderData, 'orderdata');
     // Get merchant store ID from provider config
-    console.log(provider, 'provider data', provider.config.store_id);
     const storeId =
       provider.config?.store_id || provider.config?.merchant_store_id;
 
@@ -686,5 +684,126 @@ export class CourierService {
     }
 
     return phone;
+  }
+
+  // get zones, areas
+  async getZones(cityId: number) {
+    const provider = await this.prisma.courierProvider.findUnique({
+      where: { name: 'pathao' },
+    });
+
+    if (!provider || !provider.isActive) {
+      throw new BadRequestException('Courier provider not available');
+    }
+
+    const providerImpl = this.providers.get(provider.name.toLowerCase());
+
+    if (!providerImpl) {
+      throw new BadRequestException(
+        `Provider ${provider.name} implementation not found`,
+      );
+    }
+
+    let response;
+    try {
+      response = await providerImpl.getZones(cityId);
+    } catch (error) {
+      this.logger.error(`Failed to fetch zones from ${provider.name}`, error);
+      throw new BadRequestException('Failed to fetch zones');
+    }
+
+    return response.map((zone: any) => ({
+      id: zone.zone_id,
+      name: zone.zone_name,
+      cityId: zone.city_id,
+    }));
+  }
+
+  async getAreas(zoneId: number) {
+    const provider = await this.prisma.courierProvider.findUnique({
+      where: { name: 'pathao' },
+    });
+
+    if (!provider || !provider.isActive) {
+      throw new BadRequestException('Courier provider not available');
+    }
+
+    const providerImpl = this.providers.get(provider.name.toLowerCase());
+
+    if (!providerImpl) {
+      throw new BadRequestException(
+        `Provider ${provider.name} implementation not found`,
+      );
+    }
+
+    let response;
+    try {
+      response = await providerImpl.getAreas(zoneId);
+    } catch (error) {
+      this.logger.error(`Failed to fetch areas from ${provider.name}`, error);
+      throw new BadRequestException('Failed to fetch areas');
+    }
+
+    return response.map((area: any) => ({
+      id: area.area_id,
+      name: area.area_name,
+      zoneId: area.zone_id,
+    }));
+  }
+
+  async calculateDeliveryFee(data: {
+    cityId: number;
+    zoneId: number;
+    weight: number;
+  }) {
+    const provider: any = await this.prisma.courierProvider.findUnique({
+      where: { name: 'pathao' },
+    });
+
+    if (!provider || !provider.isActive) {
+      throw new BadRequestException('Courier provider not available');
+    }
+
+    const providerImpl = this.providers.get(provider.name.toLowerCase());
+
+    if (!providerImpl) {
+      throw new BadRequestException(
+        `Provider ${provider.name} implementation not found`,
+      );
+    }
+
+    const storeId =
+      provider.config?.store_id || provider.config?.merchant_store_id;
+
+    if (!storeId) {
+      throw new Error('store_id not configured for Pathao provider');
+    }
+
+    try {
+      const response = await providerImpl.calculateRate({
+        store_id: storeId,
+        item_type: 2,
+        delivery_type: 48,
+        item_weight: data.weight,
+        recipient_city: data.cityId,
+        recipient_zone: data.zoneId,
+      });
+
+      const fee = response?.totalCharge || 0;
+
+      const extraCharge = provider.config?.extra_charge || 20;
+
+      return {
+        fee: fee + extraCharge,
+        codAvailable: response.codEnabled,
+        codPercentage: response.codFee,
+      };
+    } catch (error) {
+      this.logger.error('Pathao rate failed', error);
+
+      return {
+        fee: 80,
+      };
+    }
   }
 }

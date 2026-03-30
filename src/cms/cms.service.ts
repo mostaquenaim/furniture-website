@@ -405,7 +405,7 @@ export class CmsService {
 
   // update districts
   async updateDistrict(id: number, data: UpdateDistrictDto, adminId: number) {
-    const existing = await this.prisma.district.findUnique({
+    const existing = await this.prisma.city.findUnique({
       where: { id },
     });
 
@@ -413,7 +413,7 @@ export class CmsService {
       throw new NotFoundException('District not found');
     }
 
-    const updatedDistrict = await this.prisma.district.update({
+    const updatedDistrict = await this.prisma.city.update({
       where: { id },
       data,
     });
@@ -620,9 +620,9 @@ export class CmsService {
     return deleted;
   }
 
-  // delete district
+  // delete city
   async deleteDistrict(userId: number, id: number) {
-    const existing = await this.prisma.district.findUnique({
+    const existing = await this.prisma.city.findUnique({
       where: {
         id,
       },
@@ -630,7 +630,7 @@ export class CmsService {
 
     if (!existing) throw new NotFoundException('District not found');
 
-    const deleted = await this.prisma.district.delete({
+    const deleted = await this.prisma.city.delete({
       where: { id },
     });
 
@@ -833,37 +833,37 @@ export class CmsService {
     return variant;
   }
 
-  // create initial district data
+  // create initial city data
   async createInitialDistrict(userId: number) {
     for (const district of districtsData) {
       // Remove trailing spaces from names
       const cleanName = district.name.trim();
 
       // Check if district already exists
-      const existingDistrict = await this.prisma.district.findUnique({
+      const existingDistrict = await this.prisma.city.findUnique({
         where: { name: cleanName },
       });
 
       if (!existingDistrict) {
-        await this.prisma.district.create({
+        await this.prisma.city.create({
           data: {
             name: cleanName,
             deliveryFee: Number(process.env.DEFAULT_DELIVERY_FEE) || 120,
           },
         });
-        console.log(`Created district: ${cleanName}`);
+        console.log(`Created city: ${cleanName}`);
       } else {
         console.log(`District already exists: ${cleanName}`);
       }
     }
   }
 
-  // create district data
+  // create city data
   async createDistrict(userId: number, districtDto: CreateDistrictDto) {
     const cleanName = districtDto.name.trim();
 
-    // Check if district already exists
-    const existingDistrict = await this.prisma.district.findUnique({
+    // Check if city already exists
+    const existingDistrict = await this.prisma.city.findUnique({
       where: { name: cleanName },
     });
 
@@ -871,7 +871,7 @@ export class CmsService {
       throw new BadRequestException('District already exists');
     }
 
-    const district = await this.prisma.district.create({
+    const city = await this.prisma.city.create({
       data: {
         name: cleanName,
         deliveryFee:
@@ -886,15 +886,15 @@ export class CmsService {
       adminId: userId,
       action: 'CREATE_DISTRICT',
       module: 'SYSTEM',
-      targetId: district.id,
-      targetLabel: district.name,
+      targetId: city.id,
+      targetLabel: city.name,
       newValue: {
-        isActive: district.isActive,
-        name: district.name,
+        isActive: city.isActive,
+        name: city.name,
       },
     });
 
-    return district;
+    return city;
   }
 
   // MATERIAL ATTRIBUTE
@@ -982,47 +982,8 @@ export class CmsService {
     });
   }
 
-  // get all districts
-  // async getDistricts() {
-  //   try {
-  //     // 1. Attempt to get cities from Pathao
-  //     const pathaoCities = await this.pathaoProvider.getCities();
-
-  //     // Check if pathaoCities is valid and has data
-  //     if (pathaoCities && pathaoCities.length > 0) {
-  //       this.logger.log('Fetching districts from Pathao API');
-
-  //       // Map Pathao's format to your District structure
-  //       return pathaoCities.map((city: any) => ({
-  //         id: city.city_id, // Pathao ID
-  //         name: city.city_name,
-  //         deliveryFee: null, // Pathao usually calculates this dynamically via calculateRate
-  //         isCODAvailable: true, // Pathao generally supports COD in all main cities
-  //         isExternal: true, // Optional flag to know this came from Pathao
-  //       }));
-  //     }
-  //   } catch (error) {
-  //     this.logger.warn(
-  //       `Failed to fetch Pathao cities, falling back to local DB: ${error.message}`,
-  //     );
-  //   }
-
-  //   // 2. Fallback to local Prisma database
-  //   this.logger.log('Fetching districts from local database');
-  //   return await this.prisma.district.findMany({
-  //     where: { isActive: true },
-  //     select: {
-  //       id: true,
-  //       name: true,
-  //       deliveryFee: true,
-  //       isCODAvailable: true,
-  //     },
-  //     orderBy: { name: 'asc' },
-  //   });
-  // }
-
   async getDistricts() {
-    return await this.prisma.district.findMany({
+    return await this.prisma.city.findMany({
       where: { isActive: true },
       select: {
         id: true,

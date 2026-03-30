@@ -7,17 +7,17 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 // src/courier/courier.service.ts
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CourierStatus, OrderStatus, Prisma } from '@prisma/client';
-import { UpdateShipmentStatusDto } from './dto/update-shipment-status.dto';
+import { UpdateShipmentStatusDto } from '../dto/update-shipment-status.dto';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { CourierProviderInterface } from './providers/courier-provider.interface';
-import { SteadfastProvider } from './providers/steadfast.provider';
-import { RedxProvider } from './providers/redx.provider';
-import { PaperflyProvider } from './providers/paperfly.provider';
-import { PathaoProvider } from './providers/pathao.provider';
-import { COURIER_TO_ORDER_STATUS } from './courier-status.map';
+import { CourierProviderInterface } from '../providers/courier-provider.interface';
+import { SteadfastProvider } from '../providers/steadfast.provider';
+import { RedxProvider } from '../providers/redx.provider';
+import { PaperflyProvider } from '../providers/paperfly.provider';
+import { PathaoProvider } from '../providers/pathao.provider';
+import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
 
 @Injectable()
 export class CourierWebhookService {

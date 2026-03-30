@@ -3,7 +3,6 @@
 // src/courier/courier.module.ts
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { CourierService } from './courier.service';
 import { CourierController } from './courier.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
@@ -15,7 +14,8 @@ import { PermissionService } from 'src/permission/permission.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { SteadfastProvider } from './providers/steadfast.provider';
 import { CourierWebhookController } from './courier-webhook.controller';
-import { CourierWebhookService } from './courier-webhook.service';
+import { CourierWebhookService } from './services/courier-webhook.service';
+import { CourierService } from './services/courier.service';
 
 // Providers
 

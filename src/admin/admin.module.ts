@@ -12,8 +12,9 @@ import { OrderService } from 'src/order/order.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { BullModule } from '@nestjs/bull';
 import { ReviewService } from 'src/review/review.service';
-import { CourierService } from 'src/courier/courier.service';
+import { CourierService } from 'src/courier/services/courier.service';
 import { HttpModule } from '@nestjs/axios';
+import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-sync.service';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { HttpModule } from '@nestjs/axios';
     NotificationsService,
     ReviewService,
     CourierService,
+    PathaoLocationSyncService,
   ],
 })
 export class AdminModule {}

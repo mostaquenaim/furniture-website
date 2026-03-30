@@ -21,7 +21,6 @@ export class PathaoProvider implements CourierProviderInterface {
   private clientSecret?: string;
   private username?: string;
   private password?: string;
-
   private baseUrl?: string;
 
   constructor(
@@ -56,8 +55,6 @@ export class PathaoProvider implements CourierProviderInterface {
       username: this.username,
       password: this.password,
     };
-
-    console.log(data, 'access-data');
 
     try {
       const res = await axios.post(
@@ -196,25 +193,29 @@ export class PathaoProvider implements CourierProviderInterface {
   // calculate shipment
   async calculateRate(data: any): Promise<any> {
     const token = await this.getPathaoAccessToken();
+
+    const weight = Math.max(0.5, Math.min(data.item_weight, 10));
     try {
       const response = await firstValueFrom(
         this.httpService.post(
-          `${this.baseUrl}/aladdin/api/v1/price-calculation`,
+          `${this.baseUrl}/aladdin/api/v1/merchant/price-plan`,
           {
             store_id: parseInt(data.store_id),
             item_type: data.item_type || 2,
             delivery_type: data.delivery_type || 48,
-            item_weight: data.item_weight || '0.5',
+            item_weight: weight,
             recipient_city: data.recipient_city,
             recipient_zone: data.recipient_zone,
           },
           { headers: { Authorization: `Bearer ${token}` } },
         ),
       );
+
       return {
         deliveryCharge: response.data.data.price,
         totalCharge: response.data.data.final_price,
-        codFee: response.data.data.cod_charge,
+        codFee: response.data.data.cod_percentage,
+        codEnabled: response.data.data.cod_enabled,
       };
     } catch (error) {
       throw new Error(
@@ -240,11 +241,13 @@ export class PathaoProvider implements CourierProviderInterface {
   async getCities() {
     const token = await this.getPathaoAccessToken();
     const response = await firstValueFrom(
-      this.httpService.get(`${this.baseUrl}/aladdin/api/v1/cities`, {
+      this.httpService.get(`${this.baseUrl}/aladdin/api/v1/city-list`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
     );
-    return response.data.data;
+
+    // console.log(response.data.data.data, ' pathao response');
+    return response.data.data.data;
   }
 
   // get zones
@@ -252,12 +255,26 @@ export class PathaoProvider implements CourierProviderInterface {
     const token = await this.getPathaoAccessToken();
     const response = await firstValueFrom(
       this.httpService.get(
-        `${this.baseUrl}/aladdin/api/v1/cities/${cityId}/zones`,
+        `${this.baseUrl}/aladdin/api/v1/cities/${cityId}/zone-list`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       ),
     );
-    return response.data.data;
+    return response.data.data.data;
+  }
+
+  // get zones
+  async getAreas(zoneId: number) {
+    const token = await this.getPathaoAccessToken();
+    const response = await firstValueFrom(
+      this.httpService.get(
+        `${this.baseUrl}/aladdin/api/v1/zones/${zoneId}/area-list`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      ),
+    );
+    return response.data.data.data;
   }
 }

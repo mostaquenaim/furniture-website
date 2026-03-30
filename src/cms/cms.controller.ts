@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -9,10 +10,10 @@ import {
   Delete,
   Body,
   Param,
-  ParseIntPipe,
   UseGuards,
   Query,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { CreateAboutDto } from './dto/create-about.dto';
@@ -21,19 +22,17 @@ import { CreateTnCDto } from './dto/create-tnc.dto';
 import { UpdateTnCDto } from './dto/update-tnc.dto';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
-import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
-import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { CartService } from 'src/cart/cart.service';
 import { OrderService } from 'src/order/order.service';
 import type { Response } from 'express';
+import { CourierService } from 'src/courier/services/courier.service';
 
 @Controller()
 export class CmsController {
   constructor(
     private readonly cmsService: CmsService,
-    private readonly cartService: CartService,
     private readonly orderService: OrderService,
+    private readonly courierService: CourierService,
   ) {}
 
   // get tags
@@ -170,6 +169,51 @@ export class CmsController {
   @Get('districts')
   async getDistricts() {
     return this.cmsService.getDistricts();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('zones')
+  async getZones(@Query('cityId') cityId: string) {
+    if (!cityId) {
+      throw new BadRequestException('cityId is required');
+    }
+
+    return this.courierService.getZones(Number(cityId));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('areas')
+  async getAreas(@Query('zoneId') zoneId: string) {
+    if (!zoneId) {
+      throw new BadRequestException('zoneId is required');
+    }
+
+    return this.courierService.getAreas(Number(zoneId));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('delivery/fee')
+  async getDeliveryFee(@Body() body: any) {
+    console.log('here');
+    const { cityId, zoneId, weight } = body;
+
+    if (!cityId) {
+      throw new BadRequestException('cityId is required');
+    }
+
+    if (!zoneId) {
+      throw new BadRequestException('zoneId is required');
+    }
+
+    if (!weight || weight <= 0) {
+      throw new BadRequestException('Invalid weight');
+    }
+
+    return this.courierService.calculateDeliveryFee({
+      cityId: Number(cityId),
+      zoneId: Number(zoneId),
+      weight: Number(weight),
+    });
   }
 
   //invoice

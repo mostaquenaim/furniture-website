@@ -99,7 +99,7 @@ export class OrderService {
   async createOrder(userId: number, dto: CreateOrderDto) {
     // console.log(userId, 'userId');
     // 1. Validate district (especially for COD)
-    const district = await this.prisma.district.findUnique({
+    const district = await this.prisma.city.findUnique({
       where: { id: dto.address.districtId },
     });
 

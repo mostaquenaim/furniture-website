@@ -122,6 +122,7 @@ export class CartService {
                         },
                       },
                     },
+                    weight: true,
                   },
                 },
               },
@@ -365,6 +366,18 @@ export class CartService {
 
   // guest cart
   async getOrCreateGuestCart(visitorId: string) {
+    let visitor = await this.prisma.visitor.findUnique({
+      where: { id: visitorId },
+    });
+
+    if (!visitor) {
+      visitor = await this.prisma.visitor.create({
+        data: {
+          id: visitorId,
+        },
+      });
+    }
+
     let cart = await this.prisma.cart.findFirst({
       where: {
         visitorId,
