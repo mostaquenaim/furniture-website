@@ -507,25 +507,41 @@ model Order {
   orderId       String @unique
   trackingToken String @unique
 
-  user            User?   @relation(fields: [userId], references: [id])
-  userId          Int?
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
+
   customerName    String
   customerPhone   String
   customerEmail   String?
   shippingAddress String
-  districtId      Int?
-  district        City?   @relation(fields: [districtId], references: [id])
-  districtName    String?
-  postCode        String?
 
+  // ── Location 
+  districtId   Int?
+  district     City?   @relation(fields: [districtId], references: [id])
+  districtName String?
+
+  zoneId   Int?
+  zoneName String?
+
+  areaId   Int?
+  areaName String?
+
+  postCode String?
+
+  // ── Delivery 
   deliveryMethod String?
   deliveryCharge Float?
 
+  // ── Pricing 
   couponCode String?
   discount   Float?
+  total      Float
 
-  total     Float
-  status    OrderStatus @default(PENDING)
+  // ── Status 
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+
+  // ── Courier 
   awbNumber String? // courier AWB
 
   createdAt DateTime @default(now())
@@ -533,7 +549,6 @@ model Order {
 
   items                OrderItem[]
   payments             Payment[]
-  paymentStatus        PaymentStatus        @default(PENDING)
   orderStatusHistories OrderStatusHistory[]
   invoice              Invoice?
   courierShipments     CourierShipment[]

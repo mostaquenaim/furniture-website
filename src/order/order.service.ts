@@ -97,7 +97,6 @@ export class OrderService {
 
   // create a order
   async createOrder(userId: number, dto: CreateOrderDto) {
-    // console.log(userId, 'userId');
     // 1. Validate district (especially for COD)
     const district = await this.prisma.city.findUnique({
       where: { id: dto.address.districtId },
@@ -216,7 +215,10 @@ export class OrderService {
     }
 
     const deliveryCharge =
-      district.deliveryFee ?? Number(process.env.DEFAULT_DELIVERY_FEE) ?? 120;
+      dto.deliveryFee ??
+      district.deliveryFee ??
+      Number(process.env.DEFAULT_DELIVERY_FEE) ??
+      120;
     const total = subtotal + deliveryCharge;
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -260,6 +262,10 @@ export class OrderService {
           customerName: dto.address.name,
           customerPhone: customerPhone,
           shippingAddress: dto.address.fullAddress,
+          zoneId: dto.address.zoneId || null,
+          zoneName: dto.address.zoneName || null,
+          areaId: dto.address.areaId || null,
+          areaName: dto.address.areaName || null,
           postCode: dto.address.postCode,
           districtId: dto.address.districtId,
           districtName: district.name,

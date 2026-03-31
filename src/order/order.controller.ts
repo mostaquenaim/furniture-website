@@ -49,7 +49,6 @@ export class OrderController {
 
   @Post('create')
   create(@Req() req, @Body() dto: CreateOrderDto) {
-    // console.log(req?.user?.userId);
     return this.orderService.createOrder(req?.user?.userId, dto);
   }
 

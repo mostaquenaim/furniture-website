@@ -1,4 +1,10 @@
-import { IsInt, IsString, ValidateNested, IsIn } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  ValidateNested,
+  IsIn,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderAddressDto } from './order-address.dto';
 
@@ -9,6 +15,10 @@ export class CreateOrderDto {
   @ValidateNested()
   @Type(() => OrderAddressDto)
   address: OrderAddressDto;
+
+  @IsInt()
+  @IsOptional()
+  deliveryFee?: number;
 
   @IsString()
   @IsIn(['COD', 'ONLINE'])
