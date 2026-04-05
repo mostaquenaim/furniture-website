@@ -35,7 +35,7 @@ import { BlogsService } from 'src/blog/blog.service';
 import { CreateBlogCategoryDto } from 'src/blog/dto/create-blog-category.dto';
 import { CreateMaterialDto } from 'src/cms/dto/create-material.dto';
 import { CreateProductDto } from 'src/product/dto/create-product.dto';
-import { CreateCouponDto } from 'src/cms/dto/create-coupon.dto';
+import { CreateCouponDto } from 'src/cms/dto/Coupon/create-coupon.dto';
 import { UpdateDistrictDto } from 'src/cms/dto/update-district.dto';
 import { CreateDistrictDto } from 'src/cms/dto/create-district.dto';
 import { UpdateColorDto } from 'src/cms/dto/update-color.dto';
@@ -56,6 +56,8 @@ import { Action } from 'src/permission/action.enum';
 import { Permission } from 'src/permission/permission.decorator';
 import { SkipPermission } from 'src/permission/skip-permission.decorator';
 import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-sync.service';
+import { UpdateCouponDto } from 'src/cms/dto/Coupon/update-coupon.dto';
+import { GetCouponsQueryDto } from 'src/cms/dto/Coupon/get-coupon-query.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -421,11 +423,68 @@ export class AdminController {
   ////// ORDER //////
   ////////////////////
 
-  //create coupons
+  // ── Create ──────────────────────────────────────────────────────────────────
+
   @Post('create-coupon')
   @Permission(Action.COUPON_CREATE)
   async createCoupon(@Body() dto: CreateCouponDto, @Req() req: any) {
     return await this.cmsService.createCoupon(dto, req?.user?.userId);
+  }
+
+  // ── Get All (with optional filters) ────────────────────────────────────────
+
+  @Get()
+  @Permission(Action.COUPON_READ)
+  async getAllCoupons(@Query() query: GetCouponsQueryDto) {
+    return await this.cmsService.getAllCoupons(query);
+  }
+
+  // ── Get Single ──────────────────────────────────────────────────────────────
+
+  @Get(':id')
+  @Permission(Action.COUPON_READ)
+  async getCouponById(@Param('id', ParseIntPipe) id: number) {
+    return await this.cmsService.getCouponById(id);
+  }
+
+  // ── Update ──────────────────────────────────────────────────────────────────
+
+  @Patch(':id')
+  @Permission(Action.COUPON_UPDATE)
+  async updateCoupon(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCouponDto,
+    @Req() req: any,
+  ) {
+    return await this.cmsService.updateCoupon(id, dto, req?.user?.userId);
+  }
+
+  // ── Toggle active status ────────────────────────────────────────────────────
+  // Convenience endpoint — frontend StatusBadge uses this for quick toggling
+  // without sending the full payload.
+
+  @Patch(':id/toggle-status')
+  @Permission(Action.COUPON_UPDATE)
+  async toggleCouponStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    return await this.cmsService.toggleCouponStatus(id, req?.user?.userId);
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+
+  @Delete(':id')
+  @Permission(Action.COUPON_DELETE)
+  async deleteCoupon(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return await this.cmsService.deleteCoupon(id, req?.user?.userId);
+  }
+
+  // ── Validate a coupon code (used by the storefront cart) ───────────────────
+
+  @Post('validate')
+  async validateCoupon(@Body() body: { code: string; orderValue: number }) {
+    return await this.cmsService.validateCoupon(body.code, body.orderValue);
   }
 
   // update order status
@@ -528,7 +587,7 @@ export class AdminController {
     return syncZones;
   }
 
-  // delete coupon
+  // delete district
   @Delete('districts/:id')
   @Permission(Action.DISTRICT_MANAGE)
   async deleteDistrict(@Req() req: any, @Param('id') id: number) {

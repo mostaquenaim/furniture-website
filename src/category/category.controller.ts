@@ -49,7 +49,6 @@ export class CategoryController {
     @Query('sortBy') sortBy?: string,
     @Query('order') order: 'asc' | 'desc' = 'asc',
   ) {
-
     return this.categoryService.getSeriesWiseProducts({
       slug,
       page: Number(page) || 1,

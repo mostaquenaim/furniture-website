@@ -27,7 +27,7 @@ import { CreateVariantDto } from './dto/create-variant.dto';
 import { CreateMaterialDto } from './dto/create-material.dto';
 import districtsData from 'src/cms/data/districtData';
 import couponsData from './data/couponData';
-import { CreateCouponDto } from './dto/create-coupon.dto';
+import { CreateCouponDto } from './dto/Coupon/create-coupon.dto';
 import { CouponDiscountType, Prisma } from '@prisma/client';
 import { UpdateDistrictDto } from './dto/update-district.dto';
 import { CreateDistrictDto } from './dto/create-district.dto';
@@ -36,6 +36,8 @@ import { UpdateMaterialDto } from './dto/update-material.dto';
 import { UpdateSizeDto } from './dto/update-size.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { GetCouponsQueryDto } from './dto/Coupon/get-coupon-query.dto';
+import { UpdateCouponDto } from './dto/Coupon/update-coupon.dto';
 
 @Injectable()
 export class CmsService {
@@ -653,29 +655,28 @@ export class CmsService {
       });
     }
   }
+  // ── Create ──────────────────────────────────────────────────────────────────
 
-  // create a coupon
   async createCoupon(dto: CreateCouponDto, adminId: number) {
-    // Validate discountValue for percentage/fixed coupons
     if (
       (dto.discountType === CouponDiscountType.PERCENTAGE ||
         dto.discountType === CouponDiscountType.FIXED_AMOUNT) &&
       (dto.discountValue === undefined || dto.discountValue === null)
     ) {
       throw new BadRequestException(
-        'discountValue is required for PERCENTAGE or FIXED coupon type',
+        'discountValue is required for PERCENTAGE or FIXED_AMOUNT coupon type',
       );
     }
 
     const start = dto.startDate ?? new Date();
-    if (dto.expiryDate <= start) {
+    if (new Date(dto.expiryDate) <= new Date(start)) {
       throw new BadRequestException('expiryDate must be after startDate');
     }
 
     try {
       const coupon = await this.prisma.coupon.create({
         data: {
-          code: dto.code,
+          code: dto.code.toUpperCase().trim(),
           discountType: dto.discountType,
           discountValue: dto.discountValue ?? null,
           minOrderValue: dto.minOrderValue ?? null,
@@ -686,7 +687,6 @@ export class CmsService {
         },
       });
 
-      //activity log
       this.activityLogService.log({
         adminId,
         action: 'CREATE_COUPON',
@@ -707,7 +707,6 @@ export class CmsService {
 
       return coupon;
     } catch (error) {
-      // Prisma unique constraint violation error
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -718,6 +717,251 @@ export class CmsService {
       }
       throw error;
     }
+  }
+
+  // ── Get All ─────────────────────────────────────────────────────────────────
+
+  async getAllCoupons(query: GetCouponsQueryDto) {
+    const where: Prisma.CouponWhereInput = {};
+
+    if (query.isActive !== undefined) {
+      where.isActive = query.isActive;
+    }
+
+    if (query.discountType) {
+      where.discountType = query.discountType;
+    }
+
+    // By default exclude expired coupons unless explicitly requested
+    if (!query.includeExpired) {
+      where.expiryDate = { gte: new Date() };
+    }
+
+    if (query.search) {
+      where.code = {
+        contains: query.search.toUpperCase(),
+        mode: 'insensitive',
+      };
+    }
+
+    return await this.prisma.coupon.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ── Get Single ──────────────────────────────────────────────────────────────
+
+  async getCouponById(id: number) {
+    const coupon = await this.prisma.coupon.findUnique({ where: { id } });
+
+    if (!coupon) {
+      throw new NotFoundException(`Coupon #${id} not found`);
+    }
+
+    return coupon;
+  }
+
+  // ── Update ──────────────────────────────────────────────────────────────────
+
+  async updateCoupon(id: number, dto: UpdateCouponDto, adminId: number) {
+    const existing = await this.getCouponById(id);
+
+    // Re-validate discountValue if discountType is being changed or value is being updated
+    const resolvedType = dto.discountType ?? existing.discountType;
+    const resolvedValue =
+      dto.discountValue !== undefined
+        ? dto.discountValue
+        : existing.discountValue;
+
+    if (
+      (resolvedType === CouponDiscountType.PERCENTAGE ||
+        resolvedType === CouponDiscountType.FIXED_AMOUNT) &&
+      (resolvedValue === undefined || resolvedValue === null)
+    ) {
+      throw new BadRequestException(
+        'discountValue is required for PERCENTAGE or FIXED_AMOUNT coupon type',
+      );
+    }
+
+    // Re-validate dates if either is being updated
+    const resolvedStart = dto.startDate
+      ? new Date(dto.startDate)
+      : existing.startDate;
+    const resolvedExpiry = dto.expiryDate
+      ? new Date(dto.expiryDate)
+      : existing.expiryDate;
+
+    if (resolvedExpiry <= resolvedStart) {
+      throw new BadRequestException('expiryDate must be after startDate');
+    }
+
+    try {
+      const updated = await this.prisma.coupon.update({
+        where: { id },
+        data: {
+          ...(dto.code && { code: dto.code.toUpperCase().trim() }),
+          ...(dto.discountType && { discountType: dto.discountType }),
+          ...(dto.discountValue !== undefined && {
+            discountValue: dto.discountValue,
+          }),
+          ...(dto.minOrderValue !== undefined && {
+            minOrderValue: dto.minOrderValue,
+          }),
+          ...(dto.maxDiscount !== undefined && {
+            maxDiscount: dto.maxDiscount,
+          }),
+          ...(dto.startDate && { startDate: dto.startDate }),
+          ...(dto.expiryDate && { expiryDate: dto.expiryDate }),
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        },
+      });
+
+      this.activityLogService.log({
+        adminId,
+        action: 'UPDATE_COUPON',
+        module: 'MARKETING',
+        targetId: updated.id,
+        targetLabel: updated.code,
+        oldValue: {
+          isActive: existing.isActive,
+          code: existing.code,
+          discountType: existing.discountType,
+          discountValue: existing.discountValue,
+          minOrderValue: existing.minOrderValue,
+          maxDiscount: existing.maxDiscount,
+          expiryDate: existing.expiryDate,
+          startDate: existing.startDate,
+        },
+        newValue: {
+          isActive: updated.isActive,
+          code: updated.code,
+          discountType: updated.discountType,
+          discountValue: updated.discountValue,
+          minOrderValue: updated.minOrderValue,
+          maxDiscount: updated.maxDiscount,
+          expiryDate: updated.expiryDate,
+          startDate: updated.startDate,
+        },
+      });
+
+      return updated;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          `Coupon code "${dto.code}" already exists`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  // ── Toggle Status ───────────────────────────────────────────────────────────
+
+  async toggleCouponStatus(id: number, adminId: number) {
+    const existing = await this.getCouponById(id);
+
+    const updated = await this.prisma.coupon.update({
+      where: { id },
+      data: { isActive: !existing.isActive },
+    });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'TOGGLE_COUPON_STATUS',
+      module: 'MARKETING',
+      targetId: updated.id,
+      targetLabel: updated.code,
+      oldValue: { isActive: existing.isActive },
+      newValue: { isActive: updated.isActive },
+    });
+
+    return updated;
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+
+  async deleteCoupon(id: number, adminId: number) {
+    const existing = await this.getCouponById(id);
+
+    await this.prisma.coupon.delete({ where: { id } });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'DELETE_COUPON',
+      module: 'MARKETING',
+      targetId: id,
+      targetLabel: existing.code,
+      oldValue: {
+        code: existing.code,
+        discountType: existing.discountType,
+        discountValue: existing.discountValue,
+        isActive: existing.isActive,
+      },
+    });
+
+    return { message: `Coupon "${existing.code}" deleted successfully` };
+  }
+
+  // ── Validate (storefront cart use) ─────────────────────────────────────────
+
+  async validateCoupon(code: string, orderValue: number) {
+    const coupon = await this.prisma.coupon.findUnique({
+      where: { code: code.toUpperCase().trim() },
+    });
+
+    if (!coupon) {
+      throw new NotFoundException('Coupon code not found');
+    }
+
+    if (!coupon.isActive) {
+      throw new BadRequestException('This coupon is no longer active');
+    }
+
+    const now = new Date();
+
+    if (now < coupon.startDate) {
+      throw new BadRequestException('This coupon is not yet valid');
+    }
+
+    if (now > coupon.expiryDate) {
+      throw new BadRequestException('This coupon has expired');
+    }
+
+    if (coupon.minOrderValue && orderValue < coupon.minOrderValue) {
+      throw new BadRequestException(
+        `Minimum order value of $${coupon.minOrderValue} required for this coupon`,
+      );
+    }
+
+    // Calculate discount amount
+    let discountAmount = 0;
+
+    if (coupon.discountType === CouponDiscountType.PERCENTAGE) {
+      discountAmount = (orderValue * (coupon.discountValue ?? 0)) / 100;
+      if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+        discountAmount = coupon.maxDiscount;
+      }
+    } else if (coupon.discountType === CouponDiscountType.FIXED_AMOUNT) {
+      discountAmount = coupon.discountValue ?? 0;
+      // Cap at order value — can't discount more than the order itself
+      if (discountAmount > orderValue) {
+        discountAmount = orderValue;
+      }
+    } else if (coupon.discountType === CouponDiscountType.FREE_DELIVERY) {
+      // Return signal — let the cart service handle the actual delivery cost
+      discountAmount = 0;
+    }
+
+    return {
+      valid: true,
+      coupon,
+      discountAmount,
+      finalOrderValue: Math.max(0, orderValue - discountAmount),
+    };
   }
 
   // COLOR ATTRIBUTE
