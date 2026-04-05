@@ -433,7 +433,7 @@ export class AdminController {
 
   // ── Get All (with optional filters) ────────────────────────────────────────
 
-  @Get()
+  @Get('coupons')
   @Permission(Action.COUPON_READ)
   async getAllCoupons(@Query() query: GetCouponsQueryDto) {
     return await this.cmsService.getAllCoupons(query);
@@ -441,7 +441,7 @@ export class AdminController {
 
   // ── Get Single ──────────────────────────────────────────────────────────────
 
-  @Get(':id')
+  @Get('coupons/:id')
   @Permission(Action.COUPON_READ)
   async getCouponById(@Param('id', ParseIntPipe) id: number) {
     return await this.cmsService.getCouponById(id);
@@ -449,7 +449,7 @@ export class AdminController {
 
   // ── Update ──────────────────────────────────────────────────────────────────
 
-  @Patch(':id')
+  @Patch('coupons/:id')
   @Permission(Action.COUPON_UPDATE)
   async updateCoupon(
     @Param('id', ParseIntPipe) id: number,
@@ -463,7 +463,7 @@ export class AdminController {
   // Convenience endpoint — frontend StatusBadge uses this for quick toggling
   // without sending the full payload.
 
-  @Patch(':id/toggle-status')
+  @Patch('coupons/:id/toggle-status')
   @Permission(Action.COUPON_UPDATE)
   async toggleCouponStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -474,7 +474,7 @@ export class AdminController {
 
   // ── Delete ──────────────────────────────────────────────────────────────────
 
-  @Delete(':id')
+  @Delete('coupons/:id')
   @Permission(Action.COUPON_DELETE)
   async deleteCoupon(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return await this.cmsService.deleteCoupon(id, req?.user?.userId);
@@ -482,7 +482,7 @@ export class AdminController {
 
   // ── Validate a coupon code (used by the storefront cart) ───────────────────
 
-  @Post('validate')
+  @Post('coupons/validate')
   async validateCoupon(@Body() body: { code: string; orderValue: number }) {
     return await this.cmsService.validateCoupon(body.code, body.orderValue);
   }

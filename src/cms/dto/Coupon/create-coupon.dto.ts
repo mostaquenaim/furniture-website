@@ -28,7 +28,6 @@ export class CreateCouponDto {
   @IsOptional()
   @IsNumber()
   @IsPositive()
-  @Max(100, { message: 'Percentage discount cannot exceed 100' })
   discountValue?: number;
 
   @IsOptional()
