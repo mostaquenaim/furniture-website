@@ -49,14 +49,6 @@ export class CategoryController {
     @Query('sortBy') sortBy?: string,
     @Query('order') order: 'asc' | 'desc' = 'asc',
   ) {
-    // console.log(
-    //   'in bruh',
-    //   colorIds,
-    //   materialIds,
-    //   subCategoryIds,
-    //   minPrice,
-    //   maxPrice,
-    // );
 
     return this.categoryService.getSeriesWiseProducts({
       slug,

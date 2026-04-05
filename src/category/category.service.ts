@@ -261,6 +261,10 @@ export class CategoryService {
     const productWhere: any = {
       isActive,
 
+      totalProductQuantity: {
+        gt: 0,
+      },
+
       ...(search && {
         name: { contains: search, mode: 'insensitive' },
       }),
@@ -942,6 +946,10 @@ export class CategoryService {
 
     const productWhere: any = {
       isActive,
+
+      totalProductQuantity: {
+        gt: 0,
+      },
 
       ...(search && {
         name: { contains: search, mode: 'insensitive' },
