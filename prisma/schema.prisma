@@ -1149,23 +1149,25 @@ model BlogPostTag {
 
 model Banner {
   id     Int     @id @default(autoincrement())
-  title  String?
+  title  String
   image  String
   link   String?
+  device String? // "DESKTOP", "MOBILE", or null for both
   active Boolean @default(true)
 }
 
-model HomepageBanner {
-  id        Int      @id @default(autoincrement())
-  image     String
-  sortOrder Int
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+// model HomepageBanner {
+//   id        Int      @id @default(autoincrement())
+//   image     String
+//   sortOrder Int
+//   isActive  Boolean  @default(true)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
 
 model PromoBanner {
   id        Int      @id @default(autoincrement())
+  title    String
   text      String
   bgColor   String // e.g. "#0f172a"
   isActive  Boolean  @default(true)

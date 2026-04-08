@@ -9,6 +9,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,11 +17,10 @@ import { CreateAboutDto } from './dto/create-about.dto';
 import { UpdateAboutDto } from './dto/update-about.dto';
 import { CreateTnCDto } from './dto/create-tnc.dto';
 import { UpdateTnCDto } from './dto/update-tnc.dto';
-import { CreateBannerDto } from './dto/create-banner.dto';
-import { UpdateBannerDto } from './dto/update-banner.dto';
-import { CreatePromoBannerDto } from './dto/create-promo-banner.dto';
+import { UpdateBannerDto } from './dto/Banner/update-banner.dto';
+import { CreatePromoBannerDto } from './dto/Banner/create-promo-banner.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { UpdatePromoBannerDto } from './dto/update-promo-banner.dto';
+import { UpdatePromoBannerDto } from './dto/Banner/update-promo-banner.dto';
 import { CreateColorDto } from './dto/create-color.dto';
 import { CreateSizeDto } from './dto/create-size-dto.dto';
 import { CreateVariantDto } from './dto/create-variant.dto';
@@ -28,7 +28,7 @@ import { CreateMaterialDto } from './dto/create-material.dto';
 import districtsData from 'src/cms/data/districtData';
 import couponsData from './data/couponData';
 import { CreateCouponDto } from './dto/Coupon/create-coupon.dto';
-import { CouponDiscountType, Prisma } from '@prisma/client';
+import { Banner, CouponDiscountType, Prisma } from '@prisma/client';
 import { UpdateDistrictDto } from './dto/update-district.dto';
 import { CreateDistrictDto } from './dto/create-district.dto';
 import { UpdateColorDto } from './dto/update-color.dto';
@@ -38,6 +38,7 @@ import { UpdateVariantDto } from './dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { GetCouponsQueryDto } from './dto/Coupon/get-coupon-query.dto';
 import { UpdateCouponDto } from './dto/Coupon/update-coupon.dto';
+import { CreateBannerDto } from './dto/Banner/create-banner.dto';
 
 @Injectable()
 export class CmsService {
@@ -126,12 +127,6 @@ export class CmsService {
   getBanners() {
     return this.banners;
   }
-  createBanner(dto: CreateBannerDto) {
-    console.log(dto);
-    // const banner = { id: Date.now(), ...dto };
-    // this.banners.push(banner);
-    // return banner;
-  }
   updateBanner(id: string, dto: UpdateBannerDto) {
     console.log(id, dto);
     // const idx = this.banners.findIndex(b => b.id == id);
@@ -147,16 +142,17 @@ export class CmsService {
   }
 
   // CREATE
-  createPromoBanner(dto: CreatePromoBannerDto) {
+  async createPromoBanner(dto: CreatePromoBannerDto, adminId: number) {
     // console.log(dto,'dtoservice');
-    return this.prisma.promoBanner.create({
+    const promoBanner = await this.prisma.promoBanner.create({
       data: {
         text: dto.text,
+        title: dto.title,
         bgColor: dto.bgColor,
         order: dto.order ?? 0,
         isActive: dto.isActive ?? true,
         links: {
-          create: dto.links.map((l) => ({
+          create: dto?.links?.map((l) => ({
             text: l.text,
             url: l.url,
           })),
@@ -164,12 +160,62 @@ export class CmsService {
       },
       include: { links: true },
     });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_PROMO_BANNER',
+      module: 'MARKETING',
+      targetId: promoBanner.id,
+      targetLabel: promoBanner.title || '',
+      newValue: {
+        isActive: promoBanner.isActive,
+        text: promoBanner.text,
+        bgColor: promoBanner.bgColor,
+      },
+    });
+
+    return promoBanner;
+  }
+
+  // CREATE BANNER
+  async createHomepageBanner(
+    dto: CreateBannerDto,
+    adminId: number,
+  ): Promise<Banner> {
+    const banner = await this.prisma.banner.create({
+      data: {
+        title: dto.title,
+        image: dto.image,
+        link: dto.link,
+        active: dto.active ?? true,
+        device: dto.device || 'DESKTOP',
+      },
+    });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'CREATE_BANNER',
+      module: 'MARKETING',
+      targetId: banner.id,
+      targetLabel: banner.title || '',
+      newValue: {
+        isActive: banner.active,
+        title: banner.title,
+        image: banner.image,
+        link: banner.link,
+        device: banner.device,
+      },
+    });
+
+    return banner;
   }
 
   // READ (Active only)
-  findAllActivePromoBanners() {
+  findAllPromoBanners(isActive?: boolean) {
     return this.prisma.promoBanner.findMany({
-      where: { isActive: true },
+      where: {
+        ...(typeof isActive === 'boolean' && { isActive }),
+      },
       orderBy: { order: 'asc' },
       include: { links: true },
     });
@@ -199,6 +245,7 @@ export class CmsService {
       const updatedPromo = await tx.promoBanner.update({
         where: { id },
         data: {
+          title: dto.title,
           text: dto.text,
           bgColor: dto.bgColor,
           order: dto.order,
@@ -237,6 +284,60 @@ export class CmsService {
 
       return updatedPromo;
     });
+  }
+
+  async updateHomepageBanner(id: number, dto: UpdateBannerDto, userId: number) {
+    this.logger.log(`User ${userId} updating homepage banner ${id}`);
+    await this.findBannerOrThrow(id);
+
+    try {
+      return await this.prisma.banner.update({
+        where: { id },
+        data: {
+          ...(dto.title !== undefined && { title: dto.title.trim() }),
+          ...(dto.image !== undefined && { image: dto.image.trim() }),
+          ...(dto.link !== undefined && { link: dto.link?.trim() ?? null }),
+          ...(dto.device !== undefined && { device: dto.device ?? null }),
+          ...(dto.active !== undefined && { active: dto.active }),
+        },
+      });
+    } catch (e) {
+      this.handlePrismaError(e, 'homepage banner');
+    }
+  }
+
+  private async findPromoBannerOrThrow(id: number) {
+    const banner = await this.prisma.promoBanner.findUnique({ where: { id } });
+    if (!banner) throw new NotFoundException(`Promo banner #${id} not found`);
+    return banner;
+  }
+
+  private async findBannerOrThrow(id: number) {
+    const banner = await this.prisma.banner.findUnique({ where: { id } });
+    if (!banner)
+      throw new NotFoundException(`Homepage banner #${id} not found`);
+    return banner;
+  }
+
+  private handlePrismaError(error: unknown, entity: string): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        const fields = (error.meta?.target as string[])?.join(', ');
+        throw new ConflictException(
+          `A ${entity} with this ${fields} already exists`,
+        );
+      }
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`${entity} not found`);
+      }
+    }
+    this.logger.error(
+      `Unexpected error on ${entity}`,
+      error instanceof Error ? error.stack : error,
+    );
+    throw new InternalServerErrorException(
+      `Failed to process ${entity}. Please try again.`,
+    );
   }
 
   // UPDATE COLOR
@@ -460,7 +561,33 @@ export class CmsService {
     //activity log
     this.activityLogService.log({
       adminId: adminId,
-      action: 'DELETE_COLOR',
+      action: 'DELETE_PROMOTIONAL_BANNER',
+      module: 'CATALOG',
+      targetId: existing.id,
+      targetLabel: '',
+    });
+
+    return deletedPromo;
+  }
+
+  // DELETE BANNER
+  async removeHomepageBanner(id: number, adminId: number) {
+    const existing = await this.prisma.banner.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!existing) throw new NotFoundException('Banner Not Found');
+
+    const deletedPromo = await this.prisma.banner.delete({
+      where: { id },
+    });
+
+    //activity log
+    this.activityLogService.log({
+      adminId: adminId,
+      action: 'DELETE_BANNER',
       module: 'CATALOG',
       targetId: existing.id,
       targetLabel: '',

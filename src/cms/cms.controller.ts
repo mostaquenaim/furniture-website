@@ -20,8 +20,7 @@ import { CreateAboutDto } from './dto/create-about.dto';
 import { UpdateAboutDto } from './dto/update-about.dto';
 import { CreateTnCDto } from './dto/create-tnc.dto';
 import { UpdateTnCDto } from './dto/update-tnc.dto';
-import { CreateBannerDto } from './dto/create-banner.dto';
-import { UpdateBannerDto } from './dto/update-banner.dto';
+import { UpdateBannerDto } from './dto/Banner/update-banner.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { OrderService } from 'src/order/order.service';
 import type { Response } from 'express';
@@ -82,11 +81,6 @@ export class CmsController {
     return this.cmsService.getBanners();
   }
 
-  @Post('banners')
-  createBanner(@Body() dto: CreateBannerDto) {
-    return this.cmsService.createBanner(dto);
-  }
-
   @Put('banners/:id')
   updateBanner(@Param('id') id: string, @Body() dto: UpdateBannerDto) {
     return this.cmsService.updateBanner(id, dto);
@@ -99,8 +93,14 @@ export class CmsController {
 
   // GET ALL ACTIVE PROMO BANNERS (Frontend)
   @Get('promo-banners')
-  getActivePromoBanners() {
-    return this.cmsService.findAllActivePromoBanners();
+  getPromoBanners(@Query('isActive') isActive?: string) {
+    let parsed: boolean | undefined;
+
+    if (isActive === 'true') parsed = true;
+    else if (isActive === 'false') parsed = false;
+    else parsed = undefined;
+
+    return this.cmsService.findAllPromoBanners(parsed);
   }
 
   // VARIANTS

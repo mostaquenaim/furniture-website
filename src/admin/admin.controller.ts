@@ -43,8 +43,8 @@ import { UpdateMaterialDto } from 'src/cms/dto/update-material.dto';
 import { UpdateSizeDto } from 'src/cms/dto/update-size.dto';
 import { UpdateVariantDto } from 'src/cms/dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
-import { UpdatePromoBannerDto } from 'src/cms/dto/update-promo-banner.dto';
-import { CreatePromoBannerDto } from 'src/cms/dto/create-promo-banner.dto';
+import { UpdatePromoBannerDto } from 'src/cms/dto/Banner/update-promo-banner.dto';
+import { CreatePromoBannerDto } from 'src/cms/dto/Banner/create-promo-banner.dto';
 import { OrderService } from 'src/order/order.service';
 import { OrderStatus } from '@prisma/client';
 import { ReviewService } from 'src/review/review.service';
@@ -58,6 +58,8 @@ import { SkipPermission } from 'src/permission/skip-permission.decorator';
 import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-sync.service';
 import { UpdateCouponDto } from 'src/cms/dto/Coupon/update-coupon.dto';
 import { GetCouponsQueryDto } from 'src/cms/dto/Coupon/get-coupon-query.dto';
+import { CreateBannerDto } from 'src/cms/dto/Banner/create-banner.dto';
+import { UpdateBannerDto } from 'src/cms/dto/Banner/update-banner.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -626,7 +628,13 @@ export class AdminController {
     });
   }
 
+  ///////////////////
+  /////////BANNER//////
+  //////////////////
+
   // UPDATE PROMO BANNER
+  // ── PROMO BANNERS ─────────────────────────────────────────────────────────────
+
   @Put('promo-banners/:id')
   @Permission(Action.BANNER_MANAGE)
   updatePromoBanner(
@@ -637,19 +645,34 @@ export class AdminController {
     return this.cmsService.updatePromoBanner(id, dto, req?.user?.userId);
   }
 
-  // DELETE PROMO BANNER
   @Delete('promo-banners/:id')
   @Permission(Action.BANNER_MANAGE)
   removePromoBanner(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.cmsService.removePromoBanner(id, req?.user?.userId);
   }
 
-  // CREATE PROMO BANNER
-  @Post('promo-banners')
+  // ── HOMEPAGE BANNERS ──────────────────────────────────────────────────────────
+
+  @Post('homepage-banners')
   @Permission(Action.BANNER_MANAGE)
-  createPromoBanner(@Body() dto: CreatePromoBannerDto) {
-    // console.log(dto);
-    return this.cmsService.createPromoBanner(dto);
+  createHomepageBanner(@Body() dto: CreateBannerDto, @Req() req: any) {
+    return this.cmsService.createHomepageBanner(dto, req?.user?.userId);
+  }
+
+  @Put('homepage-banners/:id')
+  @Permission(Action.BANNER_MANAGE)
+  updateHomepageBanner(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateBannerDto,
+    @Req() req: any,
+  ) {
+    return this.cmsService.updateHomepageBanner(id, dto, req?.user?.userId);
+  }
+
+  @Delete('homepage-banners/:id')
+  @Permission(Action.BANNER_MANAGE)
+  removeHomepageBanner(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.cmsService.removeHomepageBanner(id, req?.user?.userId);
   }
 
   ///////////////////
