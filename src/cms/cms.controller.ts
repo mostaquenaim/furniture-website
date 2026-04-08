@@ -81,6 +81,12 @@ export class CmsController {
     return this.cmsService.getBanners();
   }
 
+  // Banners
+  @Get('homepage-banners')
+  getHomepageBanners() {
+    return this.cmsService.getHomepageBanners();
+  }
+
   @Put('banners/:id')
   updateBanner(@Param('id') id: string, @Body() dto: UpdateBannerDto) {
     return this.cmsService.updateBanner(id, dto);

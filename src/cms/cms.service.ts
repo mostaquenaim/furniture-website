@@ -141,6 +141,21 @@ export class CmsService {
     // return { message: 'Banner deleted' };
   }
 
+  getHomepageBanners(isActive?: boolean, device?: 'DESKTOP' | 'MOBILE') {
+    return this.prisma.banner.findMany({
+      where: {
+        ...(typeof isActive === 'boolean' && { active: isActive }),
+        ...(device && {
+          OR: [
+            { device }, // specific device
+            { device: null }, // common banners
+          ],
+        }),
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
   // CREATE
   async createPromoBanner(dto: CreatePromoBannerDto, adminId: number) {
     // console.log(dto,'dtoservice');
@@ -182,32 +197,48 @@ export class CmsService {
     dto: CreateBannerDto,
     adminId: number,
   ): Promise<Banner> {
-    const banner = await this.prisma.banner.create({
-      data: {
-        title: dto.title,
-        image: dto.image,
-        link: dto.link,
-        active: dto.active ?? true,
-        device: dto.device || 'DESKTOP',
-      },
-    });
+    const device = dto.device || 'DESKTOP';
+    const shouldBeActive = dto.active ?? true;
 
-    this.activityLogService.log({
-      adminId,
-      action: 'CREATE_BANNER',
-      module: 'MARKETING',
-      targetId: banner.id,
-      targetLabel: banner.title || '',
-      newValue: {
-        isActive: banner.active,
-        title: banner.title,
-        image: banner.image,
-        link: banner.link,
-        device: banner.device,
-      },
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      // deactivate existing active banner for this device
+      if (shouldBeActive) {
+        await tx.banner.updateMany({
+          where: {
+            active: true,
+            device,
+          },
+          data: { active: false },
+        });
+      }
 
-    return banner;
+      const banner = await tx.banner.create({
+        data: {
+          title: dto.title,
+          image: dto.image,
+          link: dto.link,
+          active: shouldBeActive,
+          device,
+        },
+      });
+
+      await this.activityLogService.log({
+        adminId,
+        action: 'CREATE_BANNER',
+        module: 'MARKETING',
+        targetId: banner.id,
+        targetLabel: banner.title || '',
+        newValue: {
+          isActive: banner.active,
+          title: banner.title,
+          image: banner.image,
+          link: banner.link,
+          device: banner.device,
+        },
+      });
+
+      return banner;
+    });
   }
 
   // READ (Active only)
@@ -286,24 +317,38 @@ export class CmsService {
     });
   }
 
+  //update homepage banner
   async updateHomepageBanner(id: number, dto: UpdateBannerDto, userId: number) {
     this.logger.log(`User ${userId} updating homepage banner ${id}`);
-    await this.findBannerOrThrow(id);
 
-    try {
-      return await this.prisma.banner.update({
+    const existing = await this.findBannerOrThrow(id);
+
+    const device = dto.device ?? existing.device ?? 'DESKTOP';
+
+    return await this.prisma.$transaction(async (tx) => {
+      // if activating → deactivate others of same device
+      if (dto.active === true) {
+        await tx.banner.updateMany({
+          where: {
+            active: true,
+            device,
+            NOT: { id },
+          },
+          data: { active: false },
+        });
+      }
+
+      return await tx.banner.update({
         where: { id },
         data: {
           ...(dto.title !== undefined && { title: dto.title.trim() }),
           ...(dto.image !== undefined && { image: dto.image.trim() }),
           ...(dto.link !== undefined && { link: dto.link?.trim() ?? null }),
-          ...(dto.device !== undefined && { device: dto.device ?? null }),
+          ...(dto.device !== undefined && { device: dto.device }),
           ...(dto.active !== undefined && { active: dto.active }),
         },
       });
-    } catch (e) {
-      this.handlePrismaError(e, 'homepage banner');
-    }
+    });
   }
 
   private async findPromoBannerOrThrow(id: number) {
