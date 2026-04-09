@@ -14,6 +14,7 @@ import {
   Query,
   Res,
   BadRequestException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { CmsService } from './cms.service';
 import { CreateAboutDto } from './dto/create-about.dto';
@@ -25,6 +26,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { OrderService } from 'src/order/order.service';
 import type { Response } from 'express';
 import { CourierService } from 'src/courier/services/courier.service';
+import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
+import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.service';
 
 @Controller()
 export class CmsController {
@@ -32,6 +35,8 @@ export class CmsController {
     private readonly cmsService: CmsService,
     private readonly orderService: OrderService,
     private readonly courierService: CourierService,
+    private readonly seasonalCategoryService: SeasonalCategoryService,
+    private readonly homepageGalleryService: HomepageGalleryService,
   ) {}
 
   // get tags
@@ -81,12 +86,6 @@ export class CmsController {
     return this.cmsService.getBanners();
   }
 
-  // Banners
-  @Get('homepage-banners')
-  getHomepageBanners() {
-    return this.cmsService.getHomepageBanners();
-  }
-
   @Put('banners/:id')
   updateBanner(@Param('id') id: string, @Body() dto: UpdateBannerDto) {
     return this.cmsService.updateBanner(id, dto);
@@ -107,6 +106,18 @@ export class CmsController {
     else parsed = undefined;
 
     return this.cmsService.findAllPromoBanners(parsed);
+  }
+
+  // Banners
+  @Get('homepage-banners')
+  getHomepageBanners(@Query('isActive') isActive?: string) {
+    let parsed: boolean | undefined;
+
+    if (isActive === 'true') parsed = true;
+    else if (isActive === 'false') parsed = false;
+    else parsed = undefined;
+
+    return this.cmsService.getHomepageBanners(parsed);
   }
 
   // VARIANTS
@@ -232,5 +243,30 @@ export class CmsController {
   @Get('invoices/:id/pdf')
   async downloadPdf(@Param('id') id: string, @Res() res: Response) {
     return this.orderService.generateInvoicePdf(id, res);
+  }
+
+  // seasonal categories
+  @Get('seasonal-categories')
+  findAllSeasonalCats(@Query('onlyActive') onlyActive?: string) {
+    return this.seasonalCategoryService.findAll(onlyActive === 'true');
+  }
+
+  @Get('seasonal-categories/:id')
+  findOneSeasonalCats(@Param('id', ParseIntPipe) id: number) {
+    return this.seasonalCategoryService.findOne(id);
+  }
+
+  // homepage gallery
+
+  // GET /homepage-gallery?onlyActive=true
+  @Get('homepage-gallery')
+  findAllHomepageGallery(@Query('onlyActive') onlyActive?: string) {
+    return this.homepageGalleryService.findAll(onlyActive === 'true');
+  }
+
+  // GET /homepage-gallery/:id
+  @Get('homepage-gallery/:id')
+  findOneHomepageGallery(@Param('id', ParseIntPipe) id: number) {
+    return this.homepageGalleryService.findOne(id);
   }
 }

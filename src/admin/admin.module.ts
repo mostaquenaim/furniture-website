@@ -15,6 +15,7 @@ import { ReviewService } from 'src/review/review.service';
 import { CourierService } from 'src/courier/services/courier.service';
 import { HttpModule } from '@nestjs/axios';
 import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-sync.service';
+import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-
     ReviewService,
     CourierService,
     PathaoLocationSyncService,
+    SeasonalCategoryService,
   ],
 })
 export class AdminModule {}

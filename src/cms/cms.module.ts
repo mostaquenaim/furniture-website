@@ -9,6 +9,8 @@ import { BullModule } from '@nestjs/bull';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { CourierService } from 'src/courier/services/courier.service';
 import { HttpModule } from '@nestjs/axios';
+import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
+import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.service';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { HttpModule } from '@nestjs/axios';
     OrderService,
     NotificationsService,
     CourierService,
+    SeasonalCategoryService,
+    HomepageGalleryService,
   ],
 })
 export class CmsModule {}

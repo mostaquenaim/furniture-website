@@ -41,6 +41,8 @@ import { CourierModule } from './courier/courier.module';
 import { AdminUserModule } from './admin-user/admin-user.module';
 import { CompanyModule } from './company/company.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { SeasonalCategoryModule } from './seasonal-category/seasonal-category.module';
+import { HomepageGalleryModule } from './homepage-gallery/homepage-gallery.module';
 
 @Module({
   imports: [
@@ -91,6 +93,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AdminUserModule,
     CompanyModule,
     DashboardModule,
+    SeasonalCategoryModule,
+    HomepageGalleryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

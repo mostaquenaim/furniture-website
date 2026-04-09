@@ -60,6 +60,7 @@ import { UpdateCouponDto } from 'src/cms/dto/Coupon/update-coupon.dto';
 import { GetCouponsQueryDto } from 'src/cms/dto/Coupon/get-coupon-query.dto';
 import { CreateBannerDto } from 'src/cms/dto/Banner/create-banner.dto';
 import { UpdateBannerDto } from 'src/cms/dto/Banner/update-banner.dto';
+import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -74,6 +75,7 @@ export class AdminController {
     private readonly reviewService: ReviewService,
     private readonly courierService: CourierService,
     private readonly pathaoLocationSyncService: PathaoLocationSyncService,
+    private readonly seasonalCategoryService: SeasonalCategoryService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
