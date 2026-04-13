@@ -28,6 +28,7 @@ import type { Response } from 'express';
 import { CourierService } from 'src/courier/services/courier.service';
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.service';
+import { BroadBannerService } from 'src/banner/banner.service';
 
 @Controller()
 export class CmsController {
@@ -37,6 +38,7 @@ export class CmsController {
     private readonly courierService: CourierService,
     private readonly seasonalCategoryService: SeasonalCategoryService,
     private readonly homepageGalleryService: HomepageGalleryService,
+    private readonly broadBannerService: BroadBannerService,
   ) {}
 
   // get tags
@@ -268,5 +270,18 @@ export class CmsController {
   @Get('homepage-gallery/:id')
   findOneHomepageGallery(@Param('id', ParseIntPipe) id: number) {
     return this.homepageGalleryService.findOne(id);
+  }
+
+  // broad banner
+  /////////////
+
+  @Get('broad-banner/active')
+  findActive() {
+    return this.broadBannerService.findActive();
+  }
+
+  @Get('broad-banner/:id')
+  findOne(@Param('id') id: string) {
+    return this.broadBannerService.findOne(id);
   }
 }

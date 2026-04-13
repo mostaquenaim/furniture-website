@@ -43,6 +43,7 @@ import { CompanyModule } from './company/company.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeasonalCategoryModule } from './seasonal-category/seasonal-category.module';
 import { HomepageGalleryModule } from './homepage-gallery/homepage-gallery.module';
+import { BannerModule } from './banner/banner.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { HomepageGalleryModule } from './homepage-gallery/homepage-gallery.modul
     DashboardModule,
     SeasonalCategoryModule,
     HomepageGalleryModule,
+    BannerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,19 +9,24 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { HomepageGalleryService } from './homepage-gallery.service';
 import { CreateHomepageGalleryDto } from './dto/create-homepage-gallery.dto';
 import { UpdateHomepageGalleryDto } from './dto/update-homepage-gallery.dto';
 import { Permission } from 'src/permission/permission.decorator';
 import { Action } from 'src/permission/action.enum';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('homepage-gallery')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class HomepageGalleryController {
   constructor(private readonly service: HomepageGalleryService) {}
 
   // POST /homepage-gallery
   @Post()
+  @Permission(Action.HOMEPAGE_GALLERY_CREATE)
   create(@Body() dto: CreateHomepageGalleryDto) {
     return this.service.create(dto);
   }

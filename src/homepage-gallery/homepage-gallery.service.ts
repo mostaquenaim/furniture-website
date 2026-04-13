@@ -7,6 +7,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateHomepageGalleryDto } from './dto/create-homepage-gallery.dto';
 import { UpdateHomepageGalleryDto } from './dto/update-homepage-gallery.dto';
@@ -57,6 +58,7 @@ export class HomepageGalleryService {
   }
 
   async update(id: number, dto: UpdateHomepageGalleryDto) {
+    console.log('dto', dto, 'dto');
     await this.findOne(id);
 
     // If slug is being changed, check uniqueness

@@ -1156,18 +1156,19 @@ model Banner {
   active Boolean @default(true)
 }
 
-// model HomepageBanner {
-//   id        Int      @id @default(autoincrement())
-//   image     String
-//   sortOrder Int
-//   isActive  Boolean  @default(true)
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+model BroadBanner {
+  id        String   @id @default(cuid())
+  title     String
+  image     String
+  link      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
 model PromoBanner {
   id        Int      @id @default(autoincrement())
-  title    String
+  title     String
   text      String
   bgColor   String // e.g. "#0f172a"
   isActive  Boolean  @default(true)
@@ -1179,27 +1180,33 @@ model PromoBanner {
 }
 
 model SeasonalCategory {
-  id          Int      @id @default(autoincrement())
-  title       String   // e.g., "Winter Collection" or "In Stock Furniture"
-  image       String   // URL to the image or icon
-  link        String   // The URL/Route where the user goes when clicking
-  sortOrder   Int      @default(0) // To control the sequence of the boxes
-  
+  id        Int    @id @default(autoincrement())
+  title     String // e.g., "Winter Collection" or "In Stock Furniture"
+  image     String // URL to the image or icon
+  link      String // The URL/Route where the user goes when clicking
+  sortOrder Int    @default(0) // To control the sequence of the boxes
+
   // Scheduling & Visibility
-  isActive    Boolean  @default(true)
-  startDate   DateTime? // Optional: Auto-show the category on this date
-  endDate     DateTime? // Optional: Auto-hide the category after this date
-  
+  isActive  Boolean   @default(true)
+  startDate DateTime? // Optional: Auto-show the category on this date
+  endDate   DateTime? // Optional: Auto-hide the category after this date
+
   // Metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+// enum GalleryItemType {
+//   HEADING
+//   REGULAR
+// }
 
 model HomepageGallery {
   id        Int      @id @default(autoincrement())
   name      String
   image     String
   slug      String   @unique
+  isHeading Boolean  @default(false)
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

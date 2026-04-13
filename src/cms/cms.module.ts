@@ -11,6 +11,7 @@ import { CourierService } from 'src/courier/services/courier.service';
 import { HttpModule } from '@nestjs/axios';
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.service';
+import { BroadBannerService } from 'src/banner/banner.service';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.se
     CourierService,
     SeasonalCategoryService,
     HomepageGalleryService,
+    BroadBannerService,
   ],
 })
 export class CmsModule {}

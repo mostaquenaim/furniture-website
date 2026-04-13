@@ -8,7 +8,7 @@ import {
   Min,
   Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateHomepageGalleryDto {
   @IsString()
@@ -36,5 +36,11 @@ export class CreateHomepageGalleryDto {
 
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true) // Handles string "true" from FormData
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true) // Crucial for the new field
+  isHeading?: boolean;
 }
