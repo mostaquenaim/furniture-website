@@ -6,6 +6,7 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import districtsData from 'src/cms/data/districtData';
 import { Action } from 'src/permission/action.enum';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -977,6 +978,29 @@ async function main() {
       country: 'Bangladesh',
     },
   });
+
+  const adminEmail = 'admin@sakigai.com';
+  const adminPassword = '@Abcd1234';
+
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
+
+  if (!existingAdmin) {
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashedPassword,
+        role: UserRole.SUPERADMIN,
+      },
+    });
+
+    console.log('✅ SUPERADMIN created');
+  } else {
+    console.log('ℹ️ SUPERADMIN already exists');
+  }
 
   console.log(
     `Seeded ${MANAGEABLE_ROLES.length * allActions.length} permission rows`,
