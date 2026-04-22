@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { PrismaClient, UserRole } from '@prisma/client';
-import { Action } from 'src/permission/action.enum';
+import { Action } from '../src/permission/action.enum';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -61,7 +61,7 @@ const DEFAULT_PERMISSIONS: Partial<Record<UserRole, Action[]>> = {
 };
 
 async function main() {
-  const allActions = Object.values(Action);
+  const allActions: Action[] = Object.values(Action);
   let created = 0;
   let updated = 0;
 
