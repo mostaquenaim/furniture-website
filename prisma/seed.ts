@@ -93,7 +93,7 @@ async function main() {
   });
 
   const adminEmail = 'admin@sakigai.com';
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const adminPassword = process.env.ADMIN_PASSWORD || '@Abcd1234';
 
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },

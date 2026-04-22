@@ -303,6 +303,10 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    if (!user.password) {
+      throw new UnauthorizedException('Please login with Google');
+    }
+
     const valid = await bcrypt.compare(dto.password, user.password);
 
     if (!valid) {
