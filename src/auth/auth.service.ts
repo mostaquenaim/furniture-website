@@ -585,6 +585,10 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('User not found');
 
+    if (!user.password) {
+      throw new UnauthorizedException('Please login with Google');
+    }
+
     const isOldValid = await bcrypt.compare(dto.oldPassword, user.password);
 
     if (!isOldValid) {
