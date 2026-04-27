@@ -269,7 +269,7 @@ export class BarcodeService {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename=sakigai-labels.pdf',
+      'attachment; filename=ondorkotha-labels.pdf',
     );
 
     res.end(pdf);

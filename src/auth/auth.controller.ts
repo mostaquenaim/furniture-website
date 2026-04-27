@@ -34,7 +34,6 @@ export class AuthController {
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    // console.log('we are here');
     return this.authService.register(dto);
   }
 
@@ -72,7 +71,6 @@ export class AuthController {
 
   @Post('signin')
   login(@Body() dto: LoginDto) {
-    // console.log(LoginDto);
     return this.authService.login(dto);
   }
 
@@ -120,6 +118,14 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() req: Request, @Res() res: Response) {
+    const error = (req as any).query?.error;
+
+    // User cancelled Google login
+    if (error === 'access_denied') {
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      return res.redirect(`${frontendUrl}/auth/google/cancelled`);
+    }
+
     const user = req?.user as any;
 
     const keepSignedIn = false; // Google users — reasonable default
@@ -135,5 +141,24 @@ export class AuthController {
     return res.redirect(
       `${frontendUrl}/auth/google/success?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`,
     );
+
+    //     return res.send(`
+    // <!DOCTYPE html>
+    // <html>
+    //   <body>
+    //     <script>
+    //       window.opener.postMessage(
+    //         {
+    //           type: "GOOGLE_AUTH_SUCCESS",
+    //           token: "${token}",
+    //           user: ${JSON.stringify(user)}
+    //         },
+    //         "${frontendUrl}"
+    //       );
+    //       window.close();
+    //     </script>
+    //   </body>
+    // </html>
+    // `);
   }
 }

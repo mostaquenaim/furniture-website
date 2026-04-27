@@ -1,5 +1,5 @@
 {
-  "name": "sakigai-furniture-website",
+  "name": "ondorkotha-furniture-website",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -53,6 +53,7 @@
     "prettier": "^3.7.4",
     "puppeteer": "^24.37.5",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.12.2",
     "rxjs": "^7.8.1",
     "sslcommerz-lts": "^1.2.0",
     "twilio": "^5.12.2"

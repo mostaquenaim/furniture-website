@@ -570,7 +570,7 @@ export class OrderService {
       <div class="brand-tagline">Furniture · Crafted for your home</div>
       <div class="brand-contact">
         Dhaka, Bangladesh<br/>
-        support@sakigai.com.bd · sakigai.com.bd
+        support@ondorkotha.com.bd · ondorkotha.com.bd
       </div>
     </div>
     <div>
@@ -667,7 +667,7 @@ export class OrderService {
 
   <div class="footer">
     <div class="footer-note">
-      Questions? Email support@sakigai.com.bd<br/>
+      Questions? Email support@ondorkotha.com.bd<br/>
       Computer-generated invoice — no signature required.
     </div>
     <div class="footer-brand">Sakigai · ${new Date().getFullYear()}</div>

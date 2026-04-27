@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // notification.service.ts
@@ -5,13 +7,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { MailerService } from '@nestjs-modules/mailer';
-// import Twilio from 'twilio';
 // import { ConfigService } from '@nestjs/config';
+import { Resend } from 'resend';
+import { otpEmailTemplate } from './templates/otp.template';
+import axios from 'axios';
 
 @Injectable()
 export class NotificationsService {
   private logger = new Logger('NotificationService');
-  // private twilioClient: Twilio.Twilio;
 
   constructor(
     private mailerService: MailerService,
@@ -99,14 +102,19 @@ export class NotificationsService {
   }
 
   async processEmailJob(job: any) {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const html =
+      job.data.template === 'otp'
+        ? otpEmailTemplate(job.data.context.otp, job.data.context.purpose)
+        : job.data.html; // fallback for other email types later
+
     // console.log(job.data, 'jobss2');
     try {
-      await this.mailerService.sendMail({
+      await resend.emails.send({
+        from: 'Ondorkotha <' + process.env.RESEND_FROM_EMAIL + '>',
         to: job.data.email,
-        // subject: 'Sakigai Notification',
         subject: job.data.subject,
-        template: job.data.template,
-        context: job.data.context,
+        html,
       });
       this.logger.log(`Email sent to ${job.data.email}`);
     } catch (err) {
@@ -115,15 +123,41 @@ export class NotificationsService {
     }
   }
 
-  processSMSJob(job: any) {
+  async processSMSJob(job: any) {
     try {
-      // await this.twilioClient.messages.create({
-      //   to: job.data.phone,
-      //   from: process.env.TWILIO_PHONE,
-      //   body: job.data.message,
-      // });
+      // Normalize: strip +, spaces, dashes → ensure starts with 880
+      let phone: string = job.data.phone.replace(/[\s\-]/g, '');
 
-      this.logger.log(`SMS sent to ${job.data.phone}`);
+      if (phone.startsWith('+880')) {
+        phone = phone.slice(1); // +8801XXXXXXXX → 8801XXXXXXXX
+      } else if (phone.startsWith('01')) {
+        phone = `880${phone}`; // 01XXXXXXXX → 88001XXXXXXXX
+      } else if (phone.startsWith('+88')) {
+        phone = phone.slice(1); // +8801... → 8801...
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        this.logger.log(`[DEV] SMS OTP for ${phone}: ${job.data.message}`);
+        return;
+      }
+
+      // already starts with 880
+      const smsReturn = await axios.post(
+        'https://api.mimsms.com/api/SmsSending/SMS',
+        {
+          ApiKey: process.env.MIMSMS_API_KEY,
+          MobileNumber: phone,
+          SenderName: process.env.MIMSMS_SENDER_NAME,
+          UserName: process.env.MIMSMS_USERNAME,
+          TransactionType: 'T',
+          Message: job.data.message,
+          CampaignId: 'null',
+        },
+      );
+
+      // console.log(smsReturn, 'smsReturn');
+
+      this.logger.log(`SMS sent to ${phone}`);
     } catch (err) {
       this.logger.error(`Failed to send SMS to ${job.data.phone}`, err);
       throw err;

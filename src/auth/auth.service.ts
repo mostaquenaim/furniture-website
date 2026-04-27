@@ -43,6 +43,7 @@ export class AuthService {
     purpose?:
       | 'REGISTER'
       | 'ADMIN_LOGIN'
+      | 'SIGN_IN'
       | 'UPDATE_EMAIL'
       | 'UPDATE_PHONE'
       | 'VERIFY_EMAIL'
@@ -61,9 +62,11 @@ export class AuthService {
     const code = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const otp = await this.prisma.oTP.create({
+    await this.prisma.oTP.create({
       data: { userId, code, type, expiresAt, email, phone },
     });
+
+    // console.log('the type is', type);
 
     // TODO: send OTP via email or SMS
     if (type === 'email') {
@@ -72,20 +75,24 @@ export class AuthService {
       console.log(`Send SMS OTP to user: ${code}`);
     }
 
-    this.notificationQueue.add('sendEmail', {
-      email: email,
-      subject: 'Your OTP Code',
-      template: 'otp',
-      context: {
-        otp: code,
-        purpose,
-      },
-    });
+    if (type === 'email' && email) {
+      this.notificationQueue.add('sendEmail', {
+        email: email,
+        subject: 'Your OTP Code',
+        template: 'otp',
+        context: {
+          otp: code,
+          purpose,
+        },
+      });
+    }
 
-    this.notificationQueue.add('sendSMS', {
-      phone: phone,
-      message: `Your Sakigai OTP is ${code}. It will expire in 5 minutes.`,
-    });
+    if (type === 'phone' && phone) {
+      this.notificationQueue.add('sendSMS', {
+        phone: phone,
+        message: `Your Ondorkotha OTP is ${code}. It will expire in 5 minutes.`,
+      });
+    }
 
     if (
       process.env.NODE_ENV === 'vercel' ||
@@ -95,6 +102,77 @@ export class AuthService {
     }
 
     return { message: `OTP sent to your ${type}` };
+  }
+
+  // login
+  async login(dto: LoginDto) {
+    // console.log(dto, 'logindto');
+    // Use clientIp from DTO, fallback to empty string
+    const identifier = dto?.email || dto?.phone;
+
+    if (!identifier) {
+      throw new BadRequestException('Email or phone is required for login');
+    }
+
+    // Check brute force before processing
+    await this.checkBruteForce(identifier);
+
+    const user = await this.prisma.user.findUnique({
+      where: dto.phone ? { phone: dto.phone } : { email: dto.email },
+    });
+
+    if (!user) {
+      await this.recordFailedAttempt(identifier);
+      throw new UnauthorizedException('User not found');
+    }
+
+    // console.log(user.password, dto.password, 'passwords');
+
+    if (user.password && dto.password) {
+      // console.log('im in');
+      // throw new UnauthorizedException('Please login with Google');
+      const valid = await bcrypt.compare(dto.password, user.password);
+
+      if (!valid) {
+        await this.recordFailedAttempt(identifier);
+        throw new UnauthorizedException('Invalid credentials');
+      }
+    }
+
+    // console.log('before reset');
+    // Reset attempts on successful login
+    await this.resetAttempts(identifier);
+
+    // console.log('after reset');
+
+    if (user.role === 'CUSTOMER') {
+      // console.log('customer yes');
+
+      if (!user.isVerified) {
+        throw new UnauthorizedException('Account not verified');
+      }
+
+      // return this.issueToken(user, '1d');
+    }
+
+    // console.log('not customer');
+
+    const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
+
+    const otpDetails = await this.sendOtp(
+      user.id,
+      otpType,
+      otpType === 'email' ? dto.email : undefined,
+      otpType === 'phone' ? dto.phone : undefined,
+      'SIGN_IN',
+    );
+
+    return {
+      status: 'OTP_REQUIRED',
+      otpSentTo: otpType,
+      userId: user.id,
+      otpDetails,
+    };
   }
 
   // issue token
@@ -243,17 +321,28 @@ export class AuthService {
     });
 
     if (existingUser) {
-      // Determine which field is taken
-      if (existingUser.email === dto.email) {
-        throw new ConflictException('Email is already registered.');
-      }
-      if (existingUser.phone === dto.phone) {
+      if (existingUser.isVerified) {
         throw new ConflictException('Phone number is already registered.');
       }
+      // If phone exists but not verified, allow re-registration to trigger new OTP
+      await this.prisma.oTP.deleteMany({
+        where: {
+          userId: existingUser.id,
+          type: 'phone',
+          verified: false,
+        },
+      });
+
+      await this.prisma.user.delete({
+        where: { id: existingUser.id }, // delete unverified user to allow new registration
+      });
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    let hashedPassword = '';
+    if (dto.password) {
+      hashedPassword = await bcrypt.hash(dto.password, 10);
+    }
 
     // Create new user
     const user = await this.prisma.user.create({
@@ -261,7 +350,7 @@ export class AuthService {
         name: dto.name,
         phone: dto.phone,
         email: dto.email,
-        password: hashedPassword,
+        password: hashedPassword || null,
         isVerified: false,
         role: 'CUSTOMER',
       },
@@ -284,63 +373,6 @@ export class AuthService {
       userId: user.id,
       otpDetails,
     }; // frontend switches to OTP view
-  }
-
-  // login
-  async login(dto: LoginDto) {
-    // Use clientIp from DTO, fallback to empty string
-    const identifier = dto?.email || dto?.phone;
-
-    // Check brute force before processing
-    await this.checkBruteForce(identifier);
-
-    const user = await this.prisma.user.findUnique({
-      where: dto.phone ? { phone: dto.phone } : { email: dto.email },
-    });
-
-    if (!user) {
-      await this.recordFailedAttempt(identifier);
-      throw new UnauthorizedException('User not found');
-    }
-
-    if (!user.password) {
-      throw new UnauthorizedException('Please login with Google');
-    }
-
-    const valid = await bcrypt.compare(dto.password, user.password);
-
-    if (!valid) {
-      await this.recordFailedAttempt(identifier);
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Reset attempts on successful login
-    await this.resetAttempts(identifier);
-
-    if (user.role === 'CUSTOMER') {
-      if (!user.isVerified) {
-        throw new UnauthorizedException('Account not verified');
-      }
-
-      return this.issueToken(user, '1d');
-    }
-
-    const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
-    /*  */
-    const otpDetails = await this.sendOtp(
-      user.id,
-      'email',
-      dto.email,
-      undefined,
-      'ADMIN_LOGIN',
-    );
-
-    return {
-      status: 'OTP_REQUIRED',
-      otpSentTo: otpType,
-      userId: user.id,
-      otpDetails,
-    };
   }
 
   // get profile

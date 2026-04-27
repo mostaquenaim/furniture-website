@@ -5,15 +5,15 @@ export class RegisterDto {
   @IsString()
   name?: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  phone: string;
+  phone!: string;
 
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  password: string;
+  password?: string;
 }
