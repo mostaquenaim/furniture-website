@@ -44,7 +44,6 @@ import { UpdateSizeDto } from 'src/cms/dto/update-size.dto';
 import { UpdateVariantDto } from 'src/cms/dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { UpdatePromoBannerDto } from 'src/cms/dto/Banner/update-promo-banner.dto';
-import { CreatePromoBannerDto } from 'src/cms/dto/Banner/create-promo-banner.dto';
 import { OrderService } from 'src/order/order.service';
 import { OrderStatus } from '@prisma/client';
 import { ReviewService } from 'src/review/review.service';

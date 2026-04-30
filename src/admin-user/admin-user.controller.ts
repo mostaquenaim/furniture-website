@@ -8,6 +8,7 @@ import {
   Patch,
   Param,
   ParseIntPipe,
+  Delete,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -55,5 +56,11 @@ export class AdminUsersController {
   @SkipPermission()
   resetPassword(@Param('id', ParseIntPipe) id: number) {
     return this.adminUsersService.resetPassword(id);
+  }
+
+  @Delete(':id')
+  @SkipPermission()
+  deleteUser(@Param('id', ParseIntPipe) id: number) {
+    return this.adminUsersService.deleteUser(id);
   }
 }

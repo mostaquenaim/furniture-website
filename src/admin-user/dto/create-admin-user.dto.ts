@@ -20,10 +20,16 @@ export class CreateAdminUserDto {
   @IsString()
   phone?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(8)
-  password: string;
+  password?: string;
 
-  @IsEnum([UserRole.PRODUCTMANAGER, UserRole.ORDERMANAGER, UserRole.SUPPORT])
-  role: UserRole;
+  @IsEnum([
+    UserRole.PRODUCTMANAGER,
+    UserRole.ORDERMANAGER,
+    UserRole.SUPPORT,
+    UserRole.SUPERADMIN,
+  ])
+  role!: UserRole;
 }

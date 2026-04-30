@@ -74,16 +74,19 @@ export class AdminUsersService {
       if (existing) throw new BadRequestException('Phone already in use.');
     }
 
-    const hashed = await bcrypt.hash(dto.password, 10);
+    let hashed = '';
+    if (dto.password) {
+      hashed = await bcrypt.hash(dto.password, 10);
+    }
 
     const user = await this.prisma.user.create({
       data: {
         name: dto.name,
         email: dto.email,
         phone: dto.phone,
-        password: hashed,
+        password: hashed || null,
         role: dto.role,
-        isVerified: true, // admin users skip verification
+        isVerified: true,
         isActive: true,
       },
       select: {
@@ -187,6 +190,53 @@ export class AdminUsersService {
       tempPassword:
         process.env.NODE_ENV !== 'production' ? tempPassword : undefined,
     };
+  }
+
+  // delete user
+  async deleteUser(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        orders: true,
+        activityLogs: true,
+        supportTickets: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Never delete superadmin
+    if (user.role === 'SUPERADMIN') {
+      throw new BadRequestException('Super admin cannot be deleted');
+    }
+
+    // Block deletion if critical data exists
+    if (
+      user.orders.length > 0 ||
+      user.activityLogs.length > 0 ||
+      user.supportTickets.length > 0
+    ) {
+      throw new BadRequestException(
+        'User has associated data. Deactivate instead.',
+      );
+    }
+
+    await this.prisma.cartItem.deleteMany({
+      where: { cart: { userId: id } },
+    });
+
+    await this.prisma.oTP.deleteMany({
+      where: { userId: id },
+    });
+
+    // Safe to delete
+    await this.prisma.user.delete({
+      where: { id },
+    });
+
+    return { message: 'User deleted successfully' };
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
