@@ -134,7 +134,7 @@ export class NotificationsService {
 
       if (process.env.NODE_ENV === 'development') {
         this.logger.log(`[DEV] SMS OTP for ${phone}: ${job.data.message}`);
-        // return;
+        return;
       }
 
       // already starts with 880
