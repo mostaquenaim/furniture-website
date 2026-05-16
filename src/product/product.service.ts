@@ -1132,12 +1132,12 @@ export class ProductService {
     subCategoryIds?: number[],
     productIds?: number[],
   ) {
-    console.log(
-      subCategoryIds,
-      subCategoryIds,
-      productIds,
-      'subCategoryIds and other ids in getSubCategoryBasedRecommendations',
-    );
+    // console.log(
+    //  subCategoryIds,
+    // subCategoryIds,
+    //productIds,
+    // 'subCategoryIds and other ids in getSubCategoryBasedRecommendations',
+    //);
 
     // const ids: number[] = subCategoryIds || [];
 
@@ -1428,7 +1428,7 @@ export class ProductService {
       });
     }
 
-    console.log('Trend scores updated for all products!');
+    // console.log('Trend scores updated for all products!');
   }
 
   // get product's all reviews
@@ -1465,7 +1465,7 @@ export class ProductService {
       productId = product.id;
     }
 
-    console.log(isHidden, 'isHidden');
+    // console.log(isHidden, 'isHidden');
 
     // Build Prisma filters
     const filters: any = {

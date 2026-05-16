@@ -18,7 +18,6 @@ import {
 } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/addCartItem.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
 
 // @UseGuards(JwtAuthGuard)
@@ -59,7 +58,7 @@ export class CartController {
   // Add an item to cart
   @Get('count')
   async countCartItems(@Req() req) {
-    console.log('found');
+  // console.log('found');
     return this.cartService.countCartItems(req?.user?.userId, null);
   }
 

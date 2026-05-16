@@ -15,7 +15,7 @@ export class InventoryService {
 
   // Bulk update stock
   updateStock(dto: UpdateStockDto) {
-    console.log(dto);
+  // console.log(dto);
     // dto.items.forEach(item => {
     //   const idx = this.inventory.findIndex(p => p.productId == item.productId && p.variantId == item.variantId);
     //   if (idx > -1) {

@@ -213,7 +213,7 @@ export class CmsController {
   @UseGuards(JwtAuthGuard)
   @Post('delivery/fee')
   async getDeliveryFee(@Body() body: any) {
-    console.log('here');
+  // console.log('here');
     const { cityId, zoneId, weight } = body;
 
     if (!cityId) {

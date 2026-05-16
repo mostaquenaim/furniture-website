@@ -13,7 +13,6 @@ import { UpdateCompanyDto } from './dto/update-company.dto';
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
-  // Public — frontend/storefront reads this freely
   @Get()
   get() {
     return this.companyService.get();

@@ -71,7 +71,7 @@ export class GuestController {
   // count guest cart
   @Get('cart/count/:visitorId')
   async countCartItems(@Param('visitorId') visitorId: string) {
-    console.log('count/guest');
+  // console.log('count/guest');
     return this.cartService.countCartItems(null, visitorId);
   }
 

@@ -10,14 +10,14 @@ export class SeoService {
   getAll() { return this.seoEntries; }
 
   create(dto: CreateSeoDto) {
-    console.log('SEO entry creation requested with dto:', dto);
+  // console.log('SEO entry creation requested with dto:', dto);
     // const entry = { id: Date.now(), ...dto };
     // this.seoEntries.push(entry);
     // return entry;
   }
 
   update(id: string, dto: UpdateSeoDto) {
-    console.log(`SEO entry update requested for id ${id} with dto:`, dto);
+  // console.log(`SEO entry update requested for id ${id} with dto:`, dto);
     // const idx = this.seoEntries.findIndex(s => s.id == +id);
     // if (idx === -1) return null;
     // this.seoEntries[idx] = { ...this.seoEntries[idx], ...dto };
@@ -25,12 +25,12 @@ export class SeoService {
   }
 
   getByUrl(url: string) {
-    console.log(`SEO entry retrieval requested for url: ${url}`);
+  // console.log(`SEO entry retrieval requested for url: ${url}`);
     // return this.seoEntries.find(s => s.url === url);
   }
 
   generateSchema(url: string) {
-    console.log(`Schema generation requested for url: ${url}`);
+  // console.log(`Schema generation requested for url: ${url}`);
     // const seo = this.getByUrl(url);
     // if (!seo) return null;
 

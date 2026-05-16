@@ -13,7 +13,6 @@ const SINGLETON_ID = 1;
 export class CompanyService {
   constructor(private prisma: PrismaService) {}
 
-  // Always returns a record — creates default if none exists yet
   async get() {
     return this.prisma.companyInfo.upsert({
       where: { id: SINGLETON_ID },

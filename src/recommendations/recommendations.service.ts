@@ -25,13 +25,13 @@ export class RecommendationsService {
   }
 
   getRecommendations(userId: string) {
-    console.log(`Generating recommendations for user ${userId}`);
+  // console.log(`Generating recommendations for user ${userId}`);
     // Mock: return some sample products
     return [101, 102, 103];
   }
 
   getSimilarRecommendations(productId: string) {
-    console.log(`Generating similar recommendations for product ${productId}`);
+  // console.log(`Generating similar recommendations for product ${productId}`);
     // Mock: return similar product IDs
     return [201, 202, 203];
   }

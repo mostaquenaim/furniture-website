@@ -128,7 +128,7 @@ export class CmsService {
     return this.banners;
   }
   updateBanner(id: string, dto: UpdateBannerDto) {
-    console.log(id, dto);
+  // console.log(id, dto);
     // const idx = this.banners.findIndex(b => b.id == id);
     // if (idx === -1) return null;
 
@@ -136,7 +136,7 @@ export class CmsService {
     // return this.banners[idx];
   }
   deleteBanner(id: string) {
-    console.log(id);
+  // console.log(id);
     // this.banners = this.banners.filter(b => b.id != id);
     // return { message: 'Banner deleted' };
   }
@@ -1267,9 +1267,9 @@ export class CmsService {
             deliveryFee: Number(process.env.DEFAULT_DELIVERY_FEE) || 120,
           },
         });
-        console.log(`Created city: ${cleanName}`);
+      // console.log(`Created city: ${cleanName}`);
       } else {
-        console.log(`District already exists: ${cleanName}`);
+      // console.log(`District already exists: ${cleanName}`);
       }
     }
   }

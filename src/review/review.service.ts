@@ -195,8 +195,47 @@ export class ReviewService {
     return reviews[randomIndex];
   }
 
+  // get all featured reviews
+  async getAllFeaturedReviews() {
+    const reviews = await this.prisma.review.findMany({
+      where: {
+        isFeatured: true,
+        isHidden: false,
+        comment: { not: null },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        orderItem: {
+          select: {
+            productId: true,
+            product: {
+              select: {
+                title: true,
+                slug: true,
+              },
+            },
+            order: {
+              select: {
+                userId: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return reviews;
+  }
+
   getProductReviews(productId: string) {
-    console.log(productId);
+  // console.log(productId);
     // return this.reviews.filter(r => r.productId === productId);
   }
 
@@ -205,7 +244,7 @@ export class ReviewService {
   }
 
   update(id: any, dto: any) {
-    console.log(id, dto);
+  // console.log(id, dto);
     // const index = this.reviews.findIndex(r => r.id == id);
     // if (index === -1) return null;
 
@@ -214,7 +253,7 @@ export class ReviewService {
   }
 
   delete(id: any) {
-    console.log(id);
+  // console.log(id);
     // this.reviews = this.reviews.filter(r => r?.id != id);
     // return { message: 'Review deleted' };
   }

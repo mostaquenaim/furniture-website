@@ -21,10 +21,6 @@ export class NotificationsService {
     // private config: ConfigService,
     @InjectQueue('notification') private notificationQueue: Queue,
   ) {
-    // this.twilioClient = Twilio(
-    //   this.config.getOrThrow('TWILIO_SID'),
-    //   this.config.getOrThrow('TWILIO_AUTH_TOKEN'),
-    // );
   }
 
   async sendOrderConfirmation(
@@ -131,14 +127,14 @@ export class NotificationsService {
       if (phone.startsWith('+880')) {
         phone = phone.slice(1); // +8801XXXXXXXX → 8801XXXXXXXX
       } else if (phone.startsWith('01')) {
-        phone = `880${phone}`; // 01XXXXXXXX → 88001XXXXXXXX
+        phone = `88${phone}`; // 01XXXXXXXX → 8801XXXXXXXX
       } else if (phone.startsWith('+88')) {
         phone = phone.slice(1); // +8801... → 8801...
       }
 
       if (process.env.NODE_ENV === 'development') {
         this.logger.log(`[DEV] SMS OTP for ${phone}: ${job.data.message}`);
-        return;
+        // return;
       }
 
       // already starts with 880

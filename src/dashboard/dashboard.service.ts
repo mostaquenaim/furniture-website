@@ -12,8 +12,7 @@ interface DateRange {
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ── Main entry point ────────────────────────────────────────────────────────
-
+  // ── Main entry point ─────────
   async getDashboardData(startStr: string, endStr: string) {
     const range: DateRange = {
       start: new Date(startStr),
@@ -32,8 +31,7 @@ export class DashboardService {
     return { stats, salesTrend, topProducts, recentOrders, topViewedProducts };
   }
 
-  // ── Stats Cards ─────────────────────────────────────────────────────────────
-
+  // ── Stats Cards ──────────
   private async getStats(range: DateRange) {
     const revenueStatuses: OrderStatus[] = [
       OrderStatus.CONFIRMED,
@@ -94,8 +92,8 @@ export class DashboardService {
 
     // Conversion rate: customers who ordered / new customers registered
     const conversionRate =
-      newUsersInRange > 0
-        ? parseFloat(((uniqueActiveUsers / newUsersInRange) * 100).toFixed(1))
+      totalOrders > 0
+        ? parseFloat(((uniqueActiveUsers / totalOrders) * 100).toFixed(1))
         : 0;
 
     return {
@@ -103,24 +101,22 @@ export class DashboardService {
       totalOrders,
       avgOrderValue: parseFloat(avgOrderValue.toFixed(2)),
       activeUsers: uniqueActiveUsers,
+      newUsers: newUsersInRange,
       inventoryAlerts,
       conversionRate,
     };
   }
 
-  // ── Sales Trend ─────────────────────────────────────────────────────────────
-
+  // ── Sales Trend ──────────────
   private async getSalesTrend(range: DateRange) {
     const orders = await this.prisma.order.findMany({
       where: {
         createdAt: { gte: range.start, lte: range.end },
-        status: {
-          notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED],
-        },
+        status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED] },
       },
       select: {
         createdAt: true,
-        total: true, // ← correct field name from schema
+        total: true,
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -129,7 +125,7 @@ export class DashboardService {
     const byDay = new Map<string, { revenue: number; orders: number }>();
 
     for (const order of orders) {
-      const day = order.createdAt.toISOString().split('T')[0];
+      const day = order.createdAt.toISOString().split('T')[0]; // "YYYY-MM-DD"
       const existing = byDay.get(day) ?? { revenue: 0, orders: 0 };
       byDay.set(day, {
         revenue: existing.revenue + (order.total ?? 0),
@@ -145,8 +141,8 @@ export class DashboardService {
       const key = cursor.toISOString().split('T')[0];
       const data = byDay.get(key) ?? { revenue: 0, orders: 0 };
       result.push({
-        date: key.slice(5),
-        revenue: data.revenue,
+        date: key.slice(5), // "MM-DD"
+        revenue: parseFloat(data.revenue.toFixed(2)),
         orders: data.orders,
       });
       cursor.setDate(cursor.getDate() + 1);
@@ -155,8 +151,7 @@ export class DashboardService {
     return result;
   }
 
-  // ── Top Products ─────────────────────────────────────────────────────────────
-
+  // ── Top Products ─────────────
   private async getTopProducts(range: DateRange) {
     const items = await this.prisma.orderItem.findMany({
       where: {
@@ -167,18 +162,18 @@ export class DashboardService {
       },
       select: {
         quantity: true,
-        totalPriceAtPurchase: true, // ← correct field name
+        totalPriceAtPurchase: true,
         product: {
           select: {
             id: true,
-            title: true, // ← `title` not `name` in your schema
+            title: true,
             subCategories: {
               take: 1,
               select: {
                 subCategory: { select: { name: true } },
               },
             },
-            // Stock: traverse Product → ProductColor → ProductSize
+            // Stock: Product → ProductColor → ProductSize
             colors: {
               select: {
                 sizes: { select: { quantity: true } },
@@ -205,24 +200,23 @@ export class DashboardService {
       const p = item.product;
       if (!p) continue;
 
-      // Sum all size quantities across all colors for this product
-      const totalStock = p.colors
-        .flatMap((c) => c.sizes)
-        .reduce((sum, s) => sum + (s.quantity ?? 0), 0);
+      // Sum all size quantities across all colors for this product.
+      // Stock is computed once on the first encounter, then reused.
+      const existing = productMap.get(p.id);
 
-      const existing = productMap.get(p.id) ?? {
+      const totalStock =
+        existing?.stock ??
+        p.colors
+          .flatMap((c) => c.sizes)
+          .reduce((sum, s) => sum + (s.quantity ?? 0), 0);
+
+      productMap.set(p.id, {
         id: p.id,
         name: p.title,
         category: p.subCategories[0]?.subCategory?.name ?? 'Uncategorized',
-        sales: 0,
-        revenue: 0,
+        sales: (existing?.sales ?? 0) + (item.quantity ?? 1),
+        revenue: (existing?.revenue ?? 0) + (item.totalPriceAtPurchase ?? 0),
         stock: totalStock,
-      };
-
-      productMap.set(p.id, {
-        ...existing,
-        sales: existing.sales + (item.quantity ?? 1),
-        revenue: existing.revenue + (item.totalPriceAtPurchase ?? 0),
       });
     }
 
@@ -231,6 +225,7 @@ export class DashboardService {
       .slice(0, 10)
       .map((p) => ({
         ...p,
+        revenue: parseFloat(p.revenue.toFixed(2)),
         status:
           p.stock === 0
             ? ('out_of_stock' as const)
@@ -240,19 +235,18 @@ export class DashboardService {
       }));
   }
 
-  // ── Recent Orders ────────────────────────────────────────────────────────────
-
+  // ── Recent Orders ────────────
   private async getRecentOrders() {
     const orders = await this.prisma.order.findMany({
       take: 10,
       orderBy: { createdAt: 'desc' },
       select: {
-        orderId: true, // ← human-readable "ORD-xxx" string, not numeric id
-        total: true, // ← correct field name
+        orderId: true, // human-readable "ORD-xxx" string
+        total: true,
         status: true,
-        customerName: true, // ← stored directly on Order in your schema
+        customerName: true, // stored directly on Order
         createdAt: true,
-        // Payment method is on the Payment relation, not directly on Order
+        // Payment method lives on the Payment relation, not on Order directly
         payments: {
           take: 1,
           orderBy: { createdAt: 'desc' },
@@ -265,14 +259,15 @@ export class DashboardService {
       id: o.orderId,
       customer: o.customerName,
       date: o.createdAt.toISOString().split('T')[0],
-      amount: o.total ?? 0,
+      amount: parseFloat((o.total ?? 0).toFixed(2)),
       status: o.status.toLowerCase(),
+      // FIX: o.payments[0]?.method is a PaymentMethod enum value (e.g. "COD",
+      // "BKASH"). Falls back to "cod" if no payment record exists yet.
       payment: (o.payments[0]?.method ?? 'COD').toLowerCase(),
     }));
   }
 
-  // ── Top Search Keywords ──────────────────────────────────────────────────────
-
+  // ── Top Search Keywords ──────
   private async getTopViewedProducts(range: DateRange) {
     const views = await this.prisma.productView.groupBy({
       by: ['productId'],

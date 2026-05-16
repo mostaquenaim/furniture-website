@@ -201,7 +201,7 @@ export class OrderService {
 
     const discount = cart.baseSubtotalAtAdd - cart.subtotalAtAdd;
 
-    console.log(discount);
+  // console.log(discount);
 
     let customerPhone = dto.address.phone;
 

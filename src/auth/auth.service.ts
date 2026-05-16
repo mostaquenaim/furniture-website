@@ -21,7 +21,7 @@ import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
 import { GoogleUserDto } from './dto/google-user.dto';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'twilio/lib/twiml/VoiceResponse';
+import type { Queue } from 'bull';
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_TIME_MINUTES = 15;
@@ -70,13 +70,13 @@ export class AuthService {
 
     // TODO: send OTP via email or SMS
     if (type === 'email') {
-      console.log(`Send email OTP to user: ${code}`);
+      // console.log(`Send email OTP to user: ${code}`);
     } else {
-      console.log(`Send SMS OTP to user: ${code}`);
+      // console.log(`Send SMS OTP to user: ${code}`);
     }
 
     if (type === 'email' && email) {
-      this.notificationQueue.add('sendEmail', {
+      await this.notificationQueue.add('sendEmail', {
         email: email,
         subject: 'Your OTP Code',
         template: 'otp',
@@ -88,7 +88,7 @@ export class AuthService {
     }
 
     if (type === 'phone' && phone) {
-      this.notificationQueue.add('sendSMS', {
+      await this.notificationQueue.add('sendSMS', {
         phone: phone,
         message: `Your Ondorkotha OTP is ${code}. It will expire in 5 minutes.`,
       });
@@ -200,7 +200,7 @@ export class AuthService {
     type: 'email' | 'phone',
     keepSignedIn: boolean,
   ) {
-    console.log(emailOrPhone, code, type);
+    // console.log(emailOrPhone, code, type);
 
     // Find the user first
     const user = await this.prisma.user.findFirst({
@@ -241,7 +241,7 @@ export class AuthService {
 
   // verify update otp
   async verifyUpdateOtp(userId: number, code: string, type: 'email' | 'phone') {
-    console.log(userId, code, type);
+    // console.log(userId, code, type);
     // console.log(userId, code, type);
 
     // Find the user first
@@ -255,7 +255,7 @@ export class AuthService {
       },
     });
 
-    console.log(user);
+    // console.log(user);
 
     if (!user) throw new UnauthorizedException('User is not found');
 
@@ -271,7 +271,7 @@ export class AuthService {
       },
     });
 
-    console.log('otpData', otpData);
+    // console.log('otpData', otpData);
 
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
@@ -580,10 +580,10 @@ export class AuthService {
         if (newValue) {
           const user = await this.verifyUpdateOtp(userId, dto.otp, type);
 
-          console.log(user, 'founduser');
+          // console.log(user, 'founduser');
         }
 
-        console.log('new value nai');
+        // console.log('new value nai');
       }
     }
 

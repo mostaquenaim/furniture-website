@@ -10,14 +10,14 @@ export class FaqService {
   getAll() { return this.faqs; }
 
   create(dto: CreateFaqDto) {
-    console.log('Create FAQ called with dto:', dto);
+  // console.log('Create FAQ called with dto:', dto);
     // const faq = { id: Date.now(), ...dto };
     // this.faqs.push(faq);
     // return faq;
   }
 
   update(id: string, dto: UpdateFaqDto) {
-    console.log(`Update FAQ called for id: ${id} with dto:`, dto);
+  // console.log(`Update FAQ called for id: ${id} with dto:`, dto);
     // const idx = this.faqs.findIndex(f => f.id == +id);
     // if (idx === -1) return null;
     // this.faqs[idx] = { ...this.faqs[idx], ...dto };
@@ -25,7 +25,7 @@ export class FaqService {
   }
 
   delete(id: string) {
-    console.log(`Delete FAQ called for id: ${id}`);
+  // console.log(`Delete FAQ called for id: ${id}`);
     // this.faqs = this.faqs.filter(f => f.id != +id);
     // return { message: 'FAQ deleted' };
   }

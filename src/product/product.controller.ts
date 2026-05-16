@@ -44,7 +44,7 @@ export class ProductController {
     @Query('order') order: 'asc' | 'desc' = 'asc',
     @Query('thumb') thumb?: boolean,
   ) {
-    console.log(sortBy, order, 'sortBy', 'order');
+  // console.log(sortBy, order, 'sortBy', 'order');
     return this.productService.getAllProducts({
       page: Number(page) || 1,
       limit: Number(limit) || 10,
@@ -91,7 +91,7 @@ export class ProductController {
           .filter((n) => !isNaN(n))
       : [];
 
-    console.log(ids, cleanProductSlug, cleanCategorySlug, catIds, 'cleaned');
+  // console.log(ids, cleanProductSlug, cleanCategorySlug, catIds, 'cleaned');
 
     if (catIds.length > 0) {
       return this.productService.getSubCategoryBasedRecommendations(
@@ -118,7 +118,7 @@ export class ProductController {
   ) {
     const userId = req?.user?.userId ?? null;
 
-    console.log(userId, id, visitorId);
+  // console.log(userId, id, visitorId);
 
     return this.productService.addProductView(id, userId, visitorId ?? null);
   }
@@ -133,7 +133,7 @@ export class ProductController {
     // Parse limit, default to 10 if missing or invalid
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
 
-    console.log(userId, parsedLimit);
+  // console.log(userId, parsedLimit);
     // Call the service with safe values
     return this.productService.recommendedProducts(userId, parsedLimit);
   }
@@ -186,9 +186,15 @@ export class ProductController {
   }
 
   // get a random featured review
-  @Get('reviews/featured')
+  @Get('reviews/random-featured')
   getAFeaturedReview() {
     return this.reviewService.getAFeaturedReview();
+  }
+
+  // get a featured reviews
+  @Get('reviews/all-featured')
+  getFeaturedReviews() {
+    return this.reviewService.getAllFeaturedReviews();
   }
 
   // @Get('trending')

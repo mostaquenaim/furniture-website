@@ -25,7 +25,7 @@ export class PaymentController {
   @Post('sslcommerz/initiate/:orderId')
   @UseGuards(JwtAuthGuard)
   async initiateSSL(@Param('orderId') orderId: string) {
-    console.log('here');
+  // console.log('here');
     try {
       const sslcommerzURL = await this.paymentService.initiateSSL(orderId);
       return {

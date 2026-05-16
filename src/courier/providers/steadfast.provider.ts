@@ -217,6 +217,6 @@ export class SteadfastProvider implements CourierProviderInterface {
   }
 
   getCities() {
-    console.log('to be implemented');
+  // console.log('to be implemented');
   }
 }

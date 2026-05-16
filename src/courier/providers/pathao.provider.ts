@@ -38,7 +38,7 @@ export class PathaoProvider implements CourierProviderInterface {
   }
 
   refreshToken() {
-    console.log('Method not implemented.');
+  // console.log('Method not implemented.');
   }
 
   private async getPathaoAccessToken(): Promise<string> {

@@ -123,7 +123,7 @@ export class CategoryService {
   // SERIES
   // =====================
   getAllSeries(withRelations = false, isActive?: boolean | null) {
-    console.log('check if active', isActive);
+  // console.log('check if active', isActive);
 
     return this.prisma.series.findMany({
       where: {

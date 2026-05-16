@@ -33,7 +33,7 @@ export class OrderController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    console.log(page, 'page');
+  // console.log(page, 'page');
 
     return this.orderService.getAllOrders(req?.user?.userId, {
       page: Number(page) || 1,

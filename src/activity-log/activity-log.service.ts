@@ -255,7 +255,7 @@ export class ActivityLogService {
       },
     });
 
-    console.log(`Cleaned up ${result.count} old activity logs`);
+  // console.log(`Cleaned up ${result.count} old activity logs`);
     return result;
   }
 }

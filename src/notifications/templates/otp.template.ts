@@ -1,5 +1,3 @@
-// src/notification/templates/otp.template.ts
-
 export function otpEmailTemplate(otp: string, purpose: string): string {
   return `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">

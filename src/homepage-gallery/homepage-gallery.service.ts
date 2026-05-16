@@ -58,7 +58,7 @@ export class HomepageGalleryService {
   }
 
   async update(id: number, dto: UpdateHomepageGalleryDto) {
-    console.log('dto', dto, 'dto');
+  // console.log('dto', dto, 'dto');
     await this.findOne(id);
 
     // If slug is being changed, check uniqueness

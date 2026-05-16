@@ -58,7 +58,7 @@ export class PathaoLocationSyncService {
       return false;
     }
 
-    console.log(provider.name.toLowerCase(), 'provider-name');
+  // console.log(provider.name.toLowerCase(), 'provider-name');
 
     const providerImpl = this.providers.get(provider.name.toLowerCase());
 

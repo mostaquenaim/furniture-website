@@ -99,15 +99,31 @@ export class CartService {
             id: true,
             quantity: true,
             price: true,
+            basePrice: true,
+            size: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             color: {
               select: {
                 id: true,
+                color: {
+                  select: {
+                    id: true,
+                    name: true,
+                    hexCode: true,
+                  },
+                },
                 product: {
                   select: {
                     id: true,
                     slug: true,
                     title: true,
                     basePrice: true,
+                    material: true,
+                    createdAt: true,
                     images: {
                       select: { image: true },
                     },
@@ -118,6 +134,18 @@ export class CartService {
                             id: true,
                             name: true,
                             isCODAvailable: true,
+                            category: {
+                              select: {
+                                id: true,
+                                name: true,
+                                series: {
+                                  select: {
+                                    id: true,
+                                    name: true,
+                                  },
+                                },
+                              },
+                            },
                           },
                         },
                       },
@@ -248,15 +276,34 @@ export class CartService {
             id: true,
             quantity: true,
             price: true,
+            basePrice: true,
+            size: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             color: {
               select: {
                 id: true,
+                color: {
+                  select: {
+                    id: true,
+                    name: true,
+                    hexCode: true,
+                  },
+                },
                 product: {
                   select: {
                     id: true,
                     slug: true,
                     title: true,
                     basePrice: true,
+                    material: true,
+                    createdAt: true,
+                    images: {
+                      select: { image: true },
+                    },
                     subCategories: {
                       select: {
                         subCategory: {
@@ -264,13 +311,23 @@ export class CartService {
                             id: true,
                             name: true,
                             isCODAvailable: true,
+                            category: {
+                              select: {
+                                id: true,
+                                name: true,
+                                series: {
+                                  select: {
+                                    id: true,
+                                    name: true,
+                                  },
+                                },
+                              },
+                            },
                           },
                         },
                       },
                     },
-                    images: {
-                      select: { image: true },
-                    },
+                    weight: true,
                   },
                 },
               },
@@ -351,7 +408,7 @@ export class CartService {
 
   // get or create cart
   async getOrCreateCart(userId: number) {
-    console.log(userId, 'userId');
+  // console.log(userId, 'userId');
     let cart = await this.prisma.cart.findFirst({
       where: {
         userId,

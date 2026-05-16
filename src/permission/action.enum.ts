@@ -39,6 +39,8 @@ export enum Action {
 
   // Blogs
   BLOG_CREATE = 'BLOG_CREATE',
+  BLOG_UPDATE = 'BLOG_UPDATE',
+  BLOG_DELETE = 'BLOG_DELETE',
   BLOG_CATEGORY_CREATE = 'BLOG_CATEGORY_CREATE',
 
   // Orders

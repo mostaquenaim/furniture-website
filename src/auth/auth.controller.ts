@@ -103,7 +103,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('merge-user')
   async mergeUser(@Req() req: any, @Query('visitorId') visitorId: string) {
-    console.log(visitorId, 'vistoriffs');
+  // console.log(visitorId, 'vistoriffs');
     await this.authService.mergeGuestData(visitorId, req?.user?.userId);
   }
 

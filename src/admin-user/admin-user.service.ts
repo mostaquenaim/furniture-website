@@ -180,9 +180,9 @@ export class AdminUsersService {
     // TODO: plug in your mail service here
     // await this.mailService.sendPasswordReset(user.email, tempPassword);
 
-    console.log(
-      `[AdminUsers] Temp password for ${user.email}: ${tempPassword}`,
-    );
+    // console.log(
+    //   `[AdminUsers] Temp password for ${user.email}: ${tempPassword}`,
+    // );
 
     return {
       message: `Password reset. Temporary password sent to ${user.email}.`,
