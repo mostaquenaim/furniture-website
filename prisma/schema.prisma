@@ -40,8 +40,9 @@ model User {
   password   String?
   googleId   String?  @unique
   avatar     String? // URL to profile picture
-  role       UserRole @default(CUSTOMER)
-  isActive   Boolean  @default(true)
+  role        UserRole    @default(CUSTOMER)
+  fraudStatus FraudStatus @default(SAFE)
+  isActive    Boolean     @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -997,6 +998,13 @@ enum RiskLevel {
   LOW
   MEDIUM
   HIGH
+  BLOCKED
+}
+
+enum FraudStatus {
+  SAFE
+  SUSPICIOUS
+  DOUBTFUL
   BLOCKED
 }
 
