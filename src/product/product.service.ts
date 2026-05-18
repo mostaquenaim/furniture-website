@@ -1427,8 +1427,20 @@ export class ProductService {
         data: { trendScore },
       });
     }
+  }
 
-    // console.log('Trend scores updated for all products!');
+  // trending products
+  async getTrendingProducts(limit: number = 10) {
+    return this.prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: [{ trendScore: 'desc' }, { soldCount: 'desc' }],
+      take: limit,
+      select: {
+        ...this.recommendationSelect,
+        trendScore: true,
+        soldCount: true,
+      },
+    });
   }
 
   // get product's all reviews

@@ -197,8 +197,12 @@ export class ProductController {
     return this.reviewService.getAllFeaturedReviews();
   }
 
-  // @Get('trending')
-  // async getTrendingProducts(){
+  // trending products
+  @Get('trending')
+  getTrendingProducts(@Query('limit') limit?: string) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    return this.productService.getTrendingProducts(parsedLimit);
+  }
 
   // }
   @Get(':slug')
