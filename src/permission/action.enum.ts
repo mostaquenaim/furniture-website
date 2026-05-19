@@ -81,6 +81,9 @@ export enum Action {
   //   company management
   COMPANY_MANAGE = 'COMPANY_MANAGE',
 
+  // Fraud
+  FRAUD_MANAGE = 'FRAUD_MANAGE',
+
   // Misc / Admin-only (no permission check needed — SUPERADMIN bypass handles it)
   // CLOUDINARY_SIGNATURE, ACTIVITY_LOG, PROFILE — see note below
 }

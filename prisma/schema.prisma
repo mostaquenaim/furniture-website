@@ -48,13 +48,13 @@ model User {
 
   wishlist       Wishlist[]
   orders         Order[]
-  // reviews        Review[]
   otps           OTP[]
   cart           Cart[]
   productViews   ProductView[]
   visitors       Visitor[]
   supportTickets SupportTicket[]
   activityLogs   ActivityLog[]
+  fraudChecks    FraudCheck[]
 }
 
 enum UserRole {
@@ -1006,6 +1006,27 @@ enum FraudStatus {
   SUSPICIOUS
   DOUBTFUL
   BLOCKED
+}
+
+model FraudCheck {
+  id    Int    @id @default(autoincrement())
+  phone String
+
+  totalOrders      Int     @default(0)
+  delivered        Int     @default(0)
+  returned         Int     @default(0)
+  successRatio     Float   @default(0)
+  fraudReportCount Int     @default(0)
+  riskLevel        String  @default("Low")
+  riskScore        Float   @default(0)
+  computedStatus   FraudStatus @default(SAFE)
+
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+
+  checkedAt DateTime @default(now())
+
+  @@index([phone])
 }
 
 enum RefundStatus {

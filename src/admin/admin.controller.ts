@@ -60,11 +60,14 @@ import { GetCouponsQueryDto } from 'src/cms/dto/Coupon/get-coupon-query.dto';
 import { CreateBannerDto } from 'src/cms/dto/Banner/create-banner.dto';
 import { UpdateBannerDto } from 'src/cms/dto/Banner/update-banner.dto';
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
+import { AdminService } from './admin.service';
+import { FraudStatus } from '@prisma/client';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
   constructor(
+    private readonly adminService: AdminService,
     private readonly blogService: BlogsService,
     private readonly categoryService: CategoryService,
     private readonly cmsService: CmsService,
@@ -679,4 +682,45 @@ export class AdminController {
   ///////////////////
   /////////USER//////
   //////////////////
+
+  ///////////////////
+  /////////FRAUD//////
+  //////////////////
+
+  @Post('fraud/check-phone')
+  @Permission(Action.FRAUD_MANAGE)
+  checkFraudByPhone(@Body('phone') phone: string) {
+    return this.adminService.checkFraudByPhone(phone);
+  }
+
+  @Get('fraud/history/:phone')
+  @Permission(Action.FRAUD_MANAGE)
+  getFraudHistory(@Param('phone') phone: string) {
+    return this.adminService.getFraudHistory(decodeURIComponent(phone));
+  }
+
+  @Patch('users/:userId/fraud-status')
+  @Permission(Action.FRAUD_MANAGE)
+  updateUserFraudStatus(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body('status') status: FraudStatus,
+  ) {
+    return this.adminService.updateUserFraudStatus(userId, status);
+  }
+
+  @Get('users')
+  @Permission(Action.FRAUD_MANAGE)
+  getUsers(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('fraudStatus') fraudStatus?: FraudStatus,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getUsers({
+      page: Number(page),
+      limit: Number(limit),
+      fraudStatus,
+      search,
+    });
+  }
 }

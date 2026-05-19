@@ -496,13 +496,14 @@ export class AuthService {
   // merge visitor/user data
   async mergeGuestData(visitorId: string, userId: number) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Link visitor to user (always do this first)
-      await tx.visitor.update({
+      // Link visitor to user (always do this first)
+      await tx.visitor.upsert({
         where: { id: visitorId },
-        data: { userId },
+        update: { userId },
+        create: { id: visitorId, userId },
       });
 
-      // 2. Check if user already has an active cart
+      // Check if user already has an active cart
       const userCart = await tx.cart.findFirst({
         where: {
           userId,
@@ -515,7 +516,7 @@ export class AuthService {
         return { merged: false, reason: 'USER_CART_EXISTS' };
       }
 
-      // 3. Find guest active cart
+      // Find guest active cart
       const guestCart = await tx.cart.findFirst({
         where: {
           visitorId,
@@ -527,7 +528,7 @@ export class AuthService {
         return { merged: false, reason: 'NO_GUEST_CART' };
       }
 
-      // 4. Move cart ownership
+      // Move cart ownership
       await tx.cart.update({
         where: { id: guestCart.id },
         data: {

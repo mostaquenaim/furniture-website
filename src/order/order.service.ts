@@ -201,7 +201,7 @@ export class OrderService {
 
     const discount = cart.baseSubtotalAtAdd - cart.subtotalAtAdd;
 
-  // console.log(discount);
+    // console.log(discount);
 
     let customerPhone = dto.address.phone;
 
@@ -349,7 +349,111 @@ export class OrderService {
       return order;
     });
 
+    void this.triggerFraudCheckIfNeeded(userId, order.customerPhone);
     return order;
+  }
+
+  private async triggerFraudCheckIfNeeded(
+    userId: number,
+    phone: string,
+  ): Promise<void> {
+    try {
+      const RECHECK_DAYS = 30;
+      const recent = await this.prisma.fraudCheck.findFirst({
+        where: { userId },
+        orderBy: { checkedAt: 'desc' },
+      });
+      const isStale =
+        !recent ||
+        Date.now() - recent.checkedAt.getTime() > RECHECK_DAYS * 86_400_000;
+      if (!isStale) return;
+
+      const url = process.env.FRAUDURL;
+      const apiKey = process.env.FRAUD_SPY_BD_API_KEY;
+      if (!url || !apiKey) return;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: apiKey.startsWith('Bearer ')
+            ? apiKey
+            : `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ phone }),
+      });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const overall = data.overall ?? {
+        total: 0,
+        delivered: 0,
+        returned: 0,
+        success_ratio: 0,
+      };
+      const reports = data.fraud_reports ?? {
+        count: 0,
+        risk: { level: 'Low', score: 0 },
+      };
+
+      const score = reports.risk?.score ?? 0;
+      const count = reports.count ?? 0;
+      const level = (reports.risk?.level ?? 'Low').toLowerCase();
+      const total = overall.total ?? 0;
+      const returned = overall.returned ?? 0;
+      const rawRatio = overall.success_ratio ?? 0;
+      const successRatio = rawRatio > 1 ? rawRatio / 100 : rawRatio;
+      const returnRate = total > 0 ? returned / total : 0;
+
+      let computedStatus: 'SAFE' | 'SUSPICIOUS' | 'DOUBTFUL' | 'BLOCKED' =
+        'DOUBTFUL';
+      if (
+        score >= 70 ||
+        count >= 5 ||
+        ['high', 'critical', 'very high'].includes(level) ||
+        (total >= 5 && returnRate >= 0.8)
+      ) {
+        computedStatus = 'BLOCKED';
+      } else if (
+        score >= 40 ||
+        count >= 2 ||
+        level === 'medium' ||
+        (total >= 3 && returnRate >= 0.5) ||
+        (count >= 1 && returnRate >= 0.3)
+      ) {
+        computedStatus = 'SUSPICIOUS';
+      } else if (
+        total >= 3 &&
+        successRatio >= 0.7 &&
+        count === 0 &&
+        score < 20
+      ) {
+        computedStatus = 'SAFE';
+      }
+
+      await this.prisma.fraudCheck.create({
+        data: {
+          phone,
+          totalOrders: overall.total,
+          delivered: overall.delivered,
+          returned: overall.returned,
+          successRatio: overall.success_ratio,
+          fraudReportCount: reports.count,
+          riskLevel: reports.risk.level,
+          riskScore: reports.risk.score,
+          computedStatus,
+          userId,
+        },
+      });
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { fraudStatus: computedStatus },
+      });
+    } catch {
+      // Non-critical — silently swallow
+    }
   }
 
   // get invoice
@@ -820,6 +924,7 @@ export class OrderService {
               include: { product: { select: { id: true, slug: true } } },
             },
             payments: { orderBy: { createdAt: 'desc' } },
+            user: { select: { id: true, fraudStatus: true } },
           },
         }),
         this.prisma.order.count({ where }),
