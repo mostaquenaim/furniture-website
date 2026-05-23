@@ -127,6 +127,12 @@ model LoginAttempt {
 // =====================
 // Category & Subcategory & Room
 // =====================
+enum SeriesType {
+  NORMAL
+  SALE
+  NEW
+}
+
 model Series {
   id     Int     @id @default(autoincrement())
   name   String
@@ -134,8 +140,9 @@ model Series {
   image  String? // image URL
   notice String?
 
-  isActive  Boolean @default(true)
-  sortOrder Int     @default(0)
+  isActive   Boolean    @default(true)
+  sortOrder  Int        @default(0)
+  seriesType SeriesType @default(NORMAL)
 
   categories Category[]
 

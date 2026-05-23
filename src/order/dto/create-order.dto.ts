@@ -23,4 +23,8 @@ export class CreateOrderDto {
   @IsString()
   @IsIn(['COD', 'ONLINE'])
   paymentMethod: string;
+
+  @IsString()
+  @IsOptional()
+  otp?: string;
 }

@@ -16,6 +16,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { DiscountType } from './roles.enum';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { sanitizeDiscount } from 'src/common/utils/discount.utils';
 
 @Injectable()
 export class ProductService {
@@ -232,7 +233,7 @@ export class ProductService {
                     price: finalPrice,
 
                     discountType: size.discountType || null,
-                    discount: size.discount || dto.discount || 0,
+                    discount: size.discount || 0,
 
                     quantity: Number(size.quantity),
                   };
@@ -371,7 +372,7 @@ export class ProductService {
 
     product.colors = product.colors.filter((color) => color.sizes.length > 0);
 
-    return product;
+    return sanitizeDiscount(product);
   }
 
   // get all products
@@ -468,6 +469,10 @@ export class ProductService {
             slug: true,
             basePrice: true,
             price: true,
+            discount: true,
+            discountType: true,
+            discountStart: true,
+            discountEnd: true,
             rating: true,
             soldCount: true,
             images: {
@@ -522,11 +527,16 @@ export class ProductService {
     let filteredData = data;
 
     if (!thumb) {
-      filteredData = (data as any[]).map((product) => ({
-        ...product,
-        colors:
-          product.colors?.filter((color: any) => color.sizes?.length > 0) ?? [],
-      }));
+      filteredData = (data as any[]).map((product) =>
+        sanitizeDiscount({
+          ...product,
+          colors:
+            product.colors?.filter((color: any) => color.sizes?.length > 0) ??
+            [],
+        }),
+      );
+    } else {
+      filteredData = (data as any[]).map((p) => sanitizeDiscount(p));
     }
 
     return {
@@ -641,81 +651,210 @@ export class ProductService {
         });
       }
 
-      // Replace Colors & Sizes
+      // Update Colors & Sizes
       if (dto.colors) {
-        // Clear old data
-        await tx.productColorImage.deleteMany({
-          where: { productColor: { productId: product.id } },
-        });
-
-        await tx.productSize.deleteMany({
-          where: { color: { productId: product.id } },
-        });
-
-        await tx.productColor.deleteMany({
+        const existingColors = await tx.productColor.findMany({
           where: { productId: product.id },
+          include: { sizes: { select: { id: true, sizeId: true } } },
         });
 
-        // Re-create like create flow
-        for (const colorVariant of dto.colors) {
-          const productColor = await tx.productColor.create({
-            data: {
-              productId: product.id,
-              colorId: colorVariant.colorId,
-              useDefaultImages: colorVariant.useDefaultImages ?? false,
-            },
+        // Structural fingerprint: compare colorId+sizeId sets only (ignore quantity/price)
+        // Apply same SKU filter used during createMany so empty-SKU placeholders are excluded
+        const existingStructureKey = existingColors
+          .map(
+            (c) =>
+              `${c.colorId}:${c.sizes
+                .map((s) => String(s.sizeId))
+                .sort()
+                .join(',')}`,
+          )
+          .sort()
+          .join('|');
+
+        const incomingStructureKey = dto.colors
+          .map((c) => {
+            const sizeIds = (c.sizes ?? [])
+              .filter((s) => (s.sku ?? '') !== '')
+              .map((s) => String(s.sizeId))
+              .sort()
+              .join(',');
+            return `${c.colorId}:${sizeIds}`;
+          })
+          .sort()
+          .join('|');
+
+        const structureChanged = existingStructureKey !== incomingStructureKey;
+
+        if (structureChanged) {
+          // Guard: refuse if any active cart references these sizes
+          const cartConflict = await tx.cartItem.findFirst({
+            where: { productSize: { color: { productId: product.id } } },
           });
 
-          // Create color images (only if NOT default)
-          if (
-            !colorVariant.useDefaultImages &&
-            colorVariant.images &&
-            colorVariant.images.length > 0
-          ) {
-            await tx.productColorImage.createMany({
-              data: colorVariant.images.map((imageUrl, index) => ({
-                productColorId: productColor.id,
-                image: imageUrl,
-                serialNo: index + 1,
-              })),
-            });
+          if (cartConflict) {
+            throw new BadRequestException(
+              'Cannot update variants: one or more sizes are currently in a customer cart. Clear the carts first or wait for them to expire.',
+            );
           }
 
-          // Create sizes (quantity > 0 only)
-          if (colorVariant.sizes && colorVariant.sizes.length > 0) {
-            const validSizes = colorVariant.sizes.filter(
-              (size) => size.sku != '',
-            );
+          // Full rebuild — clear old data then recreate
+          await tx.productColorImage.deleteMany({
+            where: { productColor: { productId: product.id } },
+          });
 
-            if (validSizes.length > 0) {
-              await tx.productSize.createMany({
-                data: validSizes.map((size) => {
-                  let price: number | null = null;
+          await tx.productSize.deleteMany({
+            where: { color: { productId: product.id } },
+          });
 
-                  if (dto.discount && dto.discount > 0 && basePrice) {
-                    if (dto.discountType === DiscountType.PERCENT) {
-                      price = Math.round(
-                        basePrice - (basePrice * dto.discount) / 100,
-                      );
-                    }
+          await tx.productColor.deleteMany({
+            where: { productId: product.id },
+          });
 
-                    if (dto.discountType === DiscountType.FIXED) {
-                      price = basePrice - dto.discount;
-                    }
-                  }
+          for (const colorVariant of dto.colors) {
+            const productColor = await tx.productColor.create({
+              data: {
+                productId: product.id,
+                colorId: colorVariant.colorId,
+                useDefaultImages: colorVariant.useDefaultImages ?? false,
+              },
+            });
 
-                  return {
-                    colorId: productColor.id,
-                    sizeId: size.sizeId,
-                    sku: size.sku || null,
-                    basePrice:
+            if (
+              !colorVariant.useDefaultImages &&
+              colorVariant.images &&
+              colorVariant.images.length > 0
+            ) {
+              await tx.productColorImage.createMany({
+                data: colorVariant.images.map((imageUrl, index) => ({
+                  productColorId: productColor.id,
+                  image: imageUrl,
+                  serialNo: index + 1,
+                })),
+              });
+            }
+
+            if (colorVariant.sizes && colorVariant.sizes.length > 0) {
+              const validSizes = colorVariant.sizes.filter(
+                (size) => size.sku != '',
+              );
+
+              if (validSizes.length > 0) {
+                await tx.productSize.createMany({
+                  data: validSizes.map((size) => {
+                    const sizeLevelBasePrice =
                       size.price !== undefined && size.price !== null
                         ? Number(size.price)
-                        : null,
-                    price: price,
-                    quantity: Number(size.quantity),
-                  };
-                }),
+                        : null;
+
+                    let sizePrice: number | null = sizeLevelBasePrice;
+
+                    if (sizeLevelBasePrice !== null) {
+                      if (
+                        size.discount &&
+                        size.discount > 0 &&
+                        size.discountType
+                      ) {
+                        if (size.discountType === DiscountType.PERCENT) {
+                          sizePrice = Math.round(
+                            sizeLevelBasePrice -
+                              (sizeLevelBasePrice * size.discount) / 100,
+                          );
+                        } else if (size.discountType === DiscountType.FIXED) {
+                          sizePrice = sizeLevelBasePrice - size.discount;
+                        }
+                        if (sizePrice !== null && sizePrice < 0) sizePrice = 0;
+                      }
+                    }
+
+                    return {
+                      colorId: productColor.id,
+                      sizeId: size.sizeId,
+                      sku: size.sku || null,
+                      basePrice: sizeLevelBasePrice,
+                      price: sizePrice,
+                      discountType: size.discountType || null,
+                      discount: size.discount || 0,
+                      quantity: Number(size.quantity),
+                    };
+                  }),
+                });
+              }
+            }
+          }
+        } else {
+          // Structure unchanged — update in place, preserving ProductSize IDs so cart items stay valid
+          for (const colorVariant of dto.colors) {
+            const existingColor = existingColors.find(
+              (c) => c.colorId === colorVariant.colorId,
+            );
+            if (!existingColor) continue;
+
+            await tx.productColor.update({
+              where: { id: existingColor.id },
+              data: {
+                useDefaultImages: colorVariant.useDefaultImages ?? false,
+              },
+            });
+
+            if (
+              !colorVariant.useDefaultImages &&
+              colorVariant.images &&
+              colorVariant.images.length > 0
+            ) {
+              await tx.productColorImage.deleteMany({
+                where: { productColorId: existingColor.id },
+              });
+              await tx.productColorImage.createMany({
+                data: colorVariant.images.map((imageUrl, index) => ({
+                  productColorId: existingColor.id,
+                  image: imageUrl,
+                  serialNo: index + 1,
+                })),
+              });
+            }
+
+            for (const size of colorVariant.sizes ?? []) {
+              const existingSize = existingColor.sizes.find(
+                (s) => s.sizeId === size.sizeId,
+              );
+              if (!existingSize) continue;
+
+              const sizeLevelBasePrice =
+                size.price !== undefined && size.price !== null
+                  ? Number(size.price)
+                  : undefined;
+
+              let sizePrice: number | null =
+                sizeLevelBasePrice !== undefined ? sizeLevelBasePrice : null;
+
+              if (sizeLevelBasePrice !== undefined) {
+                if (
+                  size.discount &&
+                  size.discount > 0 &&
+                  size.discountType
+                ) {
+                  if (size.discountType === DiscountType.PERCENT) {
+                    sizePrice = Math.round(
+                      sizeLevelBasePrice -
+                        (sizeLevelBasePrice * size.discount) / 100,
+                    );
+                  } else if (size.discountType === DiscountType.FIXED) {
+                    sizePrice = sizeLevelBasePrice - size.discount;
+                  }
+                  if (sizePrice !== null && sizePrice < 0) sizePrice = 0;
+                }
+              }
+
+              await tx.productSize.update({
+                where: { id: existingSize.id },
+                data: {
+                  quantity: Number(size.quantity),
+                  sku: size.sku || null,
+                  basePrice: sizeLevelBasePrice,
+                  price: sizePrice,
+                  discountType: size.discountType || null,
+                  discount: size.discount ?? 0,
+                },
               });
             }
           }
@@ -734,6 +873,20 @@ export class ProductService {
           },
         },
       });
+
+      const newTotalQuantity =
+        updatedProduct?.colors
+          ?.flatMap((c) => c.sizes)
+          ?.reduce((sum, s) => sum + s.quantity, 0) ?? 0;
+
+      await tx.product.update({
+        where: { id: product.id },
+        data: { totalProductQuantity: newTotalQuantity },
+      });
+
+      if (updatedProduct) {
+        updatedProduct.totalProductQuantity = newTotalQuantity;
+      }
 
       await this.activityLogService.log({
         adminId,
@@ -806,7 +959,7 @@ export class ProductService {
       // Update sizes for each color variant
       for (const color of product.colors) {
         for (const size of color.sizes) {
-          const sizeBasePrice = size.price ?? basePrice; // fallback to product basePrice
+          const sizeBasePrice = size.basePrice ?? basePrice; // fallback to product basePrice
           let sizePrice = sizeBasePrice;
 
           if (product.discount && product.discount > 0) {
@@ -1302,7 +1455,7 @@ export class ProductService {
       recommendations = [...recommendations, ...shuffled];
     }
 
-    return recommendations;
+    return recommendations.map((p) => sanitizeDiscount(p));
   }
 
   // recently viewed products
@@ -1339,6 +1492,10 @@ export class ProductService {
             slug: true,
             price: true,
             basePrice: true,
+            discount: true,
+            discountType: true,
+            discountStart: true,
+            discountEnd: true,
             rating: true,
             images: {
               orderBy: { serialNo: 'asc' },
@@ -1354,7 +1511,10 @@ export class ProductService {
     });
 
     // Filter out null products (in case product became inactive)
-    const products = views.map((v) => v.product).filter((p) => p !== null);
+    const products = views
+      .map((v) => v.product)
+      .filter((p) => p !== null)
+      .map((p) => sanitizeDiscount(p));
 
     return products;
   }
@@ -1367,6 +1527,10 @@ export class ProductService {
       slug: true,
       price: true,
       basePrice: true,
+      discount: true,
+      discountType: true,
+      discountStart: true,
+      discountEnd: true,
       rating: true,
       images: {
         where: { serialNo: 1 },
@@ -1431,7 +1595,7 @@ export class ProductService {
 
   // trending products
   async getTrendingProducts(limit: number = 10) {
-    return this.prisma.product.findMany({
+    const products = await this.prisma.product.findMany({
       where: { isActive: true },
       orderBy: [{ trendScore: 'desc' }, { soldCount: 'desc' }],
       take: limit,
@@ -1441,6 +1605,52 @@ export class ProductService {
         soldCount: true,
       },
     });
+    return products.map((p) => sanitizeDiscount(p));
+  }
+
+  async getOnSaleProducts({
+    page = 1,
+    limit = 18,
+    sortBy = 'createdAt',
+    order = 'desc',
+  }: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    order?: 'asc' | 'desc';
+  }) {
+    const now = new Date();
+    const where = {
+      isActive: true,
+      discount: { gt: 0 },
+      discountStart: { lte: now },
+      discountEnd: { gte: now },
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: +limit,
+        orderBy: { [sortBy]: order },
+        include: {
+          images: true,
+          colors: { include: { images: true, sizes: true } },
+          subCategories: { include: { subCategory: true } },
+        },
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    return {
+      data: data.map((p) => sanitizeDiscount(p)),
+      meta: {
+        total,
+        page: +page,
+        limit: +limit,
+        totalPages: Math.ceil(total / +limit),
+      },
+    };
   }
 
   // get product's all reviews

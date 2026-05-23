@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   NotFoundException,
@@ -15,6 +16,7 @@ import { CreateCategoryDto } from './dto/categoryDto.dto';
 import { CreateSubCategoryDto } from './dto/subCategoryDto.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { LogModule } from '@prisma/client';
+import { sanitizeDiscount } from 'src/common/utils/discount.utils';
 
 @Injectable()
 export class CategoryService {
@@ -266,7 +268,7 @@ export class CategoryService {
       },
 
       ...(search && {
-        name: { contains: search, mode: 'insensitive' },
+        title: { contains: search, mode: 'insensitive' },
       }),
 
       ...(minPrice || maxPrice
@@ -379,8 +381,6 @@ export class CategoryService {
     // NORMALIZATION
     // ---------------------------
 
-    const productMap = new Map<number, any>();
-
     const subCategoryMap = new Map<number, any>();
     let blog: any = null;
 
@@ -405,7 +405,7 @@ export class CategoryService {
     }
 
     return {
-      products,
+      products: products.map((p) => sanitizeDiscount(p)),
       subcategories: Array.from(subCategoryMap.values()),
       blog,
       series: selectedSeries.name,
@@ -545,9 +545,18 @@ export class CategoryService {
     orders: { id: number; sortOrder: number }[],
   ) {
     try {
-      // We wrap all updates in a transaction
+      const normalRows = await this.prisma.series.findMany({
+        where: {
+          id: { in: orders.map((o) => o.id) },
+          seriesType: 'NORMAL',
+        },
+        select: { id: true },
+      });
+      const normalIds = new Set(normalRows.map((r) => r.id));
+      const filteredOrders = orders.filter((o) => normalIds.has(o.id));
+
       const series = await this.prisma.$transaction(
-        orders.map((item) =>
+        filteredOrders.map((item) =>
           this.prisma.series.update({
             where: { id: item.id },
             data: { sortOrder: item.sortOrder },
@@ -952,7 +961,7 @@ export class CategoryService {
       },
 
       ...(search && {
-        name: { contains: search, mode: 'insensitive' },
+        title: { contains: search, mode: 'insensitive' },
       }),
 
       ...(minPrice || maxPrice
@@ -1046,7 +1055,6 @@ export class CategoryService {
     // NORMALIZATION
     // ---------------------------
 
-    const productMap = new Map<number, any>();
     let blog: any = null;
     let found = false;
 
@@ -1065,7 +1073,7 @@ export class CategoryService {
     }
 
     return {
-      products: rows,
+      products: rows.map((p) => sanitizeDiscount(p)),
       blog,
       subCategory,
       meta: {

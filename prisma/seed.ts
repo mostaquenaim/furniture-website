@@ -161,6 +161,34 @@ async function main() {
     console.log('ℹ️ SUPERADMIN already exists');
   }
 
+  await prisma.series.upsert({
+    where: { slug: 'sale' },
+    update: { seriesType: 'SALE' },
+    create: {
+      name: 'Sale',
+      slug: 'sale',
+      seriesType: 'SALE',
+      sortOrder: 9999,
+      isActive: true,
+      categories: {
+        create: {
+          name: 'All Categories',
+          slug: 'sale-all-categories',
+          sortOrder: 1,
+          isActive: true,
+          subCategories: {
+            create: {
+              name: 'All Sale Items',
+              slug: 'sale-all',
+              sortOrder: 1,
+              isActive: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
   console.log(
     `Seeded ${MANAGEABLE_ROLES.length * allActions.length} permission rows`,
   );

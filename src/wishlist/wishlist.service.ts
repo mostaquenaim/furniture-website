@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { sanitizeDiscount } from 'src/common/utils/discount.utils';
 
 @Injectable()
 export class WishlistService {
@@ -65,11 +66,13 @@ export class WishlistService {
     ]);
 
     // normalize → return products directly
-    const products = wishlistItems.map((item) => ({
-      ...item.product,
-      wishlistId: item.id,
-      addedAt: item.createdAt,
-    }));
+    const products = wishlistItems.map((item) =>
+      sanitizeDiscount({
+        ...item.product,
+        wishlistId: item.id,
+        addedAt: item.createdAt,
+      }),
+    );
 
     return {
       data: products,

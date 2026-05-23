@@ -11,16 +11,19 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import PDFDocument from 'pdfkit';
 import { Response } from 'express';
 import puppeteer from 'puppeteer';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { InjectQueue } from '@nestjs/bull';
+import type { Queue } from 'bull';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class OrderService {
@@ -28,6 +31,7 @@ export class OrderService {
     private prisma: PrismaService,
     private notificationService: NotificationsService,
     private activityLogService: ActivityLogService,
+    @InjectQueue('notification') private notificationQueue: Queue,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -97,6 +101,7 @@ export class OrderService {
 
   // create a order
   async createOrder(userId: number, dto: CreateOrderDto) {
+    console.log('CreateOrderDto', dto, 'CreateOrderDto');
     // 1. Validate district (especially for COD)
     const district = await this.prisma.city.findUnique({
       where: { id: dto.address.districtId },
@@ -107,10 +112,67 @@ export class OrderService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
     });
+
+    // Phone OTP gate: verify if ordering phone differs from account phone
+    const normalizedOrderPhone = this.normalizeBDPhone(dto.address.phone);
+    const normalizedUserPhone = user?.phone
+      ? this.normalizeBDPhone(user.phone)
+      : null;
+
+    if (!normalizedUserPhone || normalizedOrderPhone !== normalizedUserPhone) {
+      if (!dto.otp) {
+        const code = crypto.randomInt(100000, 999999).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        await this.prisma.oTP.updateMany({
+          where: { userId, type: 'phone', verified: false },
+          data: { expiresAt: new Date() },
+        });
+
+        await this.prisma.oTP.create({
+          data: {
+            userId,
+            code,
+            type: 'phone',
+            expiresAt,
+            phone: normalizedOrderPhone,
+          },
+        });
+
+        await this.notificationQueue.add('sendSMS', {
+          phone: normalizedOrderPhone,
+          message: `Your Sakigai verification OTP is ${code}. It will expire in 10 minutes.`,
+        });
+
+        return {
+          status: 'OTP_REQUIRED',
+          otpSentTo: 'phone',
+          message:
+            'The phone number differs from your account. Please verify with the OTP sent to this number.',
+        };
+      }
+
+      const otpData = await this.prisma.oTP.findFirst({
+        where: {
+          userId,
+          code: dto.otp,
+          type: 'phone',
+          verified: false,
+          expiresAt: {
+            gte: new Date(),
+          },
+        },
+      });
+
+      if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
+
+      await this.prisma.oTP.update({
+        where: { id: otpData.id },
+        data: { verified: true },
+      });
+    }
 
     // 2. Fetch user's cart items
     const cart = await this.prisma.cart.findUnique({

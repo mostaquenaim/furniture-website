@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx prisma *)"
+      "Bash(npx prisma *)",
+      "Bash(Get-ChildItem -Path \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\" -Recurse -Name -Include \"seed.*\", \"*.controller.ts\", \"*.service.ts\", \"*dto*\")",
+      "Bash(Select-Object -First 50)",
+      "Bash(cd /d \"e:\\\\Sammtech\\\\furniture-bideshi\")",
+      "Bash(dir /b /s ShowEachProduct*)"
     ]
   }
 }

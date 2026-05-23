@@ -20,8 +20,7 @@ export class NotificationsService {
     private mailerService: MailerService,
     // private config: ConfigService,
     @InjectQueue('notification') private notificationQueue: Queue,
-  ) {
-  }
+  ) {}
 
   async sendOrderConfirmation(
     user: { email: string; phone: string },

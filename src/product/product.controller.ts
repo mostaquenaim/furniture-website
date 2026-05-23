@@ -204,6 +204,21 @@ export class ProductController {
     return this.productService.getTrendingProducts(parsedLimit);
   }
 
+  @Get('on-sale')
+  getOnSaleProducts(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('sortBy') sortBy?: string,
+    @Query('order') order: 'asc' | 'desc' = 'desc',
+  ) {
+    return this.productService.getOnSaleProducts({
+      page: Number(page) || 1,
+      limit: Number(limit) || 18,
+      sortBy: sortBy || 'createdAt',
+      order,
+    });
+  }
+
   // }
   @Get(':slug')
   getProductById(@Param('slug') slug: string) {
