@@ -112,14 +112,20 @@ export class CmsController {
 
   // Banners
   @Get('homepage-banners')
-  getHomepageBanners(@Query('isActive') isActive?: string) {
+  getHomepageBanners(
+    @Query('isActive') isActive?: string,
+    @Query('device') device?: string,
+  ) {
     let parsed: boolean | undefined;
 
     if (isActive === 'true') parsed = true;
     else if (isActive === 'false') parsed = false;
-    else parsed = undefined;
+    else parsed = true; // default to active-only for public storefront
 
-    return this.cmsService.getHomepageBanners(parsed);
+    let parsedDevice: 'DESKTOP' | 'MOBILE' | undefined;
+    if (device === 'DESKTOP' || device === 'MOBILE') parsedDevice = device;
+
+    return this.cmsService.getHomepageBanners(parsed, parsedDevice);
   }
 
   // VARIANTS

@@ -115,6 +115,7 @@ export class BarcodeService {
 
   // ── Assign / update warehouse location ────────────────────────────────────
   async assignLocation(barcodeId: string, dto: AssignLocationDto) {
+    console.log('Assigning location', dto.locationId, 'to barcode', barcodeId);
     return this.prisma.$transaction(async (tx) => {
       // 1. Verify existence and current state
       const item = await tx.inventoryItem.findUnique({
@@ -126,6 +127,17 @@ export class BarcodeService {
         throw new NotFoundException(
           `Inventory item with barcode ${barcodeId} not found`,
         );
+      }
+
+      if (dto.locationId === null) {
+        console.log('Unassigning location for barcode', barcodeId);
+        // Unassign location
+        const updatedItem = await tx.inventoryItem.update({
+          where: { id: barcodeId },
+          data: { locationId: null, quantity: dto.quantity ?? item.quantity },
+          include: { product: true, location: true },
+        });
+        return updatedItem;
       }
 
       // 2. Validate the new location
@@ -263,7 +275,12 @@ export class BarcodeService {
       },
     });
 
-    const html = this.buildLabelSheetHtml(withImages);
+    // One label page per physical piece
+    const expandedLabels = withImages.flatMap((bc) =>
+      Array.from({ length: Math.max(bc.quantity, 1) }, () => bc),
+    );
+
+    const html = this.buildLabelSheetHtml(expandedLabels);
     const pdf = await this.renderPdf(html);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -293,14 +310,10 @@ export class BarcodeService {
     });
 
     const pdf = await page.pdf({
-      format: 'A4',
+      width: '100mm',
+      height: '50mm',
       printBackground: true,
-      margin: {
-        top: '10mm',
-        right: '10mm',
-        bottom: '10mm',
-        left: '10mm',
-      },
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
     });
 
     await page.close();
@@ -308,21 +321,22 @@ export class BarcodeService {
     return Buffer.from(pdf);
   }
 
-  // ── Label sheet HTML (4×6 grid, Avery-style) ──────────────────────────────
+  // ── Thermal label HTML (100mm × 50mm, one label per page) ───────────────
   private buildLabelSheetHtml(barcodes: any[]): string {
     const labels = barcodes
       .map(
         (bc) => `
       <div class="label">
-        <div class="label-brand">SAKIGAI</div>
-        <div class="label-name">${this.truncate(bc.product?.title ?? '—', 28)}</div>
-        <img class="barcode-img" src="data:image/png;base64,${bc.imgBase64}" alt="${bc.barcode}" />
-        <div class="label-footer">
-          <span class="loc-badge">${bc.location?.code ?? 'NO LOC'}</span>
-          <span class="stock">QTY: ${bc.quantity}</span>
-          ${bc.quantity <= bc.lowStockAt ? '<span class="low-stock">LOW</span>' : ''}
+        <div class="top-row">
+          <span class="brand">SAKIGAI</span>
+          ${bc.quantity <= bc.lowStockAt ? '<span class="low">LOW</span>' : ''}
         </div>
-        ${bc.location ? `<div class="label-loc-detail">${bc.location.label ?? bc.location.code}</div>` : ''}
+        <div class="product-name">${this.truncate(bc.product?.title ?? '—', 40)}</div>
+        <img class="barcode-img" src="data:image/png;base64,${bc.imgBase64}" alt="${bc.barcode}" />
+        <div class="bottom-row">
+          <code class="barcode-val">${bc.barcode}</code>
+          ${bc.location ? `<span class="loc">${bc.location.code}</span>` : ''}
+        </div>
       </div>`,
       )
       .join('');
@@ -332,100 +346,81 @@ export class BarcodeService {
 <head>
 <meta charset="UTF-8"/>
 <style>
+  @page { size: 100mm 50mm; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    width: 100mm;
+    font-family: Arial, Helvetica, sans-serif;
     background: #fff;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
   .label {
-    border: 1.5px solid #1e293b;
-    border-radius: 6px;
-    padding: 10px 10px 8px;
+    width: 100mm;
+    height: 50mm;
+    padding: 3mm;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    page-break-after: always;
+  }
+  .label:last-child { page-break-after: avoid; }
+  .top-row {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 4px;
-    page-break-inside: avoid;
-    background: #fff;
-    min-height: 120px;
   }
-  .label-brand {
-    font-size: 7px;
+  .brand {
+    font-size: 7pt;
     font-weight: 800;
-    letter-spacing: 0.3em;
-    color: #94a3b8;
+    letter-spacing: 0.25em;
+    color: #999;
     text-transform: uppercase;
-    align-self: flex-start;
   }
-  .label-name {
-    font-size: 10px;
+  .low {
+    font-size: 6pt;
+    font-weight: 800;
+    color: #dc2626;
+    border: 0.3mm solid #dc2626;
+    padding: 0.5mm 1.5mm;
+    border-radius: 1mm;
+  }
+  .product-name {
+    font-size: 9pt;
     font-weight: 700;
-    color: #0f172a;
+    color: #000;
     text-align: center;
-    line-height: 1.3;
+    line-height: 1.2;
   }
   .barcode-img {
-    max-width: 100%;
-    height: 38px;
+    width: 90mm;
+    height: 17mm;
     object-fit: contain;
-    margin: 2px 0;
+    display: block;
+    margin: 0 auto;
   }
-  .label-code {
-    font-family: 'Courier New', monospace;
-    font-size: 8px;
-    color: #475569;
-    letter-spacing: 0.05em;
-  }
-  .label-footer {
+  .bottom-row {
     display: flex;
     align-items: center;
-    gap: 5px;
-    width: 100%;
-    justify-content: center;
+    justify-content: space-between;
   }
-  .loc-badge {
-    background: #0f172a;
-    color: #e2c97e;
-    font-size: 8px;
+  .barcode-val {
+    font-family: 'Courier New', monospace;
+    font-size: 7pt;
+    color: #444;
+  }
+  .loc {
+    font-size: 7pt;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    padding: 2px 6px;
-    border-radius: 3px;
     font-family: 'Courier New', monospace;
-  }
-  .stock {
-    font-size: 8px;
-    color: #64748b;
-    font-family: 'Courier New', monospace;
-  }
-  .low-stock {
-    background: #fef2f2;
-    color: #dc2626;
-    font-size: 7px;
-    font-weight: 800;
-    padding: 1px 5px;
-    border-radius: 3px;
-    border: 1px solid #fca5a5;
-    letter-spacing: 0.05em;
-  }
-  .label-loc-detail {
-    font-size: 7.5px;
-    color: #94a3b8;
-    text-align: center;
-    font-style: italic;
+    background: #000;
+    color: #e2c97e;
+    padding: 0.5mm 2mm;
+    border-radius: 1mm;
   }
 </style>
 </head>
-<body>
-  <div class="grid">${labels}</div>
-</body>
+<body>${labels}</body>
 </html>`;
   }
 

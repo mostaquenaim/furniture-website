@@ -38,8 +38,9 @@ export class CreateBarcodeDto {
 }
 
 export class AssignLocationDto {
+  @IsOptional()
   @IsString()
-  locationId: string;
+  locationId!: string | null;
 
   @IsOptional()
   @IsInt()

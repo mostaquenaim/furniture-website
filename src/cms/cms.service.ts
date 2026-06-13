@@ -128,15 +128,14 @@ export class CmsService {
     return this.banners;
   }
   updateBanner(id: string, dto: UpdateBannerDto) {
-  // console.log(id, dto);
+    // console.log(id, dto);
     // const idx = this.banners.findIndex(b => b.id == id);
     // if (idx === -1) return null;
-
     // this.banners[idx] = { ...this.banners[idx], ...dto };
     // return this.banners[idx];
   }
   deleteBanner(id: string) {
-  // console.log(id);
+    // console.log(id);
     // this.banners = this.banners.filter(b => b.id != id);
     // return { message: 'Banner deleted' };
   }
@@ -827,8 +826,8 @@ export class CmsService {
       });
     }
   }
-  // ── Create ──────────────────────────────────────────────────────────────────
 
+  // ── Create ──────
   async createCoupon(dto: CreateCouponDto, adminId: number) {
     if (
       (dto.discountType === CouponDiscountType.PERCENTAGE ||
@@ -891,8 +890,7 @@ export class CmsService {
     }
   }
 
-  // ── Get All ─────────────────────────────────────────────────────────────────
-
+  // ── Get All ────────────
   async getAllCoupons(query: GetCouponsQueryDto) {
     const where: Prisma.CouponWhereInput = {};
 
@@ -922,8 +920,7 @@ export class CmsService {
     });
   }
 
-  // ── Get Single ──────────────────────────────────────────────────────────────
-
+  // ── Get Single ───────
   async getCouponById(id: number) {
     const coupon = await this.prisma.coupon.findUnique({ where: { id } });
 
@@ -934,8 +931,7 @@ export class CmsService {
     return coupon;
   }
 
-  // ── Update ──────────────────────────────────────────────────────────────────
-
+  // ── Update ───────────
   async updateCoupon(id: number, dto: UpdateCouponDto, adminId: number) {
     const existing = await this.getCouponById(id);
 
@@ -1031,8 +1027,7 @@ export class CmsService {
     }
   }
 
-  // ── Toggle Status ───────────────────────────────────────────────────────────
-
+  // ── Toggle Status ───────
   async toggleCouponStatus(id: number, adminId: number) {
     const existing = await this.getCouponById(id);
 
@@ -1054,7 +1049,7 @@ export class CmsService {
     return updated;
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
+  // ── Delete ───────────────
 
   async deleteCoupon(id: number, adminId: number) {
     const existing = await this.getCouponById(id);
@@ -1078,7 +1073,7 @@ export class CmsService {
     return { message: `Coupon "${existing.code}" deleted successfully` };
   }
 
-  // ── Validate (storefront cart use) ─────────────────────────────────────────
+  // ── Validate (storefront cart use)
 
   async validateCoupon(code: string, orderValue: number) {
     const coupon = await this.prisma.coupon.findUnique({
@@ -1267,9 +1262,9 @@ export class CmsService {
             deliveryFee: Number(process.env.DEFAULT_DELIVERY_FEE) || 120,
           },
         });
-      // console.log(`Created city: ${cleanName}`);
+        // console.log(`Created city: ${cleanName}`);
       } else {
-      // console.log(`District already exists: ${cleanName}`);
+        // console.log(`District already exists: ${cleanName}`);
       }
     }
   }

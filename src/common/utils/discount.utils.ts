@@ -14,5 +14,6 @@ export function sanitizeDiscount(product: any): any {
       price: product.basePrice,
     };
   }
+
   return product;
 }

@@ -25,11 +25,6 @@ export class ProductService {
     private activityLogService: ActivityLogService,
   ) {}
 
-  private generateBarcodeCode(productSku: string, warehouse: string) {
-    const random = Math.floor(1000 + Math.random() * 9000);
-    return `SAK-${productSku}-${warehouse}-${random}`;
-  }
-
   // create a product
   async createProduct(dto: CreateProductDto, adminId: number) {
     const existing = await this.prisma.product.findUnique({
@@ -828,11 +823,7 @@ export class ProductService {
                 sizeLevelBasePrice !== undefined ? sizeLevelBasePrice : null;
 
               if (sizeLevelBasePrice !== undefined) {
-                if (
-                  size.discount &&
-                  size.discount > 0 &&
-                  size.discountType
-                ) {
+                if (size.discount && size.discount > 0 && size.discountType) {
                   if (size.discountType === DiscountType.PERCENT) {
                     sizePrice = Math.round(
                       sizeLevelBasePrice -
@@ -1635,15 +1626,62 @@ export class ProductService {
         orderBy: { [sortBy]: order },
         include: {
           images: true,
-          colors: { include: { images: true, sizes: true } },
-          subCategories: { include: { subCategory: true } },
+          colors: {
+            include: { color: true },
+          },
+          subCategories: {
+            include: {
+              subCategory: {
+                include: {
+                  blogs: {
+                    where: { blogPost: { published: true } },
+                    take: 1,
+                    include: {
+                      blogPost: {
+                        select: {
+                          id: true,
+                          title: true,
+                          slug: true,
+                          content: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       }),
       this.prisma.product.count({ where }),
     ]);
 
+    const subCategoryMap = new Map<number, any>();
+    let blog: any = null;
+
+    for (const product of data) {
+      for (const ps of product.subCategories) {
+        const sc = ps.subCategory;
+        if (!subCategoryMap.has(sc.id)) {
+          subCategoryMap.set(sc.id, {
+            id: sc.id,
+            name: sc.name,
+            slug: sc.slug,
+            categoryId: sc.categoryId,
+          });
+        }
+        if (!blog) {
+          const blogPost = sc.blogs?.[0]?.blogPost;
+          if (blogPost) blog = blogPost;
+        }
+      }
+    }
+
     return {
-      data: data.map((p) => sanitizeDiscount(p)),
+      products: data.map((p) => sanitizeDiscount(p)),
+      subcategories: Array.from(subCategoryMap.values()),
+      blog,
+      series: 'Sale',
       meta: {
         total,
         page: +page,
