@@ -12,6 +12,7 @@ import {
   Param,
   UseGuards,
   Query,
+  Req,
   Res,
   BadRequestException,
   ParseIntPipe,
@@ -23,6 +24,8 @@ import { CreateTnCDto } from './dto/create-tnc.dto';
 import { UpdateTnCDto } from './dto/update-tnc.dto';
 import { UpdateBannerDto } from './dto/Banner/update-banner.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
+import { UserRole } from '@prisma/client';
 import { OrderService } from 'src/order/order.service';
 import type { Response } from 'express';
 import { CourierService } from 'src/courier/services/courier.service';
@@ -276,6 +279,27 @@ export class CmsController {
   @Get('homepage-gallery/:id')
   findOneHomepageGallery(@Param('id', ParseIntPipe) id: number) {
     return this.homepageGalleryService.findOne(id);
+  }
+
+  // Static Pages (About, T&C, Privacy Policy, etc.)
+
+  @Get('static-pages')
+  getAllStaticPages(@Query('onlyActive') onlyActive?: string) {
+    return this.cmsService.getAllStaticPages(onlyActive === 'true');
+  }
+
+  @Get('static-pages/:slug')
+  getStaticPageBySlug(@Param('slug') slug: string) {
+    return this.cmsService.getStaticPageBySlug(slug);
+  }
+
+  // Terms & Conditions (staff sees all, everyone else sees active only)
+  @Get('terms-and-conditions')
+  @UseGuards(OptionalJwtAuthGuard)
+  getAllTermsAndConditions(@Req() req: any) {
+    const isStaff = !!req?.user?.role && req.user.role !== UserRole.CUSTOMER;
+
+    return this.cmsService.getAllTermsAndConditions(!isStaff);
   }
 
   // broad banner

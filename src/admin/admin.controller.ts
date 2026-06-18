@@ -45,6 +45,9 @@ import { UpdateVariantDto } from 'src/cms/dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { UpdatePromoBannerDto } from 'src/cms/dto/Banner/update-promo-banner.dto';
 import { CreatePromoBannerDto } from 'src/cms/dto/Banner/create-promo-banner.dto';
+import { UpsertStaticPageDto } from 'src/cms/dto/static-page/upsert-static-page.dto';
+import { CreateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/create-terms-and-condition.dto';
+import { UpdateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/update-terms-and-condition.dto';
 import { OrderService } from 'src/order/order.service';
 import { OrderStatus } from '@prisma/client';
 import { ReviewService } from 'src/review/review.service';
@@ -631,6 +634,70 @@ export class AdminController {
       adminId: query.adminId ? Number(query.adminId) : undefined,
       action: query.action,
     });
+  }
+
+  ///////////////////
+  //// STATIC PAGES //
+  ///////////////////
+
+  @Get('static-pages')
+  @Permission(Action.CMS_VIEW)
+  adminGetAllStaticPages() {
+    return this.cmsService.getAllStaticPages();
+  }
+
+  @Put('static-pages/:slug')
+  @Permission(Action.CMS_STATIC_PAGE_MANAGE)
+  upsertStaticPage(
+    @Param('slug') slug: string,
+    @Body() dto: UpsertStaticPageDto,
+    @Req() req: any,
+  ) {
+    return this.cmsService.upsertStaticPage(slug, dto, req?.user?.userId);
+  }
+
+  @Delete('static-pages/:slug')
+  @Permission(Action.CMS_STATIC_PAGE_MANAGE)
+  deleteStaticPage(@Param('slug') slug: string, @Req() req: any) {
+    return this.cmsService.deleteStaticPage(slug, req?.user?.userId);
+  }
+
+  ///////////////////////
+  //// TERMS & CONDITIONS //
+  ///////////////////////
+
+  @Get('terms-and-conditions/:id')
+  @Permission(Action.CMS_VIEW)
+  getTermsAndConditionById(@Param('id', ParseIntPipe) id: number) {
+    return this.cmsService.getTermsAndConditionById(id);
+  }
+
+  @Post('terms-and-conditions')
+  @Permission(Action.CMS_TNC_MANAGE)
+  createTermsAndCondition(
+    @Body() dto: CreateTermsAndConditionDto,
+    @Req() req: any,
+  ) {
+    return this.cmsService.createTermsAndCondition(dto, req?.user?.userId);
+  }
+
+  @Patch('terms-and-conditions/:id')
+  @Permission(Action.CMS_TNC_MANAGE)
+  updateTermsAndCondition(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTermsAndConditionDto,
+    @Req() req: any,
+  ) {
+    return this.cmsService.updateTermsAndCondition(id, dto, req?.user?.userId);
+  }
+
+  @Delete('terms-and-conditions/:id')
+  @Permission(Action.CMS_TNC_MANAGE)
+  deleteTermsAndCondition(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    return this.cmsService.deleteTermsAndCondition(id, req?.user?.userId);
   }
 
   ///////////////////

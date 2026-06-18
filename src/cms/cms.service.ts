@@ -39,6 +39,9 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { GetCouponsQueryDto } from './dto/Coupon/get-coupon-query.dto';
 import { UpdateCouponDto } from './dto/Coupon/update-coupon.dto';
 import { CreateBannerDto } from './dto/Banner/create-banner.dto';
+import { UpsertStaticPageDto } from './dto/static-page/upsert-static-page.dto';
+import { CreateTermsAndConditionDto } from './dto/terms-and-condition/create-terms-and-condition.dto';
+import { UpdateTermsAndConditionDto } from './dto/terms-and-condition/update-terms-and-condition.dto';
 
 @Injectable()
 export class CmsService {
@@ -1404,5 +1407,207 @@ export class CmsService {
       },
       orderBy: { name: 'asc' },
     });
+  }
+
+  // ── Static Pages ────────────────────────────────────────────────────────────
+
+  getAllStaticPages(onlyActive = false) {
+    return this.prisma.staticPage.findMany({
+      where: onlyActive ? { isActive: true } : {},
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        metaTitle: true,
+        metaDescription: true,
+        isActive: true,
+        updatedAt: true,
+      },
+      orderBy: { slug: 'asc' },
+    });
+  }
+
+  async getStaticPageBySlug(slug: string) {
+    const page = await this.prisma.staticPage.findUnique({ where: { slug } });
+    if (!page) throw new NotFoundException(`Page "${slug}" not found`);
+    return page;
+  }
+
+  async upsertStaticPage(
+    slug: string,
+    dto: UpsertStaticPageDto,
+    adminId: number,
+  ) {
+    const existing = await this.prisma.staticPage.findUnique({
+      where: { slug },
+    });
+
+    const page = await this.prisma.staticPage.upsert({
+      where: { slug },
+      create: {
+        slug,
+        title: dto.title.trim(),
+        content: dto.content,
+        metaTitle: dto.metaTitle?.trim() ?? null,
+        metaDescription: dto.metaDescription?.trim() ?? null,
+        isActive: dto.isActive ?? true,
+        updatedBy: adminId,
+      },
+      update: {
+        title: dto.title.trim(),
+        content: dto.content,
+        metaTitle: dto.metaTitle?.trim() ?? null,
+        metaDescription: dto.metaDescription?.trim() ?? null,
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        updatedBy: adminId,
+      },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: existing ? 'UPDATE_STATIC_PAGE' : 'CREATE_STATIC_PAGE',
+      module: 'CONTENT',
+      targetId: page.id,
+      targetLabel: page.slug,
+      oldValue: existing
+        ? {
+            title: existing.title,
+            isActive: existing.isActive,
+            metaTitle: existing.metaTitle,
+            metaDescription: existing.metaDescription,
+          }
+        : undefined,
+      newValue: {
+        title: page.title,
+        isActive: page.isActive,
+        metaTitle: page.metaTitle,
+        metaDescription: page.metaDescription,
+      },
+    });
+
+    return page;
+  }
+
+  async deleteStaticPage(slug: string, adminId: number) {
+    const existing = await this.prisma.staticPage.findUnique({
+      where: { slug },
+    });
+    if (!existing) throw new NotFoundException(`Page "${slug}" not found`);
+
+    await this.prisma.staticPage.delete({ where: { slug } });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'DELETE_STATIC_PAGE',
+      module: 'CONTENT',
+      targetId: existing.id,
+      targetLabel: existing.slug,
+      oldValue: { title: existing.title, isActive: existing.isActive },
+    });
+
+    return { message: `Page "${slug}" deleted` };
+  }
+
+  // ── Terms & Conditions ────────────────────────────────────────────────────
+
+  getAllTermsAndConditions(onlyActive = false) {
+    return this.prisma.termsAndCondition.findMany({
+      where: onlyActive ? { isActive: true } : {},
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  async getTermsAndConditionById(id: number) {
+    const tnc = await this.prisma.termsAndCondition.findUnique({
+      where: { id },
+    });
+    if (!tnc) throw new NotFoundException(`Terms & Condition #${id} not found`);
+    return tnc;
+  }
+
+  async createTermsAndCondition(
+    dto: CreateTermsAndConditionDto,
+    adminId: number,
+  ) {
+    const tnc = await this.prisma.termsAndCondition.create({
+      data: {
+        title: dto.title.trim(),
+        content: dto.content,
+        isActive: dto.isActive ?? true,
+        sortOrder: dto.sortOrder ?? 0,
+        updatedBy: adminId,
+      },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_TNC',
+      module: 'CONTENT',
+      targetId: tnc.id,
+      targetLabel: tnc.title,
+      newValue: {
+        title: tnc.title,
+        isActive: tnc.isActive,
+        sortOrder: tnc.sortOrder,
+      },
+    });
+
+    return tnc;
+  }
+
+  async updateTermsAndCondition(
+    id: number,
+    dto: UpdateTermsAndConditionDto,
+    adminId: number,
+  ) {
+    const existing = await this.getTermsAndConditionById(id);
+
+    const updated = await this.prisma.termsAndCondition.update({
+      where: { id },
+      data: {
+        ...(dto.title !== undefined && { title: dto.title.trim() }),
+        ...(dto.content !== undefined && { content: dto.content }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+        updatedBy: adminId,
+      },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_TNC',
+      module: 'CONTENT',
+      targetId: existing.id,
+      targetLabel: existing.title,
+      oldValue: {
+        title: existing.title,
+        isActive: existing.isActive,
+        sortOrder: existing.sortOrder,
+      },
+      newValue: {
+        title: updated.title,
+        isActive: updated.isActive,
+        sortOrder: updated.sortOrder,
+      },
+    });
+
+    return updated;
+  }
+
+  async deleteTermsAndCondition(id: number, adminId: number) {
+    const existing = await this.getTermsAndConditionById(id);
+
+    await this.prisma.termsAndCondition.delete({ where: { id } });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'DELETE_TNC',
+      module: 'CONTENT',
+      targetId: existing.id,
+      targetLabel: existing.title,
+      oldValue: { title: existing.title, isActive: existing.isActive },
+    });
+
+    return { message: `Terms & Condition "${existing.title}" deleted` };
   }
 }

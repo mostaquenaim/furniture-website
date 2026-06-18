@@ -7,15 +7,23 @@ import { UpdateSeoDto } from './dto/update-seo.dto';
 export class SeoController {
   constructor(private readonly service: SeoService) {}
 
-  @Get() getAll() { return this.service.getAll(); }
+  @Get() getAll() {
+    return this.service.getAll();
+  }
 
-  @Post() create(@Body() dto: CreateSeoDto) { return this.service.create(dto); }
+  @Post() create(@Body() dto: CreateSeoDto) {
+    return this.service.create(dto);
+  }
 
   @Put(':id') update(@Param('id') id: string, @Body() dto: UpdateSeoDto) {
     return this.service.update(id, dto);
   }
 
-  @Get('url/:url') getByUrl(@Param('url') url: string) { return this.service.getByUrl(url); }
+  @Get('url/:url') getByUrl(@Param('url') url: string) {
+    return this.service.getByUrl(url);
+  }
 
-  @Post('generate') generate(@Body('url') url: string) { return this.service.generateSchema(url); }
+  @Post('generate') generate(@Body('url') url: string) {
+    return this.service.generateSchema(url);
+  }
 }

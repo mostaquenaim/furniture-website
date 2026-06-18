@@ -219,6 +219,11 @@ export class ProductController {
     });
   }
 
+  @Get(':slug/schema')
+  getProductSchema(@Param('slug') slug: string) {
+    return this.productService.generateProductSchema(slug);
+  }
+
   // }
   @Get(':slug')
   getProductById(@Param('slug') slug: string) {

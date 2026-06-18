@@ -1796,4 +1796,113 @@ export class ProductService {
       averageRating: Number(averageRating.toFixed(1)),
     };
   }
+
+  async generateProductSchema(slug: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { slug },
+      include: {
+        images: { orderBy: { serialNo: 'asc' } },
+        subCategories: {
+          include: {
+            subCategory: {
+              include: {
+                category: { include: { series: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!product) throw new NotFoundException(`Product "${slug}" not found`);
+
+    const reviewStats = await this.prisma.review.aggregate({
+      where: {
+        isHidden: false,
+        orderItem: { productId: product.id },
+      },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    const siteUrl = (process.env.SITE_URL ?? '').replace(/\/$/, '');
+    const productUrl = `${siteUrl}/products/${product.slug}`;
+    const inStock = product.totalProductQuantity > 0;
+    const effectivePrice = product.price ?? product.basePrice;
+
+    const firstSub = product.subCategories[0]?.subCategory;
+    const category = firstSub?.category;
+    const series = category?.series;
+
+    // BreadcrumbList: Series > Category > SubCategory > Product
+    const breadcrumbItems: { name: string; url: string }[] = [];
+    if (siteUrl) {
+      if (series)
+        breadcrumbItems.push({
+          name: series.name,
+          url: `${siteUrl}/series/${series.slug}`,
+        });
+      if (category)
+        breadcrumbItems.push({
+          name: category.name ?? '',
+          url: `${siteUrl}/category/${category.slug}`,
+        });
+      if (firstSub)
+        breadcrumbItems.push({
+          name: firstSub.name,
+          url: `${siteUrl}/subcategory/${firstSub.slug}`,
+        });
+      breadcrumbItems.push({ name: product.title, url: productUrl });
+    }
+
+    const schema: any[] = [
+      {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: product.title,
+        ...(product.description && { description: product.description }),
+        ...(product.sku && { sku: product.sku }),
+        image: product.images.map((i) => i.image),
+        brand: {
+          '@type': 'Brand',
+          name: product.brand ?? process.env.BRAND_NAME ?? 'Sakigai Furniture',
+        },
+        ...(firstSub && { category: firstSub.name }),
+        offers: {
+          '@type': 'Offer',
+          ...(siteUrl && { url: productUrl }),
+          priceCurrency: 'BDT',
+          price: effectivePrice,
+          availability: inStock
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/OutOfStock',
+          itemCondition: 'https://schema.org/NewCondition',
+        },
+        ...(reviewStats._count.rating > 0 && {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: Number((reviewStats._avg.rating ?? 0).toFixed(1)),
+            reviewCount: reviewStats._count.rating,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }),
+      },
+    ];
+
+    if (breadcrumbItems.length > 1) {
+      schema.push({
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: breadcrumbItems.map((item, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: item.name,
+          item: item.url,
+        })),
+      });
+    }
+
+    return schema;
+  }
 }

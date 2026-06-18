@@ -25,6 +25,10 @@ export class UpdateCompanyDto {
   @IsString()
   about?: string;
 
+  @IsOptional()
+  @IsString()
+  privacyPolicy?: string;
+
   // Contact
   @IsOptional()
   @IsString()

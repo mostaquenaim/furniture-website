@@ -1362,8 +1362,9 @@ model CompanyInfo {
   name    String  @default("Sakigai")
   logo    String? // Cloudinary URL
   favicon String? // Cloudinary URL
-  tagline String?
-  about   String? @db.Text
+  tagline       String?
+  about         String? @db.Text
+  privacyPolicy String? @db.Text
 
   // Contact
   email        String?
@@ -1391,4 +1392,35 @@ model CompanyInfo {
   updatedBy Int? // last admin user id
 
   @@map("company_info")
+}
+
+// =====================
+// Static Pages (CMS)
+// =====================
+model StaticPage {
+  id              Int      @id @default(autoincrement())
+  slug            String   @unique // e.g. "about", "terms-and-conditions", "privacy-policy", "return-policy"
+  title           String
+  content         String   @db.Text
+  metaTitle       String?
+  metaDescription String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  updatedBy       Int? // last admin user id
+
+  @@map("static_pages")
+}
+
+model TermsAndCondition {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String   @db.Text
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
+
+  @@map("terms_and_conditions")
 }
