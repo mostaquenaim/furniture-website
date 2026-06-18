@@ -32,29 +32,30 @@ datasource db {
 // User
 // =====================
 model User {
-  id         Int      @id @default(autoincrement())
-  name       String?
-  phone      String?  @unique
-  email      String?  @unique
-  isVerified Boolean  @default(false)
-  password   String?
-  googleId   String?  @unique
-  avatar     String? // URL to profile picture
+  id          Int         @id @default(autoincrement())
+  name        String?
+  phone       String?     @unique
+  email       String?     @unique
+  isVerified  Boolean     @default(false)
+  password    String?
+  googleId    String?     @unique
+  avatar      String? // URL to profile picture
   role        UserRole    @default(CUSTOMER)
   fraudStatus FraudStatus @default(SAFE)
   isActive    Boolean     @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  wishlist       Wishlist[]
-  orders         Order[]
-  otps           OTP[]
-  cart           Cart[]
-  productViews   ProductView[]
-  visitors       Visitor[]
-  supportTickets SupportTicket[]
-  activityLogs   ActivityLog[]
-  fraudChecks    FraudCheck[]
+  wishlist         Wishlist[]
+  orders           Order[]
+  otps             OTP[]
+  cart             Cart[]
+  productViews     ProductView[]
+  visitors         Visitor[]
+  supportTickets   SupportTicket[]
+  activityLogs     ActivityLog[]
+  fraudChecks      FraudCheck[]
+  stockAdjustments StockAdjustment[]
 }
 
 enum UserRole {
@@ -250,11 +251,12 @@ model Product {
   colors        ProductColor[]
   // reviews       Review[]
 
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  productViews   ProductView[]
-  productTags    ProductTag[]
-  inventoryItems InventoryItem[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  productViews     ProductView[]
+  productTags      ProductTag[]
+  inventoryItems   InventoryItem[]
+  stockAdjustments StockAdjustment[]
 }
 
 model InventoryItem {
@@ -304,6 +306,40 @@ model WarehouseLocation {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model StockAdjustment {
+  id Int @id @default(autoincrement())
+
+  productSizeId Int
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+
+  delta         Int // negative = decrement, positive = increment
+  quantityAfter Int // ProductSize.quantity immediately after this adjustment
+  reason        StockAdjustReason
+  note          String?
+
+  adminId Int? // null for system-driven adjustments (order placed/cancelled)
+  admin   User? @relation(fields: [adminId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([productSizeId])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+enum StockAdjustReason {
+  RESTOCK
+  CORRECTION
+  DAMAGE
+  ORDER_PLACED
+  ORDER_CANCELLED
+  ORDER_RETURNED
+  OTHER
 }
 
 model Tag {
@@ -415,16 +451,19 @@ model ProductSize {
   basePrice    Int?
   price        Int?
   quantity     Int     @default(0)
+  lowStockAt   Int     @default(5)
 
   soldCount Int @default(0)
 
   sizeId Int
   size   Size @relation(fields: [sizeId], references: [id])
 
-  colorId        Int
-  color          ProductColor    @relation(fields: [colorId], references: [id], onDelete: Cascade)
-  cartItems      CartItem[]
-  inventoryItems InventoryItem[]
+  colorId          Int
+  color            ProductColor      @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  cartItems        CartItem[]
+  inventoryItems   InventoryItem[]
+  orderItems       OrderItem[]
+  stockAdjustments StockAdjustment[]
 }
 
 model Variant {
@@ -552,6 +591,8 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  stockRestored Boolean @default(false)
+
   user                 User?                @relation(fields: [userId], references: [id])
   items                OrderItem[]
   payments             Payment[]
@@ -572,6 +613,9 @@ model OrderItem {
   color      String?
   size       String?
   isReviewed Boolean @default(false)
+
+  productSizeId Int?
+  productSize   ProductSize? @relation(fields: [productSizeId], references: [id])
 
   quantity             Int
   priceAtPurchase      Int
@@ -1019,17 +1063,17 @@ model FraudCheck {
   id    Int    @id @default(autoincrement())
   phone String
 
-  totalOrders      Int     @default(0)
-  delivered        Int     @default(0)
-  returned         Int     @default(0)
-  successRatio     Float   @default(0)
-  fraudReportCount Int     @default(0)
-  riskLevel        String  @default("Low")
-  riskScore        Float   @default(0)
+  totalOrders      Int         @default(0)
+  delivered        Int         @default(0)
+  returned         Int         @default(0)
+  successRatio     Float       @default(0)
+  fraudReportCount Int         @default(0)
+  riskLevel        String      @default("Low")
+  riskScore        Float       @default(0)
   computedStatus   FraudStatus @default(SAFE)
 
-  userId    Int?
-  user      User?    @relation(fields: [userId], references: [id])
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
 
   checkedAt DateTime @default(now())
 
@@ -1359,9 +1403,9 @@ model CompanyInfo {
   id Int @id @default(autoincrement())
 
   // Basic
-  name    String  @default("Sakigai")
-  logo    String? // Cloudinary URL
-  favicon String? // Cloudinary URL
+  name          String  @default("Ondorkotha")
+  logo          String? // Cloudinary URL
+  favicon       String? // Cloudinary URL
   tagline       String?
   about         String? @db.Text
   privacyPolicy String? @db.Text

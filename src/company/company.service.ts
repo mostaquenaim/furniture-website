@@ -8,6 +8,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
 const SINGLETON_ID = 1;
+const DEFAULT_COMPANY_NAME = process.env.COMPANY_NAME || 'Ondorkotha';
 
 @Injectable()
 export class CompanyService {
@@ -17,7 +18,7 @@ export class CompanyService {
     return this.prisma.companyInfo.upsert({
       where: { id: SINGLETON_ID },
       update: {},
-      create: { id: SINGLETON_ID, name: 'Sakigai' },
+      create: { id: SINGLETON_ID, name: DEFAULT_COMPANY_NAME },
     });
   }
 
@@ -25,7 +26,12 @@ export class CompanyService {
     return this.prisma.companyInfo.upsert({
       where: { id: SINGLETON_ID },
       update: { ...dto, updatedBy: adminId },
-      create: { id: SINGLETON_ID, name: 'Sakigai', ...dto, updatedBy: adminId },
+      create: {
+        id: SINGLETON_ID,
+        name: DEFAULT_COMPANY_NAME,
+        ...dto,
+        updatedBy: adminId,
+      },
     });
   }
 }
