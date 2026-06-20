@@ -5,7 +5,17 @@
       "Bash(Get-ChildItem -Path \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\" -Recurse -Name -Include \"seed.*\", \"*.controller.ts\", \"*.service.ts\", \"*dto*\")",
       "Bash(Select-Object -First 50)",
       "Bash(cd /d \"e:\\\\Sammtech\\\\furniture-bideshi\")",
-      "Bash(dir /b /s ShowEachProduct*)"
+      "Bash(dir /b /s ShowEachProduct*)",
+      "Bash(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-admin\\\\sakigai-admin\" && find app/category app/dashboard -maxdepth 1 -type f 2>&1 && echo \"---components---\" && find components -maxdepth 2 -type d 2>&1)",
+      "Read(//e/Sammtech/furniture-bideshi/furniture-admin/sakigai-admin/**)",
+      "Bash(curl -s -m 10 http://localhost:9000/inventory -o /tmp/inv3.html)",
+      "Bash(echo \"exit:$?\")",
+      "Read(//tmp/**)",
+      "Bash(npx nest *)",
+      "Bash(npx eslint *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npx jest *)"
     ]
   }
 }

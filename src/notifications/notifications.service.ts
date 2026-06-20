@@ -7,10 +7,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { MailerService } from '@nestjs-modules/mailer';
-// import { ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import { otpEmailTemplate } from './templates/otp.template';
 import axios from 'axios';
+
+export interface LowStockAlertItem {
+  productTitle: string;
+  sku: string | null;
+  size: string;
+  color: string;
+  quantity: number;
+  lowStockAt: number;
+}
 
 @Injectable()
 export class NotificationsService {
@@ -18,7 +27,7 @@ export class NotificationsService {
 
   constructor(
     private mailerService: MailerService,
-    // private config: ConfigService,
+    private config: ConfigService,
     @InjectQueue('notification') private notificationQueue: Queue,
   ) {}
 
@@ -69,8 +78,15 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * Queues the customer-facing email/SMS for an order status change. Both
+   * channels are optional and independent — a guest with only a phone number
+   * still gets the SMS, a customer with only an email still gets the email.
+   * Never throws: a malformed contact field shouldn't fail the status update
+   * itself, only skip that one channel (logged by the caller's catch, if any).
+   */
   async sendStatusUpdate(
-    user: { email: string; phone: string },
+    contact: { email?: string | null; phone?: string | null },
     order: {
       orderId: string;
       customerName: string;
@@ -78,42 +94,116 @@ export class NotificationsService {
       trackingToken?: string;
     },
   ) {
-    await this.notificationQueue.add('sendEmail', {
-      email: user.email,
-      subject: `Order #${order.orderId} is now ${order.status}`,
-      template: 'order-status-update',
-      context: {
-        customerName: order.customerName,
-        orderId: order.orderId,
-        status: order.status,
-        trackingToken: order.trackingToken,
-      },
-    });
+    const statusLabel = order.status
+      .toLowerCase()
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
 
-    await this.notificationQueue.add('sendSMS', {
-      phone: user.phone,
-      message: `Hi ${order.customerName}, your order #${order.orderId} is now ${order.status}.`,
+    const jobs: Promise<unknown>[] = [];
+
+    if (contact.email) {
+      jobs.push(
+        this.notificationQueue.add('sendEmail', {
+          email: contact.email,
+          subject: `Order #${order.orderId} is now ${statusLabel}`,
+          template: 'order-status-update',
+          context: {
+            customerName: order.customerName,
+            orderId: order.orderId,
+            status: statusLabel,
+            trackingToken: order.trackingToken,
+          },
+        }),
+      );
+    } else {
+      this.logger.warn(
+        `Skipping status-update email for order ${order.orderId} — no email on file`,
+      );
+    }
+
+    if (contact.phone) {
+      jobs.push(
+        this.notificationQueue.add('sendSMS', {
+          phone: contact.phone,
+          message: `Hi ${order.customerName}, your order #${order.orderId} is now ${statusLabel}.`,
+        }),
+      );
+    } else {
+      this.logger.warn(
+        `Skipping status-update SMS for order ${order.orderId} — no phone on file`,
+      );
+    }
+
+    await Promise.all(jobs);
+  }
+
+  /** Queues a single digest email to every admin who currently has inventory access. */
+  async sendLowStockAlert(
+    adminEmails: string[],
+    data: {
+      outOfStock: LowStockAlertItem[];
+      lowStock: LowStockAlertItem[];
+      generatedAt: Date;
+    },
+  ) {
+    if (adminEmails.length === 0) return;
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? '';
+
+    await this.notificationQueue.add('sendEmail', {
+      email: adminEmails,
+      subject: `Stock Alert: ${data.outOfStock.length} out of stock, ${data.lowStock.length} low on stock`,
+      template: 'low-stock-alert',
+      context: {
+        outOfStock: data.outOfStock,
+        lowStock: data.lowStock,
+        generatedAt: data.generatedAt.toLocaleString('en-BD', {
+          timeZone: 'Asia/Dhaka',
+        }),
+        dashboardUrl: `${frontendUrl}/admin/inventory?onlyLowStock=true`,
+      },
     });
   }
 
   async processEmailJob(job: any) {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const html =
-      job.data.template === 'otp'
-        ? otpEmailTemplate(job.data.context.otp, job.data.context.purpose)
-        : job.data.html; // fallback for other email types later
+    const { email, subject, template, context } = job.data;
 
-    // console.log(job.data, 'jobss2');
+    // OTP keeps its existing Resend + hand-built-HTML path untouched.
+    if (template === 'otp') {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const html = otpEmailTemplate(context.otp, context.purpose);
+      try {
+        await resend.emails.send({
+          from: 'Ondorkotha <' + process.env.RESEND_FROM_EMAIL + '>',
+          to: email,
+          subject,
+          html,
+        });
+        this.logger.log(`Email sent to ${email}`);
+      } catch (err) {
+        this.logger.error(`Failed to send email to ${email}`, err);
+        throw err;
+      }
+      return;
+    }
+
+    // Every other templated email (order-confirmation, order-status-update,
+    // low-stock-alert, ...) renders through the Handlebars templates already
+    // wired up on MailerModule instead of needing pre-built HTML.
     try {
-      await resend.emails.send({
-        from: 'Ondorkotha <' + process.env.RESEND_FROM_EMAIL + '>',
-        to: job.data.email,
-        subject: job.data.subject,
-        html,
+      await this.mailerService.sendMail({
+        to: email,
+        subject,
+        template,
+        context,
       });
-      this.logger.log(`Email sent to ${job.data.email}`);
+      const recipients = Array.isArray(email) ? email.join(', ') : email;
+      this.logger.log(
+        `Email sent to ${recipients} using template "${template}"`,
+      );
     } catch (err) {
-      this.logger.error(`Failed to send email to ${job.data.email}`, err);
+      this.logger.error(`Failed to send email (template "${template}")`, err);
       throw err;
     }
   }

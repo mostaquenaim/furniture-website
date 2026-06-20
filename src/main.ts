@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -20,6 +21,9 @@ async function bootstrap() {
     origin: true,
     credentials: true,
   });
+
+  // Socket.IO adapter for the realtime inventory gateway (src/realtime/stock-events.gateway.ts)
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Validation Pipes
   app.useGlobalPipes(

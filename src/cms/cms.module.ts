@@ -12,6 +12,8 @@ import { HttpModule } from '@nestjs/axios';
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.service';
 import { BroadBannerService } from 'src/banner/banner.service';
+import { StockLedgerService } from 'src/inventory/stock-ledger.service';
+import { StockEventsModule } from 'src/realtime/stock-events.module';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import { BroadBannerService } from 'src/banner/banner.service';
       timeout: 10000,
       maxRedirects: 5,
     }),
+    StockEventsModule,
   ],
   controllers: [CmsController],
   providers: [
@@ -33,6 +36,7 @@ import { BroadBannerService } from 'src/banner/banner.service';
     SeasonalCategoryService,
     HomepageGalleryService,
     BroadBannerService,
+    StockLedgerService,
   ],
 })
 export class CmsModule {}

@@ -1,0 +1,86 @@
+<div style="font-family: Arial, sans-serif; max-width: 640px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
+
+  <div style="text-align:center; margin-bottom: 20px;">
+    <h1 style="margin:0; color:#222;">Sakigai</h1>
+    <p style="margin:0; font-size:14px; color:#777;">Inventory Alert</p>
+  </div>
+
+  <h2 style="color:#333; margin-bottom: 4px;">Daily Stock Alert</h2>
+  <p style="color:#777; font-size:13px; margin-top:0;">Generated on {{generatedAt}}</p>
+
+  {{#if outOfStock.length}}
+  <div style="margin: 25px 0;">
+    <h3 style="color:#c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 6px;">
+      Out of Stock ({{outOfStock.length}})
+    </h3>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+      <thead>
+        <tr style="border-bottom: 1px solid #eee; text-align:left;">
+          <th style="padding: 8px 4px;">Product</th>
+          <th style="padding: 8px 4px;">SKU</th>
+          <th style="padding: 8px 4px; text-align:center;">Qty</th>
+          <th style="padding: 8px 4px; text-align:center;">Threshold</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each outOfStock}}
+        <tr style="border-bottom: 1px solid #f3f3f3;">
+          <td style="padding: 8px 4px;">
+            <strong>{{this.productTitle}}</strong><br>
+            <small style="color:#777;">{{this.color}} / {{this.size}}</small>
+          </td>
+          <td style="padding: 8px 4px;">{{this.sku}}</td>
+          <td style="padding: 8px 4px; text-align:center; color:#c0392b; font-weight:bold;">{{this.quantity}}</td>
+          <td style="padding: 8px 4px; text-align:center;">{{this.lowStockAt}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
+  {{#if lowStock.length}}
+  <div style="margin: 25px 0;">
+    <h3 style="color:#e67e22; border-bottom: 2px solid #e67e22; padding-bottom: 6px;">
+      Low Stock ({{lowStock.length}})
+    </h3>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+      <thead>
+        <tr style="border-bottom: 1px solid #eee; text-align:left;">
+          <th style="padding: 8px 4px;">Product</th>
+          <th style="padding: 8px 4px;">SKU</th>
+          <th style="padding: 8px 4px; text-align:center;">Qty</th>
+          <th style="padding: 8px 4px; text-align:center;">Threshold</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each lowStock}}
+        <tr style="border-bottom: 1px solid #f3f3f3;">
+          <td style="padding: 8px 4px;">
+            <strong>{{this.productTitle}}</strong><br>
+            <small style="color:#777;">{{this.color}} / {{this.size}}</small>
+          </td>
+          <td style="padding: 8px 4px;">{{this.sku}}</td>
+          <td style="padding: 8px 4px; text-align:center; color:#e67e22; font-weight:bold;">{{this.quantity}}</td>
+          <td style="padding: 8px 4px; text-align:center;">{{this.lowStockAt}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
+  <div style="text-align:center; margin: 30px 0;">
+    <a href="{{dashboardUrl}}"
+       style="background-color:#222; color:#ffffff; padding:12px 20px; text-decoration:none; border-radius:4px; font-weight:bold;">
+       View Inventory Dashboard
+    </a>
+  </div>
+
+  <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
+
+  <p style="font-size:12px; color:#999;">
+    You're receiving this because your role has inventory access on the Sakigai admin panel.
+  </p>
+
+</div>

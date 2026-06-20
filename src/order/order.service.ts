@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -10,12 +9,13 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, Prisma, StockAdjustReason } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { Response } from 'express';
@@ -24,14 +24,23 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import * as crypto from 'crypto';
+import { StockLedgerService } from '../inventory/stock-ledger.service';
+import {
+  StockEventsGateway,
+  StockUpdatedPayload,
+} from '../realtime/stock-events.gateway';
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationsService,
     private activityLogService: ActivityLogService,
     @InjectQueue('notification') private notificationQueue: Queue,
+    private stockLedgerService: StockLedgerService,
+    private stockEventsGateway: StockEventsGateway,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -55,34 +64,6 @@ export class OrderService {
     const random = Math.floor(1000 + Math.random() * 9000);
 
     return `ORD-${dateStr}-${random}-${sequence}`;
-  }
-
-  private async recalculateTotalQuantity(
-    productId: number,
-    tx: Prisma.TransactionClient,
-  ): Promise<number> {
-    // Sum all quantities of sizes belonging to this product
-    const result = await tx.productSize.aggregate({
-      _sum: {
-        quantity: true,
-      },
-      where: {
-        color: {
-          productId: productId,
-        },
-      },
-    });
-
-    const totalQuantity = result._sum.quantity ?? 0;
-
-    await tx.product.update({
-      where: { id: productId },
-      data: {
-        totalProductQuantity: totalQuantity,
-      },
-    });
-
-    return totalQuantity;
   }
 
   normalizeBDPhone(phone: string) {
@@ -283,31 +264,35 @@ export class OrderService {
       120;
     const total = subtotal + deliveryCharge;
 
+    const stockEvents: StockUpdatedPayload[] = [];
+
     const order = await this.prisma.$transaction(async (tx) => {
       for (const item of cart.items) {
-        const updated = await tx.productSize.updateMany({
-          where: {
-            id: item.productSizeId,
-            quantity: { gte: item.quantity },
-          },
-          data: {
-            quantity: { decrement: item.quantity },
-            soldCount: { increment: item.quantity },
-          },
+        const productId = item.productSize.color.productId;
+
+        const result = await this.stockLedgerService.recordAdjustment(tx, {
+          productSizeId: item.productSizeId,
+          productId,
+          delta: -item.quantity,
+          reason: StockAdjustReason.ORDER_PLACED,
+          productLabel: item.productSize.color.product.title,
         });
 
-        if (updated.count === 0) {
-          throw new BadRequestException(
-            `Insufficient stock for ${item.productSize.color.product.title}`,
-          );
-        }
+        await tx.productSize.update({
+          where: { id: item.productSizeId },
+          data: { soldCount: { increment: item.quantity } },
+        });
 
         await tx.product.update({
-          where: { id: item.productSize.color.productId },
-          data: {
-            soldCount: { increment: item.quantity },
-            totalProductQuantity: { decrement: item.quantity },
-          },
+          where: { id: productId },
+          data: { soldCount: { increment: item.quantity } },
+        });
+
+        stockEvents.push({
+          productSizeId: item.productSizeId,
+          productId,
+          quantity: result.quantityAfter,
+          lowStockAt: result.lowStockAt,
         });
       }
 
@@ -340,6 +325,7 @@ export class OrderService {
               productId: item?.productSize?.color?.productId,
               productTitle: item?.productSize?.color?.product?.title,
               sku: item?.productSize?.sku,
+              productSizeId: item?.productSizeId,
               color: item?.color,
               size: item?.size,
               quantity: item?.quantity,
@@ -410,6 +396,10 @@ export class OrderService {
 
       return order;
     });
+
+    for (const event of stockEvents) {
+      this.stockEventsGateway.emitStockUpdated(event);
+    }
 
     void this.triggerFraudCheckIfNeeded(userId, order.customerPhone);
     return order;
@@ -880,7 +870,7 @@ export class OrderService {
 
     const where: any = {};
 
-    if (!isAdmin) where.userId;
+    if (!isAdmin) where.userId = userId;
 
     // Search logic
     if (search) {
@@ -1200,19 +1190,76 @@ export class OrderService {
   }
 
   // update status of order
+  private static readonly STOCK_RESTORE_STATUSES: OrderStatus[] = [
+    OrderStatus.CANCELLED,
+    OrderStatus.FAILED,
+    OrderStatus.RETURNED,
+  ];
+
   async updateOrderStatus(
     orderId: string,
     status: OrderStatus,
     adminId: number,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const stockEvents: StockUpdatedPayload[] = [];
+    let previousStatus: OrderStatus | undefined;
+
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
       // 1. Find order
       const order = await tx.order.findUnique({
         where: { orderId: orderId },
+        include: { items: true },
       });
 
       if (!order) {
         throw new NotFoundException('Order not found');
+      }
+
+      previousStatus = order.status;
+
+      const shouldRestoreStock =
+        OrderService.STOCK_RESTORE_STATUSES.includes(status) &&
+        !OrderService.STOCK_RESTORE_STATUSES.includes(order.status) &&
+        !order.stockRestored;
+
+      if (shouldRestoreStock) {
+        for (const item of order.items) {
+          if (!item.productSizeId) {
+            this.logger.warn(
+              `Order ${order.orderId} item ${item.id} has no productSizeId snapshot — skipping stock restore for this legacy item`,
+            );
+            continue;
+          }
+
+          const result = await this.stockLedgerService.recordAdjustment(tx, {
+            productSizeId: item.productSizeId,
+            productId: item.productId,
+            delta: item.quantity,
+            reason:
+              status === OrderStatus.RETURNED
+                ? StockAdjustReason.ORDER_RETURNED
+                : StockAdjustReason.ORDER_CANCELLED,
+            adminId,
+            note: `Order ${order.orderId} status changed to ${status}`,
+          });
+
+          await tx.productSize.update({
+            where: { id: item.productSizeId },
+            data: { soldCount: { decrement: item.quantity } },
+          });
+
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { soldCount: { decrement: item.quantity } },
+          });
+
+          stockEvents.push({
+            productSizeId: item.productSizeId,
+            productId: item.productId,
+            quantity: result.quantityAfter,
+            lowStockAt: result.lowStockAt,
+          });
+        }
       }
 
       // 2. Update order
@@ -1220,6 +1267,7 @@ export class OrderService {
         where: { orderId: orderId },
         data: {
           status,
+          ...(shouldRestoreStock && { stockRestored: true }),
         },
       });
 
@@ -1228,7 +1276,9 @@ export class OrderService {
         data: {
           orderId: order.id,
           status,
-          note: `Order status changed to ${status}`,
+          note: shouldRestoreStock
+            ? `Order status changed to ${status} — stock restored for ${stockEvents.length} item(s)`
+            : `Order status changed to ${status}`,
         },
       });
 
@@ -1243,10 +1293,42 @@ export class OrderService {
         },
         newValue: {
           status: updatedOrder.status,
+          stockRestored: updatedOrder.stockRestored,
         },
       });
 
       return updatedOrder;
     });
+
+    for (const event of stockEvents) {
+      this.stockEventsGateway.emitStockUpdated(event);
+    }
+
+    // Customer-facing notification is a side effect of a committed status
+    // change — fired after the transaction settles, and never allowed to
+    // fail the admin's status-update request even if the queue is down.
+    if (previousStatus !== updatedOrder.status) {
+      try {
+        await this.notificationService.sendStatusUpdate(
+          {
+            email: updatedOrder.customerEmail,
+            phone: updatedOrder.customerPhone,
+          },
+          {
+            orderId: updatedOrder.orderId,
+            customerName: updatedOrder.customerName,
+            status: updatedOrder.status,
+            trackingToken: updatedOrder.trackingToken,
+          },
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to queue status-update notification for order ${updatedOrder.orderId}`,
+          err,
+        );
+      }
+    }
+
+    return updatedOrder;
   }
 }

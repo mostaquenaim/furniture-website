@@ -5,13 +5,21 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { BullModule } from '@nestjs/bull';
+import { StockLedgerService } from 'src/inventory/stock-ledger.service';
+import { StockEventsModule } from 'src/realtime/stock-events.module';
 
 @Module({
   imports: [
     NotificationModule,
     BullModule.registerQueue({ name: 'notification' }),
+    StockEventsModule,
   ],
-  providers: [OrderService, PrismaService, ActivityLogService],
+  providers: [
+    OrderService,
+    PrismaService,
+    ActivityLogService,
+    StockLedgerService,
+  ],
   controllers: [OrderController],
 })
 export class OrderModule {}

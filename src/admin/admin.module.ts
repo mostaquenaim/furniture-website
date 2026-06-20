@@ -16,6 +16,8 @@ import { CourierService } from 'src/courier/services/courier.service';
 import { HttpModule } from '@nestjs/axios';
 import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-sync.service';
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
+import { StockLedgerService } from 'src/inventory/stock-ledger.service';
+import { StockEventsModule } from 'src/realtime/stock-events.module';
 
 @Module({
   imports: [
@@ -24,6 +26,7 @@ import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category
       timeout: 10000,
       maxRedirects: 5,
     }),
+    StockEventsModule,
   ],
   controllers: [AdminController],
   providers: [
@@ -41,6 +44,7 @@ import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category
     CourierService,
     PathaoLocationSyncService,
     SeasonalCategoryService,
+    StockLedgerService,
   ],
 })
 export class AdminModule {}

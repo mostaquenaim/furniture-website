@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
@@ -49,7 +49,7 @@ import { UpsertStaticPageDto } from 'src/cms/dto/static-page/upsert-static-page.
 import { CreateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/create-terms-and-condition.dto';
 import { UpdateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/update-terms-and-condition.dto';
 import { OrderService } from 'src/order/order.service';
-import { OrderStatus } from '@prisma/client';
+import { UpdateOrderStatusDto } from 'src/order/dto/update-order-status.dto';
 import { ReviewService } from 'src/review/review.service';
 import { CreateCourierProviderDto } from 'src/courier/dto/create-courier-provider.dto';
 import { CourierService } from 'src/courier/services/courier.service';
@@ -503,9 +503,13 @@ export class AdminController {
   updateOrderStatus(
     @Param('orderId') id: string,
     @Req() req: any,
-    @Body('status') status: OrderStatus,
+    @Body() dto: UpdateOrderStatusDto,
   ) {
-    return this.orderService.updateOrderStatus(id, status, req?.user?.userId);
+    return this.orderService.updateOrderStatus(
+      id,
+      dto.status,
+      req?.user?.userId,
+    );
   }
 
   //////////////////////

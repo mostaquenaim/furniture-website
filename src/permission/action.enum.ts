@@ -86,6 +86,10 @@ export enum Action {
   // Fraud
   FRAUD_MANAGE = 'FRAUD_MANAGE',
 
+  // Inventory
+  INVENTORY_VIEW = 'INVENTORY_VIEW',
+  INVENTORY_MANAGE = 'INVENTORY_MANAGE',
+
   // Misc / Admin-only (no permission check needed — SUPERADMIN bypass handles it)
   // CLOUDINARY_SIGNATURE, ACTIVITY_LOG, PROFILE — see note below
 }
