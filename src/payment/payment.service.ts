@@ -88,14 +88,20 @@ export class PaymentService {
       };
     }
 
+    // If the order requires an advance (COD with an advance-payment subcategory),
+    // only charge the deposit here — the rest is collected on delivery.
+    const paymentAmount = order.advanceRequired ? order.advanceAmount : order.total;
+    const phase = order.advanceRequired ? 'ADVANCE' : 'FULL';
+
     // Create payment record
     const payment = await this.prisma.payment.create({
       data: {
         orderId: order.id,
         method: 'SSL',
-        amount: order.total,
+        phase,
+        amount: paymentAmount,
         paidAmount: 0,
-        dueAmount: order.total,
+        dueAmount: paymentAmount,
         transactionId,
         gatewayTranId,
         status: 'PENDING',
@@ -129,7 +135,7 @@ export class PaymentService {
 
     // Prepare SSL Commerz data
     const data: any = {
-      total_amount: order.total,
+      total_amount: paymentAmount,
       currency: 'BDT',
       tran_id: gatewayTranId, // Use gatewayTranId for SSL
       success_url: `${BASE_URL}/api/payments/success?transactionId=${transactionId}`,
@@ -357,12 +363,14 @@ export class PaymentService {
         },
       });
 
+      const isAdvancePayment = payment.phase === 'ADVANCE';
+
       // Update order status
       await this.prisma.order.update({
         where: { id: payment.orderId },
         data: {
           status: 'CONFIRMED',
-          paymentStatus: 'PAID',
+          paymentStatus: isAdvancePayment ? 'PARTIALLY_PAID' : 'PAID',
           updatedAt: new Date(),
         },
       });
@@ -372,7 +380,9 @@ export class PaymentService {
         data: {
           orderId: payment.orderId,
           status: 'CONFIRMED',
-          note: `Payment received via SSL Commerz. Transaction ID: ${transactionId}`,
+          note: isAdvancePayment
+            ? `Advance payment (${payment.order.advancePercentage}%) received via SSL Commerz. Remaining ${payment.order.remainingAmount} due on delivery. Transaction ID: ${transactionId}`
+            : `Payment received via SSL Commerz. Transaction ID: ${transactionId}`,
         },
       });
 

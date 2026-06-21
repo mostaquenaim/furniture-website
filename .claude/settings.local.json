@@ -15,7 +15,8 @@
       "Bash(npx eslint *)",
       "Bash(npx tsc *)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(npx jest *)"
+      "Bash(npx jest *)",
+      "Bash(npm run *)"
     ]
   }
 }

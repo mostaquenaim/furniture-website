@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CollectRemainderDto } from './dto/collect-remainder.dto';
 import { OrderStatus, Prisma, StockAdjustReason } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -264,6 +265,21 @@ export class OrderService {
       120;
     const total = subtotal + deliveryCharge;
 
+    // Advance payment only applies to COD orders; ONLINE orders are paid in full as today.
+    const advanceSubCategories = cart.items
+      .flatMap((item) => item.productSize?.color?.product?.subCategories ?? [])
+      .map((ps) => ps.subCategory)
+      .filter((sc) => sc.isAdvancePayment);
+    const advancePercentage = advanceSubCategories.length
+      ? Math.max(...advanceSubCategories.map((sc) => sc.advancePercentage))
+      : 0;
+    const advanceRequired =
+      dto.paymentMethod === 'COD' && advancePercentage > 0;
+    const advanceAmount = advanceRequired
+      ? Math.round(total * advancePercentage) / 100
+      : 0;
+    const remainingAmount = advanceRequired ? total - advanceAmount : 0;
+
     const stockEvents: StockUpdatedPayload[] = [];
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -320,6 +336,10 @@ export class OrderService {
           deliveryMethod: dto.paymentMethod === 'COD' ? 'COD' : 'ONLINE',
           couponCode: cart?.coupon?.code,
           total,
+          advanceRequired,
+          advancePercentage,
+          advanceAmount,
+          remainingAmount,
           items: {
             create: cart.items.map((item) => ({
               productId: item?.productSize?.color?.productId,
@@ -1135,7 +1155,6 @@ export class OrderService {
       };
     }
 
-    const latestPayment = order.payments?.[0] || null;
     const invoice = await this.prisma.invoice.findUnique({
       where: { orderId: order.id },
       select: { id: true },
@@ -1151,14 +1170,20 @@ export class OrderService {
         order.total - (order.deliveryCharge || 0) + (order.discount || 0),
       total: order.total,
       invoiceId: invoice?.id,
+      paymentStatus: order.paymentStatus,
+      advanceRequired: order.advanceRequired,
+      advancePercentage: order.advancePercentage,
+      advanceAmount: order.advanceAmount,
+      remainingAmount: order.remainingAmount,
 
-      payment: latestPayment
-        ? {
-            method: latestPayment.method ?? order.deliveryMethod,
-            status: latestPayment.status,
-            transactionId: latestPayment.transactionId,
-          }
-        : null,
+      payments: (order.payments ?? []).map((p) => ({
+        id: p.id,
+        method: p.method ?? order.deliveryMethod,
+        status: p.status,
+        transactionId: p.transactionId,
+        amount: p.amount,
+        phase: p.phase,
+      })),
 
       shippingAddress: {
         name: order.customerName,
@@ -1328,6 +1353,90 @@ export class OrderService {
         );
       }
     }
+
+    return updatedOrder;
+  }
+
+  // Records cash collected by the courier for a COD order's remaining
+  // balance, after its advance deposit was already paid online.
+  async collectRemainder(
+    orderId: string,
+    dto: CollectRemainderDto,
+    adminId: number,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (
+      order.paymentStatus !== 'PARTIALLY_PAID' ||
+      order.remainingAmount <= 0
+    ) {
+      throw new BadRequestException(
+        'This order has no outstanding advance-payment balance to collect',
+      );
+    }
+
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      await tx.payment.create({
+        data: {
+          orderId: order.id,
+          method: 'COD',
+          phase: 'REMAINDER',
+          gateway: 'COD',
+          amount: order.remainingAmount,
+          paidAmount: order.remainingAmount,
+          dueAmount: 0,
+          transactionId: `COD_${order.orderId}_${now.getTime()}`,
+          status: 'PAID',
+          verificationStatus: 'VERIFIED',
+          initiatedAt: now,
+          completedAt: now,
+          collectedBy: dto.collectedBy,
+          collectedAt: now,
+        },
+      });
+
+      const updated = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: 'PAID',
+          remainingAmount: 0,
+        },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: order.id,
+          status: updated.status,
+          note: `Remaining amount ${order.remainingAmount} collected on delivery by ${dto.collectedBy}.`,
+        },
+      });
+
+      return updated;
+    });
+
+    this.activityLogService.log({
+      adminId,
+      action: 'COLLECT_REMAINDER',
+      module: 'ORDER',
+      targetId: order.id,
+      targetLabel: '',
+      oldValue: {
+        paymentStatus: order.paymentStatus,
+        remainingAmount: order.remainingAmount,
+      },
+      newValue: {
+        paymentStatus: updatedOrder.paymentStatus,
+        remainingAmount: updatedOrder.remainingAmount,
+      },
+    });
 
     return updatedOrder;
   }

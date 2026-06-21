@@ -29,7 +29,7 @@ export class CreateSubCategoryDto {
 
   @IsInt()
   @IsNotEmpty()
-  categoryId: number;
+  categoryId!: number;
 
   @IsOptional()
   isAdvancePayment?: boolean;

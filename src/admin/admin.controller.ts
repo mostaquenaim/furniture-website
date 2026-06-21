@@ -50,6 +50,7 @@ import { CreateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/crea
 import { UpdateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/update-terms-and-condition.dto';
 import { OrderService } from 'src/order/order.service';
 import { UpdateOrderStatusDto } from 'src/order/dto/update-order-status.dto';
+import { CollectRemainderDto } from 'src/order/dto/collect-remainder.dto';
 import { ReviewService } from 'src/review/review.service';
 import { CreateCourierProviderDto } from 'src/courier/dto/create-courier-provider.dto';
 import { CourierService } from 'src/courier/services/courier.service';
@@ -510,6 +511,17 @@ export class AdminController {
       dto.status,
       req?.user?.userId,
     );
+  }
+
+  // collect the remaining cash balance for a COD order with an advance payment
+  @Patch('orders/:orderId/collect-remainder')
+  @Permission(Action.ORDER_UPDATE_STATUS)
+  collectRemainder(
+    @Param('orderId') id: string,
+    @Req() req: any,
+    @Body() dto: CollectRemainderDto,
+  ) {
+    return this.orderService.collectRemainder(id, dto, req?.user?.userId);
   }
 
   //////////////////////

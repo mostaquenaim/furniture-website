@@ -581,11 +581,17 @@ model Order {
   discount   Float?
   total      Float
 
-  // ── Status 
+  // ── Status
   status        OrderStatus   @default(PENDING)
   paymentStatus PaymentStatus @default(PENDING)
 
-  // ── Courier 
+  // ── Advance payment (COD only — see SubCategory.isAdvancePayment)
+  advanceRequired   Boolean @default(false)
+  advancePercentage Int     @default(0)
+  advanceAmount     Float   @default(0)
+  remainingAmount   Float   @default(0)
+
+  // ── Courier
   awbNumber String? // courier AWB
 
   createdAt DateTime @default(now())
@@ -861,6 +867,9 @@ model Payment {
   method        PaymentMethod
   methodDetails Json? // Store method-specific details like mobile number, bank account etc.
 
+  // Which leg of the order's payment this transaction covers
+  phase PaymentPhase @default(FULL)
+
   // Amount tracking
   amount         Float
   currency       String @default("BDT")
@@ -1030,12 +1039,19 @@ enum PaymentStatus {
   PENDING // Initial state
   PROCESSING // Payment in progress
   PAID // Successfully paid
+  PARTIALLY_PAID // Advance paid, remainder still due (Order.paymentStatus only)
   FAILED // Payment failed
   REFUNDED // Fully refunded
   PARTIALLY_REFUNDED // Partially refunded
   CANCELLED // Payment cancelled by user
   EXPIRED // Payment link expired
   ON_HOLD // Payment under review
+}
+
+enum PaymentPhase {
+  FULL // Single payment covering the full order total
+  ADVANCE // Deposit paid at checkout for a COD order requiring advance payment
+  REMAINDER // Balance collected later (e.g. cash on delivery)
 }
 
 enum VerificationStatus {
