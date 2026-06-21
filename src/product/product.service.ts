@@ -10,6 +10,7 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -20,10 +21,25 @@ import { sanitizeDiscount } from 'src/common/utils/discount.utils';
 
 @Injectable()
 export class ProductService {
+  private readonly logger = new Logger(ProductService.name);
+
   constructor(
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
   ) {}
+
+  // Fire-and-forget search keyword logging for the "Top Searched Keywords"
+  // admin report — must never block or fail the actual product search.
+  private logSearchKeyword(keyword: string, resultsCount: number): void {
+    const normalized = keyword.trim().toLowerCase();
+    if (!normalized) return;
+
+    this.prisma.searchLog
+      .create({ data: { keyword: normalized, resultsCount } })
+      .catch((err) =>
+        this.logger.warn(`Failed to log search keyword: ${err.message}`),
+      );
+  }
 
   // create a product
   async createProduct(dto: CreateProductDto, adminId: number) {
@@ -532,6 +548,10 @@ export class ProductService {
       );
     } else {
       filteredData = (data as any[]).map((p) => sanitizeDiscount(p));
+    }
+
+    if (search) {
+      this.logSearchKeyword(search, total);
     }
 
     return {

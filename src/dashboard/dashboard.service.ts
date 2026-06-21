@@ -12,23 +12,46 @@ interface DateRange {
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ── Main entry point ─────────
-  async getDashboardData(startStr: string, endStr: string) {
-    const range: DateRange = {
+  // Shared by every public entry point so "start"/"end" query strings are
+  // interpreted the same way everywhere (end-of-day inclusive on `end`).
+  private buildRange(startStr: string, endStr: string): DateRange {
+    return {
       start: new Date(startStr),
       end: new Date(new Date(endStr).setHours(23, 59, 59, 999)),
     };
+  }
 
-    const [stats, salesTrend, topProducts, recentOrders, topViewedProducts] =
-      await Promise.all([
-        this.getStats(range),
-        this.getSalesTrend(range),
-        this.getTopProducts(range),
-        this.getRecentOrders(),
-        this.getTopViewedProducts(range),
-      ]);
+  // ── Main entry point ─────────
+  async getDashboardData(startStr: string, endStr: string) {
+    const range = this.buildRange(startStr, endStr);
 
-    return { stats, salesTrend, topProducts, recentOrders, topViewedProducts };
+    const [
+      stats,
+      salesTrend,
+      topProducts,
+      recentOrders,
+      topViewedProducts,
+      topSearchKeywords,
+      userRetention,
+    ] = await Promise.all([
+      this.getStats(range),
+      this.getSalesTrend(range),
+      this.getTopProducts(range),
+      this.getRecentOrders(),
+      this.getTopViewedProducts(range),
+      this.getTopSearchKeywords(range),
+      this.getUserRetention(range),
+    ]);
+
+    return {
+      stats,
+      salesTrend,
+      topProducts,
+      recentOrders,
+      topViewedProducts,
+      topSearchKeywords,
+      userRetention,
+    };
   }
 
   // ── Stats Cards ──────────
@@ -267,7 +290,7 @@ export class DashboardService {
     }));
   }
 
-  // ── Top Search Keywords ──────
+  // ── Top Viewed Products ──────
   private async getTopViewedProducts(range: DateRange) {
     const views = await this.prisma.productView.groupBy({
       by: ['productId'],
@@ -307,5 +330,112 @@ export class DashboardService {
         views: v._sum.viewCount ?? 0,
       };
     });
+  }
+
+  // ── Top Search Keywords ──────
+  private async getTopSearchKeywords(range: DateRange) {
+    const keywords = await this.prisma.searchLog.groupBy({
+      by: ['keyword'],
+      where: {
+        createdAt: { gte: range.start, lte: range.end },
+      },
+      _count: { keyword: true },
+      orderBy: { _count: { keyword: 'desc' } },
+      take: 10,
+    });
+
+    return keywords.map((k) => ({
+      keyword: k.keyword,
+      count: k._count.keyword,
+    }));
+  }
+
+  // ── User Retention ───────────
+  private async getUserRetention(range: DateRange) {
+    // Full order history up to range.end is needed (not just orders inside
+    // the range) to know whether a customer active in a given month is
+    // "new" (first order ever) or "returning" (ordered before that month).
+    const orders = await this.prisma.order.findMany({
+      where: {
+        userId: { not: null },
+        status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED] },
+        createdAt: { lte: range.end },
+      },
+      select: { userId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const firstOrderMonth = new Map<number, string>();
+    const monthlyActiveUsers = new Map<string, Set<number>>();
+
+    for (const order of orders) {
+      const userId = order.userId as number;
+      const monthKey = order.createdAt.toISOString().slice(0, 7); // "YYYY-MM"
+
+      if (!firstOrderMonth.has(userId)) {
+        firstOrderMonth.set(userId, monthKey);
+      }
+
+      if (!monthlyActiveUsers.has(monthKey)) {
+        monthlyActiveUsers.set(monthKey, new Set());
+      }
+      monthlyActiveUsers.get(monthKey)!.add(userId);
+    }
+
+    // Walk every calendar month between range.start and range.end in UTC
+    // (matching the toISOString() bucketing above) so the graph has no gaps.
+    const months: string[] = [];
+    const cursor = new Date(
+      Date.UTC(range.start.getUTCFullYear(), range.start.getUTCMonth(), 1),
+    );
+    const lastMonth = new Date(
+      Date.UTC(range.end.getUTCFullYear(), range.end.getUTCMonth(), 1),
+    );
+
+    while (cursor <= lastMonth) {
+      months.push(cursor.toISOString().slice(0, 7));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+
+    return months.map((monthKey) => {
+      const activeUsers = monthlyActiveUsers.get(monthKey) ?? new Set<number>();
+
+      let newCustomers = 0;
+      let returningCustomers = 0;
+
+      for (const userId of activeUsers) {
+        if (firstOrderMonth.get(userId) === monthKey) newCustomers++;
+        else returningCustomers++;
+      }
+
+      const totalActive = newCustomers + returningCustomers;
+      const retentionRate =
+        totalActive > 0
+          ? parseFloat(((returningCustomers / totalActive) * 100).toFixed(1))
+          : 0;
+
+      const [year, month] = monthKey.split('-').map(Number);
+      const label = new Date(Date.UTC(year, month - 1, 1)).toLocaleString(
+        'en-US',
+        { month: 'short', year: 'numeric', timeZone: 'UTC' },
+      );
+
+      return {
+        month: label,
+        newCustomers,
+        returningCustomers,
+        retentionRate,
+      };
+    });
+  }
+
+  // Public range-based entry points so other modules (e.g. AnalyticsService)
+  // can reuse this exact aggregation logic instead of re-implementing it.
+  async getTopSearchKeywordsForRange(startStr: string, endStr: string) {
+    return this.getTopSearchKeywords(this.buildRange(startStr, endStr));
+  }
+
+  async getUserRetentionForRange(startStr: string, endStr: string) {
+    return this.getUserRetention(this.buildRange(startStr, endStr));
   }
 }

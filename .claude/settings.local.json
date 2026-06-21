@@ -16,7 +16,13 @@
       "Bash(npx tsc *)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(npx jest *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(xargs grep -l \"search\" -i)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\")",
+      "PowerShell(Stop-Process -Id 18900,27552,36348 -Force -Confirm:$false -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Id 18900,27552,36348 -ErrorAction SilentlyContinue)",
+      "Bash(echo \"EXIT_CODE=$?\")"
     ]
   }
 }
