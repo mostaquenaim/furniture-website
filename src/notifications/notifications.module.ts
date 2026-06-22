@@ -6,8 +6,11 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { join } from 'path';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { NotificationsService } from './notifications.service';
+import { NotificationsController } from './notifications.controller';
 import { NotificationProcessor } from './notification.processor';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { PermissionService } from 'src/permission/permission.service';
 
 @Module({
   imports: [
@@ -39,7 +42,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
     }),
   ],
-  providers: [NotificationsService, NotificationProcessor],
+  controllers: [NotificationsController],
+  providers: [
+    NotificationsService,
+    NotificationProcessor,
+    PrismaService,
+    PermissionService,
+  ],
   exports: [NotificationsService],
 })
 export class NotificationModule {}

@@ -83,7 +83,12 @@
       "Bash(cp \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\\\\pw_verify2.js\" ./pw_verify2.js)",
       "Bash(node pw_verify2.js)",
       "Bash(cp \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\\\\pw_check_deeplink.js\" ./pw_check_deeplink.js)",
-      "Bash(node pw_check_deeplink.js)"
+      "Bash(node pw_check_deeplink.js)",
+      "Bash(cd .. && ls -la | head -20)",
+      "Read(//e/Sammtech/furniture-bideshi/furniture-backend/**)",
+      "Bash(ls -la \"e:/Sammtech/furniture-bideshi/furniture-backend/\" 2>&1; echo \"---\"; ls -la \"e:/Sammtech/furniture-bideshi/\" 2>&1)",
+      "Read(//e/Sammtech/furniture-bideshi/**)",
+      "Bash(git stash *)"
     ]
   }
 }

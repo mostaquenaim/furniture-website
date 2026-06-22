@@ -250,6 +250,41 @@ export class NotificationsService {
     await Promise.all(jobs);
   }
 
+  /**
+   * Queues one offer/promotional email per recipient (never a single email
+   * with every address in "to", which would leak addresses between
+   * customers). Returns the number of emails queued.
+   */
+  async sendOfferEmail(
+    recipients: { email: string; name?: string | null }[],
+    offer: {
+      subject: string;
+      heading: string;
+      message: string;
+      ctaLabel?: string;
+      ctaUrl?: string;
+    },
+  ) {
+    await Promise.all(
+      recipients.map((recipient) =>
+        this.notificationQueue.add('sendEmail', {
+          email: recipient.email,
+          subject: offer.subject,
+          template: 'offer',
+          context: {
+            customerName: recipient.name || 'there',
+            heading: offer.heading,
+            message: offer.message,
+            ctaLabel: offer.ctaLabel,
+            ctaUrl: offer.ctaUrl,
+          },
+        }),
+      ),
+    );
+
+    return recipients.length;
+  }
+
   /** Queues a single digest email to every admin who currently has inventory access. */
   async sendLowStockAlert(
     adminEmails: string[],
