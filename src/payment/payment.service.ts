@@ -502,22 +502,27 @@ export class PaymentService {
   }
 
   /**
-   * Calls SSLCommerz's refund API for a PAID/PARTIALLY_REFUNDED payment. Only
-   * SSL payments carry a bank_tran_id (captured at validation time in
-   * handlePaymentSuccess), which the refund API requires — COD and any other
-   * method must go through the manual refund path instead.
+   * Whether SSLCommerz's refund API can be used for this payment. `method`
+   * alone isn't a reliable signal — handlePaymentSuccess rewrites it from
+   * "SSL" to the actual sub-method (BKASH/NAGAD/ROCKET/card) once validated,
+   * but those are still SSLCommerz-mediated and refundable through the same
+   * API as long as a bank_tran_id was captured. Only COD (and anything that
+   * never went through the gateway) lacks one.
+   */
+  isGatewayRefundable(payment: Payment): boolean {
+    return !!(payment.metadata as any)?.cardDetails?.bankTranId;
+  }
+
+  /**
+   * Calls SSLCommerz's refund API for a PAID/PARTIALLY_REFUNDED payment.
+   * COD and any other payment without a captured bank_tran_id must go
+   * through the manual refund path instead — see isGatewayRefundable.
    */
   async initiateGatewayRefund(
     payment: Payment,
     refundAmount: number,
     remarks: string,
   ): Promise<GatewayRefundResult> {
-    if (payment.method !== PaymentMethod.SSL) {
-      throw new BadRequestException(
-        `Gateway refund is not supported for payment method ${payment.method}`,
-      );
-    }
-
     const bankTranId = (payment.metadata as any)?.cardDetails?.bankTranId;
     if (!bankTranId) {
       throw new BadRequestException(
@@ -528,34 +533,68 @@ export class PaymentService {
     const { storeId, storePassword, isLive } = this.getStoreConfig();
     const sslcz = new SSLCommerzPayment(storeId, storePassword, isLive);
 
-    const raw = await sslcz.initiateRefund({
-      refund_amount: refundAmount,
-      refund_remarks: remarks,
-      bank_tran_id: bankTranId,
-      refe_id: payment.transactionId,
-    });
+    // sslcommerz-lts's own httpCall does `.catch(err => err)` instead of
+    // rethrowing — a non-JSON response (e.g. the sandbox returning an HTML
+    // error page) resolves with the raw Error object rather than rejecting.
+    // Normalize defensively either way: Error instances aren't valid Prisma
+    // Json values, and an unparseable response must read as a failure, not
+    // silently fall through to "still processing".
+    let raw: unknown;
+    try {
+      raw = await sslcz.initiateRefund({
+        refund_amount: refundAmount,
+        refund_remarks: remarks,
+        bank_tran_id: bankTranId,
+        refe_id: payment.transactionId,
+      });
+    } catch (err) {
+      raw = err;
+    }
+
+    const safeRaw = this.toSerializableGatewayResponse(raw);
+    const statusText = String((safeRaw as any)?.status ?? '').toLowerCase();
+    const failed =
+      !statusText || statusText.includes('fail') || !!(safeRaw as any)?.error;
 
     await this.prisma.paymentLog.create({
       data: {
         paymentId: payment.id,
         action: 'REFUND_INITIATED',
-        status: raw?.status ?? 'UNKNOWN',
+        status: failed ? 'FAILED' : ((safeRaw as any)?.status ?? 'UNKNOWN'),
         message: `Gateway refund of ${refundAmount} initiated: ${remarks}`,
-        gatewayResponse: raw,
+        gatewayResponse: safeRaw as any,
       },
     });
 
     return {
-      refundRefId: raw?.refund_ref_id ?? null,
-      status: String(raw?.status ?? 'unknown').toLowerCase(),
-      raw,
+      refundRefId: (safeRaw as any)?.refund_ref_id ?? null,
+      status: failed ? 'failed' : statusText || 'unknown',
+      raw: safeRaw,
     };
+  }
+
+  /** Strips non-plain values (e.g. Error instances) so the result is always safe to store in a Prisma Json column. */
+  private toSerializableGatewayResponse(value: unknown): unknown {
+    if (value instanceof Error) {
+      return { error: value.message, name: value.name };
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return { error: 'Unserializable gateway response' };
+    }
   }
 
   /** Polls SSLCommerz for the current state of a previously-initiated refund. */
   async queryGatewayRefundStatus(refundRefId: string): Promise<any> {
     const { storeId, storePassword, isLive } = this.getStoreConfig();
     const sslcz = new SSLCommerzPayment(storeId, storePassword, isLive);
-    return await sslcz.refundQuery({ refund_ref_id: refundRefId });
+    let raw: unknown;
+    try {
+      raw = await sslcz.refundQuery({ refund_ref_id: refundRefId });
+    } catch (err) {
+      raw = err;
+    }
+    return this.toSerializableGatewayResponse(raw);
   }
 }

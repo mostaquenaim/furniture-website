@@ -1007,10 +1007,19 @@ export class OrderService {
           orderBy: orderBy ?? { createdAt: 'desc' },
           include: {
             items: {
-              include: { product: { select: { id: true, slug: true } } },
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    slug: true,
+                    images: { take: 1, orderBy: { serialNo: 'asc' } },
+                  },
+                },
+              },
             },
             payments: { orderBy: { createdAt: 'desc' } },
             user: { select: { id: true, fraudStatus: true } },
+            invoice: { select: { id: true } },
           },
         }),
         this.prisma.order.count({ where }),

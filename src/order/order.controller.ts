@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
@@ -72,8 +74,7 @@ export class OrderController {
     });
   }
 
-  // ── Returns (customer-facing) ──────────────────────────────────────────
-
+  // ── Returns (customer-facing)
   @Get('return-requests')
   listMyReturnRequests(@Req() req: any, @Query('orderId') orderId?: string) {
     return this.refundService.listMyReturnRequests(req?.user?.userId, orderId);

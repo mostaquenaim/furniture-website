@@ -11,7 +11,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   OrderStatus,
   Payment,
-  PaymentMethod,
   Prisma,
   RefundMethod,
   RefundStatus,
@@ -216,7 +215,11 @@ export class RefundService {
           ...(orderId ? { orderId } : {}),
         },
       },
-      include: { items: true, order: { select: { orderId: true } } },
+      include: {
+        items: { include: { orderItem: true } },
+        refunds: true,
+        order: { select: { orderId: true, status: true, total: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -256,6 +259,7 @@ export class RefundService {
         orderBy: { createdAt: 'desc' },
         include: {
           items: { include: { orderItem: true } },
+          refunds: true,
           order: {
             select: {
               orderId: true,
@@ -619,14 +623,6 @@ export class RefundService {
     return results;
   }
 
-  /** Picks the order's PAID payment with enough refundable balance left for `amount`. */
-  private async pickRefundablePayment(orderId: number, amount: number) {
-    const refundable = await this.findRefundablePayments(orderId);
-    return (
-      refundable.find((r) => r.remaining >= amount - 0.01)?.payment ?? null
-    );
-  }
-
   private async createPendingRefund(params: {
     payment: Payment;
     amount: number;
@@ -646,10 +642,9 @@ export class RefundService {
       adminId,
     } = params;
 
-    const refundMethod =
-      payment.method === PaymentMethod.SSL
-        ? RefundMethod.GATEWAY
-        : RefundMethod.MANUAL;
+    const refundMethod = this.paymentService.isGatewayRefundable(payment)
+      ? RefundMethod.GATEWAY
+      : RefundMethod.MANUAL;
 
     return this.prisma.paymentRefund.create({
       data: {
@@ -803,24 +798,33 @@ export class RefundService {
     const orderItemsById = new Map(
       returnRequest.order.items.map((i) => [i.id, i]),
     );
-    const defaultAmount = returnRequest.items.reduce((sum, item) => {
+    const itemValue = returnRequest.items.reduce((sum, item) => {
       const orderItem = orderItemsById.get(item.orderItemId);
       return sum + (orderItem?.priceAtPurchase ?? 0) * item.quantity;
     }, 0);
-    const amount = dto.amount ?? defaultAmount;
+
+    const refundable = await this.findRefundablePayments(returnRequest.orderId);
+    const best = refundable[0];
+    if (!best) {
+      throw new BadRequestException(
+        'No payment with a refundable balance was found for this order',
+      );
+    }
+
+    // Item prices are pre-discount snapshots, so the order-level coupon/
+    // discount can make their sum exceed what was actually paid — refunding
+    // can never exceed the payment's real remaining balance.
+    const amount = dto.amount ?? Math.min(itemValue, best.remaining);
     if (amount <= 0) {
       throw new BadRequestException('Refund amount must be greater than zero');
     }
-
-    const payment = await this.pickRefundablePayment(
-      returnRequest.orderId,
-      amount,
-    );
-    if (!payment) {
+    if (amount > best.remaining + 0.01) {
       throw new BadRequestException(
-        'No payment with sufficient refundable balance was found for this order',
+        `Refund amount must not exceed the refundable balance of ${best.remaining}`,
       );
     }
+
+    const payment = best.payment;
 
     const refund = await this.createPendingRefund({
       payment,
