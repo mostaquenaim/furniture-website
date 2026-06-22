@@ -66,7 +66,13 @@ import { CreateBannerDto } from 'src/cms/dto/Banner/create-banner.dto';
 import { UpdateBannerDto } from 'src/cms/dto/Banner/update-banner.dto';
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 import { AdminService } from './admin.service';
-import { FraudStatus } from '@prisma/client';
+import { FraudStatus, RefundStatus, ReturnRequestStatus } from '@prisma/client';
+import { RefundService } from 'src/refund/refund.service';
+import { ReviewReturnRequestDto } from 'src/refund/dto/review-return-request.dto';
+import { ReceiveReturnItemsDto } from 'src/refund/dto/receive-return-items.dto';
+import { ProcessRefundDto } from 'src/refund/dto/process-refund.dto';
+import { DirectRefundDto } from 'src/refund/dto/direct-refund.dto';
+import { CompleteManualRefundDto } from 'src/refund/dto/complete-manual-refund.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -83,6 +89,7 @@ export class AdminController {
     private readonly courierService: CourierService,
     private readonly pathaoLocationSyncService: PathaoLocationSyncService,
     private readonly seasonalCategoryService: SeasonalCategoryService,
+    private readonly refundService: RefundService,
   ) {}
 
   // ADMIN DASHBOARD BASIC INFO
@@ -522,6 +529,119 @@ export class AdminController {
     @Body() dto: CollectRemainderDto,
   ) {
     return this.orderService.collectRemainder(id, dto, req?.user?.userId);
+  }
+
+  // direct refund for a cancelled/failed order's online payment — no physical return involved
+  @Post('orders/:orderId/refund')
+  @Permission(Action.REFUND_MANAGE)
+  processDirectRefund(
+    @Param('orderId') orderId: string,
+    @Body() dto: DirectRefundDto,
+    @Req() req: any,
+  ) {
+    return this.refundService.processDirectRefund(
+      orderId,
+      dto,
+      req?.user?.userId,
+    );
+  }
+
+  //////////////////////////////
+  ////// RETURN REQUESTS //////
+  ////////////////////////////
+
+  @Get('return-requests')
+  @Permission(Action.RETURN_VIEW)
+  listReturnRequests(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+    @Query('status') status?: ReturnRequestStatus,
+    @Query('search') search?: string,
+  ) {
+    return this.refundService.listReturnRequests({
+      page: Number(page),
+      limit: Number(limit),
+      status,
+      search,
+    });
+  }
+
+  @Get('return-requests/:id')
+  @Permission(Action.RETURN_VIEW)
+  getReturnRequest(@Param('id', ParseIntPipe) id: number) {
+    return this.refundService.getReturnRequest(id);
+  }
+
+  @Patch('return-requests/:id/review')
+  @Permission(Action.RETURN_MANAGE)
+  reviewReturnRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReviewReturnRequestDto,
+    @Req() req: any,
+  ) {
+    return this.refundService.reviewReturnRequest(id, dto, req?.user?.userId);
+  }
+
+  @Patch('return-requests/:id/receive')
+  @Permission(Action.RETURN_MANAGE)
+  receiveReturnItems(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReceiveReturnItemsDto,
+    @Req() req: any,
+  ) {
+    return this.refundService.receiveReturnItems(id, dto, req?.user?.userId);
+  }
+
+  @Post('return-requests/:id/refund')
+  @Permission(Action.REFUND_MANAGE)
+  processReturnRefund(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ProcessRefundDto,
+    @Req() req: any,
+  ) {
+    return this.refundService.processReturnRefund(id, dto, req?.user?.userId);
+  }
+
+  //////////////////////
+  ////// REFUNDS //////
+  ////////////////////
+
+  @Get('refunds')
+  @Permission(Action.REFUND_VIEW)
+  listRefunds(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+    @Query('status') status?: RefundStatus,
+    @Query('search') search?: string,
+  ) {
+    return this.refundService.listRefunds({
+      page: Number(page),
+      limit: Number(limit),
+      status,
+      search,
+    });
+  }
+
+  @Get('refunds/:id')
+  @Permission(Action.REFUND_VIEW)
+  getRefund(@Param('id', ParseIntPipe) id: number) {
+    return this.refundService.getRefund(id);
+  }
+
+  @Patch('refunds/:id/complete')
+  @Permission(Action.REFUND_MANAGE)
+  completeManualRefund(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CompleteManualRefundDto,
+    @Req() req: any,
+  ) {
+    return this.refundService.completeManualRefund(id, dto, req?.user?.userId);
+  }
+
+  @Patch('refunds/:id/sync')
+  @Permission(Action.REFUND_MANAGE)
+  syncGatewayRefund(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.refundService.syncGatewayRefund(id, req?.user?.userId);
   }
 
   //////////////////////

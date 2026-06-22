@@ -45,6 +45,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { SeasonalCategoryModule } from './seasonal-category/seasonal-category.module';
 import { HomepageGalleryModule } from './homepage-gallery/homepage-gallery.module';
 import { BannerModule } from './banner/banner.module';
+import { PaymentMethodConfigModule } from './payment-method-config/payment-method-config.module';
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { BannerModule } from './banner/banner.module';
     SeasonalCategoryModule,
     HomepageGalleryModule,
     BannerModule,
+    PaymentMethodConfigModule,
   ],
   controllers: [AppController],
   providers: [AppService],

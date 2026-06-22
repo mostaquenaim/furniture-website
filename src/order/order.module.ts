@@ -7,12 +7,16 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { BullModule } from '@nestjs/bull';
 import { StockLedgerService } from 'src/inventory/stock-ledger.service';
 import { StockEventsModule } from 'src/realtime/stock-events.module';
+import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
+import { RefundModule } from 'src/refund/refund.module';
 
 @Module({
   imports: [
     NotificationModule,
     BullModule.registerQueue({ name: 'notification' }),
     StockEventsModule,
+    PaymentMethodConfigModule,
+    RefundModule,
   ],
   providers: [
     OrderService,

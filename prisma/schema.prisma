@@ -621,6 +621,7 @@ model Order {
   orderStatusHistories OrderStatusHistory[]
   invoice              Invoice?
   courierShipments     CourierShipment[]
+  returnRequests       ReturnRequest[]
 }
 
 model OrderItem {
@@ -646,6 +647,8 @@ model OrderItem {
 
   order  Order   @relation(fields: [orderId], references: [id])
   review Review?
+
+  returnRequestItems ReturnRequestItem[]
 }
 
 enum OrderStatus {
@@ -673,6 +676,69 @@ model OrderStatusHistory {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+// =====================
+// Returns & Refunds
+// =====================
+// A customer-initiated request to return one or more items from a delivered
+// order. Approval/receipt and the eventual refund are tracked as separate
+// steps so an admin never refunds money before the goods are actually back
+// in the warehouse.
+model ReturnRequest {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  requestedBy Int? // customer User id who filed the request
+  reason      String
+  note        String? // customer-provided detail
+
+  // Order.status captured at the moment this request was filed (always
+  // DELIVERED or PARTIALLY_DELIVERED) — restored verbatim if the request is
+  // later rejected or cancelled, instead of guessing what it used to be.
+  previousOrderStatus OrderStatus
+
+  status ReturnRequestStatus @default(PENDING)
+
+  items   ReturnRequestItem[]
+  refunds PaymentRefund[]
+
+  adminNote  String? // internal note set on approve/reject/receive
+  reviewedBy Int? // admin User id who approved/rejected
+  reviewedAt DateTime?
+  receivedBy Int? // admin User id who confirmed physical receipt
+  receivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model ReturnRequestItem {
+  id Int @id @default(autoincrement())
+
+  returnRequestId Int
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  orderItemId Int
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+
+  quantity Int
+
+  @@unique([returnRequestId, orderItemId])
+}
+
+enum ReturnRequestStatus {
+  PENDING // awaiting admin review
+  APPROVED // admin accepted the return — awaiting the physical item(s)
+  REJECTED // admin declined the return — terminal
+  ITEM_RECEIVED // warehouse confirmed receipt — ready to refund
+  REFUNDED // refund issued for this request — terminal
+  CANCELLED // customer withdrew the request while it was still PENDING — terminal
 }
 
 model Invoice {
@@ -953,11 +1019,20 @@ model PaymentRefund {
   paymentId Int
   payment   Payment @relation(fields: [paymentId], references: [id])
 
+  returnRequestId Int?
+  returnRequest   ReturnRequest? @relation(fields: [returnRequestId], references: [id])
+
   amount Float
   reason String? // "CUSTOMER_REQUEST", "ORDER_CANCELLED", "DUPLICATE", etc.
   status RefundStatus @default(PENDING)
 
-  gatewayRefundId String? // Gateway refund transaction ID
+  // How the money actually goes back — gateway API call (SSL) vs a manual
+  // bank/mobile-banking transfer an admin confirms by hand (COD, or gateways
+  // we don't have a refund API integration for yet).
+  refundMethod RefundMethod @default(MANUAL)
+
+  gatewayRefundId String? // Gateway refund transaction ID (SSLCommerz refund_ref_id)
+  gatewayResponse Json? // Full initiateRefund/refundQuery response, for audit
 
   requestedBy Int? // User ID (admin/customer)
   processedBy Int? // Admin ID who processed
@@ -968,6 +1043,15 @@ model PaymentRefund {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([paymentId])
+  @@index([returnRequestId])
+  @@index([status])
+}
+
+enum RefundMethod {
+  GATEWAY // refunded automatically via the payment gateway's refund API
+  MANUAL // refunded by hand (bank transfer, bKash send-money, cash, etc.)
 }
 
 model PaymentLog {
@@ -1012,6 +1096,8 @@ model PaymentMethodConfig {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([method, gateway])
 }
 
 model PaymentSettlement {
@@ -1431,6 +1517,17 @@ model SEO {
 // =====================
 // COMPANY INFO
 // =====================
+// Singleton row (id always 1) holding global, admin-editable defaults that
+// aren't tied to a specific district/subcategory — e.g. the fallback
+// delivery fee used when a new district is created without one.
+model AppSettings {
+  id Int @id @default(autoincrement())
+
+  defaultDeliveryFee Float @default(120)
+
+  updatedAt DateTime @updatedAt
+}
+
 model CompanyInfo {
   id Int @id @default(autoincrement())
 

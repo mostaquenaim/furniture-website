@@ -138,6 +138,118 @@ export class NotificationsService {
     await Promise.all(jobs);
   }
 
+  /**
+   * Queues the customer-facing email/SMS for a return-request lifecycle
+   * event (filed, approved, rejected, item received). Same never-throws
+   * contract as sendStatusUpdate.
+   */
+  async sendReturnRequestUpdate(
+    contact: { email?: string | null; phone?: string | null },
+    data: {
+      orderId: string;
+      customerName: string;
+      event: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ITEM_RECEIVED';
+    },
+  ) {
+    const copy: Record<typeof data.event, { subject: string; line: string }> = {
+      SUBMITTED: {
+        subject: `Return request received for order #${data.orderId}`,
+        line: `we've received your return request for order #${data.orderId}. We'll review it shortly.`,
+      },
+      APPROVED: {
+        subject: `Return request approved for order #${data.orderId}`,
+        line: `your return request for order #${data.orderId} has been approved. Please send the item(s) back to us.`,
+      },
+      REJECTED: {
+        subject: `Return request update for order #${data.orderId}`,
+        line: `your return request for order #${data.orderId} could not be approved. Please contact support for details.`,
+      },
+      ITEM_RECEIVED: {
+        subject: `We've received your returned item(s) for order #${data.orderId}`,
+        line: `we've received your returned item(s) for order #${data.orderId}. Your refund will be processed shortly.`,
+      },
+    };
+
+    const { subject, line } = copy[data.event];
+    const jobs: Promise<unknown>[] = [];
+
+    if (contact.email) {
+      jobs.push(
+        this.notificationQueue.add('sendEmail', {
+          email: contact.email,
+          subject,
+          template: 'return-request-update',
+          context: {
+            customerName: data.customerName,
+            orderId: data.orderId,
+            message: line,
+          },
+        }),
+      );
+    } else {
+      this.logger.warn(
+        `Skipping return-request email for order ${data.orderId} — no email on file`,
+      );
+    }
+
+    if (contact.phone) {
+      jobs.push(
+        this.notificationQueue.add('sendSMS', {
+          phone: contact.phone,
+          message: `Hi ${data.customerName}, ${line}`,
+        }),
+      );
+    } else {
+      this.logger.warn(
+        `Skipping return-request SMS for order ${data.orderId} — no phone on file`,
+      );
+    }
+
+    await Promise.all(jobs);
+  }
+
+  /** Queues the customer-facing email/SMS once a refund has been completed. */
+  async sendRefundUpdate(
+    contact: { email?: string | null; phone?: string | null },
+    data: { orderId: string; customerName: string; amount: number },
+  ) {
+    const jobs: Promise<unknown>[] = [];
+
+    if (contact.email) {
+      jobs.push(
+        this.notificationQueue.add('sendEmail', {
+          email: contact.email,
+          subject: `Refund processed for order #${data.orderId}`,
+          template: 'refund-update',
+          context: {
+            customerName: data.customerName,
+            orderId: data.orderId,
+            amount: data.amount,
+          },
+        }),
+      );
+    } else {
+      this.logger.warn(
+        `Skipping refund-update email for order ${data.orderId} — no email on file`,
+      );
+    }
+
+    if (contact.phone) {
+      jobs.push(
+        this.notificationQueue.add('sendSMS', {
+          phone: contact.phone,
+          message: `Hi ${data.customerName}, your refund of TK ${data.amount} for order #${data.orderId} has been processed.`,
+        }),
+      );
+    } else {
+      this.logger.warn(
+        `Skipping refund-update SMS for order ${data.orderId} — no phone on file`,
+      );
+    }
+
+    await Promise.all(jobs);
+  }
+
   /** Queues a single digest email to every admin who currently has inventory access. */
   async sendLowStockAlert(
     adminEmails: string[],

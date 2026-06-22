@@ -14,6 +14,8 @@ import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.se
 import { BroadBannerService } from 'src/banner/banner.service';
 import { StockLedgerService } from 'src/inventory/stock-ledger.service';
 import { StockEventsModule } from 'src/realtime/stock-events.module';
+import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
+import { SettingsModule } from 'src/settings/settings.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { StockEventsModule } from 'src/realtime/stock-events.module';
       maxRedirects: 5,
     }),
     StockEventsModule,
+    PaymentMethodConfigModule,
+    SettingsModule,
   ],
   controllers: [CmsController],
   providers: [

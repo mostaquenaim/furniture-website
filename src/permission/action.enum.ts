@@ -49,6 +49,14 @@ export enum Action {
   ORDER_VIEW = 'ORDER_VIEW',
   ORDER_UPDATE_STATUS = 'ORDER_UPDATE_STATUS',
 
+  // Returns
+  RETURN_VIEW = 'RETURN_VIEW',
+  RETURN_MANAGE = 'RETURN_MANAGE',
+
+  // Refunds
+  REFUND_VIEW = 'REFUND_VIEW',
+  REFUND_MANAGE = 'REFUND_MANAGE',
+
   // Coupons
   COUPON_CREATE = 'COUPON_CREATE',
   COUPON_READ = 'COUPON_READ',
@@ -89,6 +97,13 @@ export enum Action {
   // Inventory
   INVENTORY_VIEW = 'INVENTORY_VIEW',
   INVENTORY_MANAGE = 'INVENTORY_MANAGE',
+
+  // Payment methods (gateway/COD enable, fees, limits)
+  PAYMENT_METHOD_VIEW = 'PAYMENT_METHOD_VIEW',
+  PAYMENT_METHOD_MANAGE = 'PAYMENT_METHOD_MANAGE',
+
+  // General settings (shipping defaults, etc.)
+  SETTINGS_MANAGE = 'SETTINGS_MANAGE',
 
   // Misc / Admin-only (no permission check needed — SUPERADMIN bypass handles it)
   // CLOUDINARY_SIGNATURE, ACTIVITY_LOG, PROFILE — see note below

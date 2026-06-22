@@ -6,13 +6,24 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { Payment, PaymentMethod } from '@prisma/client';
+import { PaymentMethodConfigService } from 'src/payment-method-config/payment-method-config.service';
 import SSLCommerzPayment from 'sslcommerz-lts';
+
+export interface GatewayRefundResult {
+  /** SSLCommerz's refund_ref_id — needed for later refundQuery polling. Null if the gateway didn't return one. */
+  refundRefId: string | null;
+  /** Our best-effort read of the gateway's refund status, lowercased. */
+  status: string;
+  raw: any;
+}
 
 @Injectable()
 export class PaymentService {
   constructor(
     private readonly configService: ConfigService,
     private prisma: PrismaService,
+    private paymentMethodConfigService: PaymentMethodConfigService,
   ) {}
 
   private mapGatewayMethod(cardType: string): any {
@@ -90,8 +101,15 @@ export class PaymentService {
 
     // If the order requires an advance (COD with an advance-payment subcategory),
     // only charge the deposit here — the rest is collected on delivery.
-    const paymentAmount = order.advanceRequired ? order.advanceAmount : order.total;
+    const paymentAmount = order.advanceRequired
+      ? order.advanceAmount
+      : order.total;
     const phase = order.advanceRequired ? 'ADVANCE' : 'FULL';
+
+    await this.paymentMethodConfigService.assertEnabled(
+      PaymentMethod.SSL,
+      paymentAmount,
+    );
 
     // Create payment record
     const payment = await this.prisma.payment.create({
@@ -481,5 +499,63 @@ export class PaymentService {
     } else {
       await this.handlePaymentFail(payment.transactionId, ipnData);
     }
+  }
+
+  /**
+   * Calls SSLCommerz's refund API for a PAID/PARTIALLY_REFUNDED payment. Only
+   * SSL payments carry a bank_tran_id (captured at validation time in
+   * handlePaymentSuccess), which the refund API requires — COD and any other
+   * method must go through the manual refund path instead.
+   */
+  async initiateGatewayRefund(
+    payment: Payment,
+    refundAmount: number,
+    remarks: string,
+  ): Promise<GatewayRefundResult> {
+    if (payment.method !== PaymentMethod.SSL) {
+      throw new BadRequestException(
+        `Gateway refund is not supported for payment method ${payment.method}`,
+      );
+    }
+
+    const bankTranId = (payment.metadata as any)?.cardDetails?.bankTranId;
+    if (!bankTranId) {
+      throw new BadRequestException(
+        'Cannot initiate gateway refund — this payment has no bank transaction ID on record',
+      );
+    }
+
+    const { storeId, storePassword, isLive } = this.getStoreConfig();
+    const sslcz = new SSLCommerzPayment(storeId, storePassword, isLive);
+
+    const raw = await sslcz.initiateRefund({
+      refund_amount: refundAmount,
+      refund_remarks: remarks,
+      bank_tran_id: bankTranId,
+      refe_id: payment.transactionId,
+    });
+
+    await this.prisma.paymentLog.create({
+      data: {
+        paymentId: payment.id,
+        action: 'REFUND_INITIATED',
+        status: raw?.status ?? 'UNKNOWN',
+        message: `Gateway refund of ${refundAmount} initiated: ${remarks}`,
+        gatewayResponse: raw,
+      },
+    });
+
+    return {
+      refundRefId: raw?.refund_ref_id ?? null,
+      status: String(raw?.status ?? 'unknown').toLowerCase(),
+      raw,
+    };
+  }
+
+  /** Polls SSLCommerz for the current state of a previously-initiated refund. */
+  async queryGatewayRefundStatus(refundRefId: string): Promise<any> {
+    const { storeId, storePassword, isLive } = this.getStoreConfig();
+    const sslcz = new SSLCommerzPayment(storeId, storePassword, isLive);
+    return await sslcz.refundQuery({ refund_ref_id: refundRefId });
   }
 }

@@ -16,7 +16,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CollectRemainderDto } from './dto/collect-remainder.dto';
-import { OrderStatus, Prisma, StockAdjustReason } from '@prisma/client';
+import {
+  OrderStatus,
+  PaymentMethod,
+  Prisma,
+  StockAdjustReason,
+} from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { Response } from 'express';
@@ -30,6 +35,7 @@ import {
   StockEventsGateway,
   StockUpdatedPayload,
 } from '../realtime/stock-events.gateway';
+import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
 
 @Injectable()
 export class OrderService {
@@ -42,6 +48,7 @@ export class OrderService {
     @InjectQueue('notification') private notificationQueue: Queue,
     private stockLedgerService: StockLedgerService,
     private stockEventsGateway: StockEventsGateway,
+    private paymentMethodConfigService: PaymentMethodConfigService,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -264,6 +271,13 @@ export class OrderService {
       Number(process.env.DEFAULT_DELIVERY_FEE) ??
       120;
     const total = subtotal + deliveryCharge;
+
+    if (dto.paymentMethod === 'COD') {
+      await this.paymentMethodConfigService.assertEnabled(
+        PaymentMethod.COD,
+        total,
+      );
+    }
 
     // Advance payment only applies to COD orders; ONLINE orders are paid in full as today.
     const advanceSubCategories = cart.items

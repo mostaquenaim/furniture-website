@@ -42,6 +42,7 @@ import { CreateBannerDto } from './dto/Banner/create-banner.dto';
 import { UpsertStaticPageDto } from './dto/static-page/upsert-static-page.dto';
 import { CreateTermsAndConditionDto } from './dto/terms-and-condition/create-terms-and-condition.dto';
 import { UpdateTermsAndConditionDto } from './dto/terms-and-condition/update-terms-and-condition.dto';
+import { AppSettingsService } from 'src/settings/app-settings.service';
 
 @Injectable()
 export class CmsService {
@@ -50,6 +51,7 @@ export class CmsService {
   constructor(
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
+    private appSettingsService: AppSettingsService,
   ) {}
 
   private about = { content: '' };
@@ -1290,6 +1292,7 @@ export class CmsService {
         name: cleanName,
         deliveryFee:
           districtDto.deliveryFee ??
+          (await this.appSettingsService.getDefaultDeliveryFee()) ??
           Number(process.env.DEFAULT_DELIVERY_FEE) ??
           120,
         isCODAvailable: districtDto.isCODAvailable ?? true,
