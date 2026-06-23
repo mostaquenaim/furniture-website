@@ -224,9 +224,9 @@ model Product {
   showColor        Boolean @default(true)
 
   discountType  String?
-  discount      Int      @default(0)
-  discountEnd   DateTime @default(now())
-  discountStart DateTime @default(now())
+  discount      Int       @default(0)
+  discountEnd   DateTime?
+  discountStart DateTime?
 
   note             String?
   deliveryEstimate String?

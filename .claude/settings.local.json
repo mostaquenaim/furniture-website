@@ -88,7 +88,9 @@
       "Read(//e/Sammtech/furniture-bideshi/furniture-backend/**)",
       "Bash(ls -la \"e:/Sammtech/furniture-bideshi/furniture-backend/\" 2>&1; echo \"---\"; ls -la \"e:/Sammtech/furniture-bideshi/\" 2>&1)",
       "Read(//e/Sammtech/furniture-bideshi/**)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(node -e \"const u=new URL\\(process.env.DATABASE_URL||require\\('fs'\\).readFileSync\\('.env','utf8'\\).match\\(/DATABASE_URL=\\(.*\\)/\\)[1].replace\\(/^\\\\\"|\\\\\"$/g,''\\)\\); console.log\\('host:', u.hostname\\); console.log\\('db:', u.pathname\\);\")",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")"
     ]
   }
 }

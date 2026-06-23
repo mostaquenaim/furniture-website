@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -17,7 +16,10 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { DiscountType } from './roles.enum';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
-import { sanitizeDiscount } from 'src/common/utils/discount.utils';
+import {
+  assertValidDiscountWindow,
+  sanitizeDiscount,
+} from 'src/common/utils/discount.utils';
 
 @Injectable()
 export class ProductService {
@@ -87,6 +89,8 @@ export class ProductService {
         }
       }
     }
+
+    assertValidDiscountWindow(dto.discountStart, dto.discountEnd);
 
     const basePrice = dto.basePrice;
     let price = basePrice;
@@ -204,28 +208,25 @@ export class ProductService {
 
               await tx.productSize.createMany({
                 data: validSizes.map((size) => {
-                  const basePrice =
+                  // A size with no price override inherits the product's
+                  // basePrice rather than defaulting to 0/free.
+                  const sizeBasePrice =
                     size.price !== undefined && size.price !== null
                       ? Number(size.price)
-                      : null;
+                      : dto.basePrice;
 
-                  let finalPrice: number | null = basePrice || 0;
+                  let finalPrice = sizeBasePrice;
 
                   // SIZE LEVEL DISCOUNT
-                  if (
-                    basePrice &&
-                    size.discount &&
-                    size.discount > 0 &&
-                    size.discountType
-                  ) {
+                  if (size.discount && size.discount > 0 && size.discountType) {
                     if (size.discountType === DiscountType.PERCENT) {
                       finalPrice = Math.round(
-                        basePrice - (basePrice * size.discount) / 100,
+                        sizeBasePrice - (sizeBasePrice * size.discount) / 100,
                       );
                     }
 
                     if (size.discountType === DiscountType.FIXED) {
-                      finalPrice = basePrice - size.discount;
+                      finalPrice = sizeBasePrice - size.discount;
                     }
 
                     // prevent negative price
@@ -238,7 +239,7 @@ export class ProductService {
                     sku: size.sku || null,
 
                     // original price
-                    basePrice: basePrice,
+                    basePrice: sizeBasePrice,
 
                     // discounted price
                     price: finalPrice,
@@ -593,6 +594,14 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
+    const resolvedDiscountStart =
+      dto.discountStart !== undefined
+        ? dto.discountStart
+        : product.discountStart;
+    const resolvedDiscountEnd =
+      dto.discountEnd !== undefined ? dto.discountEnd : product.discountEnd;
+    assertValidDiscountWindow(resolvedDiscountStart, resolvedDiscountEnd);
+
     const basePrice = dto.basePrice;
     let price = basePrice;
 
@@ -670,7 +679,17 @@ export class ProductService {
       if (dto.colors) {
         const existingColors = await tx.productColor.findMany({
           where: { productId: product.id },
-          include: { sizes: { select: { id: true, sizeId: true } } },
+          include: {
+            sizes: {
+              select: {
+                id: true,
+                sizeId: true,
+                basePrice: true,
+                discount: true,
+                discountType: true,
+              },
+            },
+          },
         });
 
         // Structural fingerprint: compare colorId+sizeId sets only (ignore quantity/price)
@@ -754,31 +773,34 @@ export class ProductService {
               );
 
               if (validSizes.length > 0) {
+                // A size with no price override inherits the product's
+                // basePrice rather than defaulting to null/free.
+                const effectiveProductBasePrice =
+                  dto.basePrice ?? product.basePrice;
+
                 await tx.productSize.createMany({
                   data: validSizes.map((size) => {
                     const sizeLevelBasePrice =
                       size.price !== undefined && size.price !== null
                         ? Number(size.price)
-                        : null;
+                        : effectiveProductBasePrice;
 
-                    let sizePrice: number | null = sizeLevelBasePrice;
+                    let sizePrice = sizeLevelBasePrice;
 
-                    if (sizeLevelBasePrice !== null) {
-                      if (
-                        size.discount &&
-                        size.discount > 0 &&
-                        size.discountType
-                      ) {
-                        if (size.discountType === DiscountType.PERCENT) {
-                          sizePrice = Math.round(
-                            sizeLevelBasePrice -
-                              (sizeLevelBasePrice * size.discount) / 100,
-                          );
-                        } else if (size.discountType === DiscountType.FIXED) {
-                          sizePrice = sizeLevelBasePrice - size.discount;
-                        }
-                        if (sizePrice !== null && sizePrice < 0) sizePrice = 0;
+                    if (
+                      size.discount &&
+                      size.discount > 0 &&
+                      size.discountType
+                    ) {
+                      if (size.discountType === DiscountType.PERCENT) {
+                        sizePrice = Math.round(
+                          sizeLevelBasePrice -
+                            (sizeLevelBasePrice * size.discount) / 100,
+                        );
+                      } else if (size.discountType === DiscountType.FIXED) {
+                        sizePrice = sizeLevelBasePrice - size.discount;
                       }
+                      if (sizePrice < 0) sizePrice = 0;
                     }
 
                     return {
@@ -834,26 +856,40 @@ export class ProductService {
               );
               if (!existingSize) continue;
 
-              const sizeLevelBasePrice =
+              // A size update may legitimately omit price/discount (e.g. a
+              // quantity-only restock) — fall back to the existing value
+              // instead of wiping it, otherwise every partial update would
+              // silently null out the price and zero out the discount.
+              const resolvedBasePrice =
                 size.price !== undefined && size.price !== null
                   ? Number(size.price)
-                  : undefined;
+                  : existingSize.basePrice;
+              const resolvedDiscount =
+                size.discount !== undefined
+                  ? size.discount
+                  : existingSize.discount;
+              const resolvedDiscountType: DiscountType | null =
+                size.discountType !== undefined
+                  ? size.discountType
+                  : (existingSize.discountType as DiscountType | null);
 
-              let sizePrice: number | null =
-                sizeLevelBasePrice !== undefined ? sizeLevelBasePrice : null;
+              let sizePrice: number | null = resolvedBasePrice;
 
-              if (sizeLevelBasePrice !== undefined) {
-                if (size.discount && size.discount > 0 && size.discountType) {
-                  if (size.discountType === DiscountType.PERCENT) {
-                    sizePrice = Math.round(
-                      sizeLevelBasePrice -
-                        (sizeLevelBasePrice * size.discount) / 100,
-                    );
-                  } else if (size.discountType === DiscountType.FIXED) {
-                    sizePrice = sizeLevelBasePrice - size.discount;
-                  }
-                  if (sizePrice !== null && sizePrice < 0) sizePrice = 0;
+              if (
+                resolvedBasePrice !== null &&
+                resolvedDiscount &&
+                resolvedDiscount > 0 &&
+                resolvedDiscountType
+              ) {
+                if (resolvedDiscountType === DiscountType.PERCENT) {
+                  sizePrice = Math.round(
+                    resolvedBasePrice -
+                      (resolvedBasePrice * resolvedDiscount) / 100,
+                  );
+                } else if (resolvedDiscountType === DiscountType.FIXED) {
+                  sizePrice = resolvedBasePrice - resolvedDiscount;
                 }
+                if (sizePrice !== null && sizePrice < 0) sizePrice = 0;
               }
 
               await tx.productSize.update({
@@ -861,10 +897,10 @@ export class ProductService {
                 data: {
                   quantity: Number(size.quantity),
                   sku: size.sku || null,
-                  basePrice: sizeLevelBasePrice,
+                  basePrice: resolvedBasePrice,
                   price: sizePrice,
-                  discountType: size.discountType || null,
-                  discount: size.discount ?? 0,
+                  discountType: resolvedDiscountType ?? null,
+                  discount: resolvedDiscount ?? 0,
                 },
               });
             }
@@ -935,25 +971,24 @@ export class ProductService {
     });
   }
 
-  // sync all products prices
+  // Re-derive each product's top-level display price from its own
+  // basePrice/discount/window. ProductSize.price is deliberately left
+  // untouched here — variant pricing is managed independently via each
+  // size's own discount fields (see the two-tier design in discount.utils.ts).
   async syncAllProductPrices() {
-    // Fetch all products with their color variants and sizes
-    const products = await this.prisma.product.findMany({
-      include: {
-        colors: {
-          include: {
-            sizes: true,
-          },
-        },
-      },
-    });
+    const products = await this.prisma.product.findMany();
+    const now = new Date();
 
     for (const product of products) {
       const basePrice = product.basePrice;
       let price = basePrice;
 
-      // Update main product price
-      if (product.discount && product.discount > 0) {
+      const hasWindow = !!product.discountStart && !!product.discountEnd;
+      const windowActive =
+        !hasWindow ||
+        (product.discountStart! <= now && product.discountEnd! >= now);
+
+      if (product.discount && product.discount > 0 && windowActive) {
         if (product.discountType === DiscountType.PERCENT) {
           price = Math.round(basePrice - (basePrice * product.discount) / 100);
         } else if (product.discountType === DiscountType.FIXED) {
@@ -966,30 +1001,6 @@ export class ProductService {
         where: { id: product.id },
         data: { price },
       });
-
-      // Update sizes for each color variant
-      for (const color of product.colors) {
-        for (const size of color.sizes) {
-          const sizeBasePrice = size.basePrice ?? basePrice; // fallback to product basePrice
-          let sizePrice = sizeBasePrice;
-
-          if (product.discount && product.discount > 0) {
-            if (product.discountType === DiscountType.PERCENT) {
-              sizePrice = Math.round(
-                sizeBasePrice - (sizeBasePrice * product.discount) / 100,
-              );
-            } else if (product.discountType === DiscountType.FIXED) {
-              sizePrice = sizeBasePrice - product.discount;
-            }
-          }
-          if (sizePrice < 0) sizePrice = 0;
-
-          await this.prisma.productSize.update({
-            where: { id: size.id },
-            data: { price: sizePrice },
-          });
-        }
-      }
     }
 
     return { message: 'Product prices synchronized successfully' };
@@ -1634,8 +1645,11 @@ export class ProductService {
     const where = {
       isActive: true,
       discount: { gt: 0 },
-      discountStart: { lte: now },
-      discountEnd: { gte: now },
+      OR: [
+        // No window set → discount never expires.
+        { discountStart: null, discountEnd: null },
+        { discountStart: { lte: now }, discountEnd: { gte: now } },
+      ],
     };
 
     const [data, total] = await Promise.all([

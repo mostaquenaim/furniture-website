@@ -17,6 +17,7 @@ import {
   CreateLocationDto,
 } from './dto/barcode.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { sanitizeDiscount } from 'src/common/utils/discount.utils';
 
 @Injectable()
 export class BarcodeService {
@@ -96,7 +97,7 @@ export class BarcodeService {
 
   // ── Get all barcodes (with optional low-stock filter) ─────────────────────
   async getAll(lowStockOnly = false) {
-    return this.prisma.inventoryItem.findMany({
+    const items = await this.prisma.inventoryItem.findMany({
       where: lowStockOnly
         ? { quantity: { lte: this.prisma.inventoryItem.fields.lowStockAt } }
         : undefined,
@@ -104,13 +105,23 @@ export class BarcodeService {
         product: {
           select: {
             title: true,
+            basePrice: true,
             price: true,
+            discount: true,
+            discountType: true,
+            discountStart: true,
+            discountEnd: true,
           },
         },
         location: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return items.map((item) => ({
+      ...item,
+      product: sanitizeDiscount(item.product),
+    }));
   }
 
   // ── Assign / update warehouse location ────────────────────────────────────
