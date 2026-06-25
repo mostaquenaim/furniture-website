@@ -68,6 +68,11 @@ export class CategoryController {
     });
   }
 
+  @Get('series/:slug/filters')
+  getSeriesFilters(@Param('slug') slug: string) {
+    return this.categoryService.getSeriesFilters(slug);
+  }
+
   @Get('series/:slug/subcategories')
   getSeriesWiseSubcategories(@Param('slug') slug: string) {
     return this.categoryService.getSeriesWiseSubcategories(slug);
@@ -145,6 +150,11 @@ export class CategoryController {
   @Get('subcategory/:id/parent')
   getSubCategoryParent(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.getSubCategoryParent(id);
+  }
+
+  @Get('subcategory/:slug/filters')
+  getSubCategoryFilters(@Param('slug') slug: string) {
+    return this.categoryService.getSubCategoryFilters(slug);
   }
 
   // subCategoryWise products

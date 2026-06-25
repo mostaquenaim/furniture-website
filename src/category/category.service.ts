@@ -1085,6 +1085,68 @@ export class CategoryService {
     };
   }
 
+  async getSeriesFilters(slug: string) {
+    const baseProductWhere = {
+      isActive: true,
+      totalProductQuantity: { gt: 0 },
+      subCategories: {
+        some: {
+          subCategory: {
+            isActive: true,
+            category: {
+              isActive: true,
+              series: { slug, isActive: true },
+            },
+          },
+        },
+      },
+    };
+
+    const [materials, colors] = await this.prisma.$transaction([
+      this.prisma.material.findMany({
+        where: { isActive: true, products: { some: baseProductWhere } },
+        orderBy: { order: 'asc' },
+      }),
+      this.prisma.color.findMany({
+        where: {
+          isActive: true,
+          productColor: { some: { product: baseProductWhere } },
+        },
+        orderBy: { sortOrder: 'asc' },
+      }),
+    ]);
+
+    return { materials, colors };
+  }
+
+  async getSubCategoryFilters(slug: string) {
+    const baseProductWhere = {
+      isActive: true,
+      totalProductQuantity: { gt: 0 },
+      subCategories: {
+        some: {
+          subCategory: { slug, isActive: true },
+        },
+      },
+    };
+
+    const [materials, colors] = await this.prisma.$transaction([
+      this.prisma.material.findMany({
+        where: { isActive: true, products: { some: baseProductWhere } },
+        orderBy: { order: 'asc' },
+      }),
+      this.prisma.color.findMany({
+        where: {
+          isActive: true,
+          productColor: { some: { product: baseProductWhere } },
+        },
+        orderBy: { sortOrder: 'asc' },
+      }),
+    ]);
+
+    return { materials, colors };
+  }
+
   getSubCategoryBySlug(slug: string) {
     return this.prisma.subCategory.findUnique({
       where: { slug },
