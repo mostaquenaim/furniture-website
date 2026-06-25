@@ -226,8 +226,8 @@ export class ProductController {
 
   // }
   @Get(':slug')
-  getProductById(@Param('slug') slug: string) {
-    return this.productService.getProductBySlug(slug);
+  getProductById(@Param('slug') slug: string, @Query('admin') admin?: string) {
+    return this.productService.getProductBySlug(slug, admin === 'true');
   }
 
   @Patch(':productId/toggle-status')

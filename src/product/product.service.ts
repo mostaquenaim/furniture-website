@@ -335,13 +335,11 @@ export class ProductService {
   }
 
   // get a product by id
-  async getProductBySlug(slug: string) {
+  async getProductBySlug(slug: string, admin = false) {
     const product = await this.prisma.product.findUnique({
       where: { slug },
       include: {
-        material: {
-          where: { isActive: true },
-        },
+        material: admin ? true : { where: { isActive: true } },
         images: {
           orderBy: { serialNo: 'asc' },
         },
@@ -356,17 +354,20 @@ export class ProductService {
             },
           },
         },
+        productTags: admin ? { include: { tag: true } } : false,
         colors: {
           include: {
             color: true,
             images: true,
             sizes: {
-              where: {
-                quantity: { gt: 0 },
-                size: {
-                  isActive: true,
-                },
-              },
+              ...(admin
+                ? {}
+                : {
+                    where: {
+                      quantity: { gt: 0 },
+                      size: { isActive: true },
+                    },
+                  }),
               include: {
                 size: {
                   include: { variant: true },
@@ -380,6 +381,11 @@ export class ProductService {
 
     if (!product) {
       throw new NotFoundException(`Product with slug "${slug}" not found`);
+    }
+
+    if (admin) {
+      const tags = (product as any).productTags?.map((pt: any) => pt.tag) ?? [];
+      return { ...product, tags };
     }
 
     product.colors = product.colors.filter((color) => color.sizes.length > 0);
@@ -602,21 +608,27 @@ export class ProductService {
       dto.discountEnd !== undefined ? dto.discountEnd : product.discountEnd;
     assertValidDiscountWindow(resolvedDiscountStart, resolvedDiscountEnd);
 
-    const basePrice = dto.basePrice;
-    let price = basePrice;
+    // Fall back to existing product values so a partial update (e.g. only
+    // basePrice sent) doesn't silently drop the stored discount, and vice-versa.
+    const effectiveBasePrice = dto.basePrice ?? product.basePrice;
+    const effectiveDiscount =
+      dto.discount !== undefined ? dto.discount : product.discount;
+    const effectiveDiscountType =
+      dto.discountType !== undefined ? dto.discountType : product.discountType;
 
-    if (dto.discount && dto.discount > 0 && basePrice) {
-      if (dto.discountType === DiscountType.PERCENT) {
-        price = Math.round(basePrice - (basePrice * dto.discount) / 100);
-      }
+    let price: number = effectiveBasePrice;
 
-      if (dto.discountType === DiscountType.FIXED) {
-        price = basePrice - dto.discount;
+    if (effectiveDiscount && effectiveDiscount > 0) {
+      if (effectiveDiscountType === DiscountType.PERCENT) {
+        price = Math.round(
+          effectiveBasePrice - (effectiveBasePrice * effectiveDiscount) / 100,
+        );
+      } else if (effectiveDiscountType === DiscountType.FIXED) {
+        price = effectiveBasePrice - effectiveDiscount;
       }
     }
 
-    // safety guard
-    if (price && price < 0) price = 0;
+    if (price < 0) price = 0;
 
     return this.prisma.$transaction(async (tx) => {
       // Update Product Core Fields
@@ -629,7 +641,7 @@ export class ProductService {
           description: dto.description,
           basePrice: dto.basePrice,
           price,
-          weight: dto.weight ?? 0.5,
+          weight: dto.weight ?? product.weight,
           hasColorVariants: dto.hasColorVariants,
           showColor: dto.showColor,
           discountType: dto.discountType,
@@ -642,7 +654,8 @@ export class ProductService {
           dimension: dto.dimension,
           shippingReturn: dto.shippingReturn,
           isActive: dto.isActive,
-          materialId: dto.materialId || product.materialId,
+          materialId:
+            dto.materialId !== undefined ? dto.materialId : product.materialId,
         },
       });
 
@@ -684,6 +697,7 @@ export class ProductService {
               select: {
                 id: true,
                 sizeId: true,
+                sku: true,
                 basePrice: true,
                 discount: true,
                 discountType: true,
@@ -692,12 +706,14 @@ export class ProductService {
           },
         });
 
-        // Structural fingerprint: compare colorId+sizeId sets only (ignore quantity/price)
-        // Apply same SKU filter used during createMany so empty-SKU placeholders are excluded
+        // Structural fingerprint: compare colorId+sizeId sets only (ignore quantity/price).
+        // Both sides apply the same SKU filter so the comparison is symmetric —
+        // empty-SKU placeholder sizes are excluded from structure detection on both ends.
         const existingStructureKey = existingColors
           .map(
             (c) =>
               `${c.colorId}:${c.sizes
+                .filter((s) => (s.sku ?? '') !== '')
                 .map((s) => String(s.sizeId))
                 .sort()
                 .join(',')}`,
