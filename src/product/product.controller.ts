@@ -204,6 +204,11 @@ export class ProductController {
     return this.productService.getTrendingProducts(parsedLimit);
   }
 
+  @Get('on-sale/status')
+  getSaleStatus() {
+    return this.productService.getSaleStatus();
+  }
+
   @Get('on-sale')
   getOnSaleProducts(
     @Query('page') page?: number,

@@ -46,6 +46,8 @@ import { SeasonalCategoryModule } from './seasonal-category/seasonal-category.mo
 import { HomepageGalleryModule } from './homepage-gallery/homepage-gallery.module';
 import { BannerModule } from './banner/banner.module';
 import { PaymentMethodConfigModule } from './payment-method-config/payment-method-config.module';
+import { FeaturedCategoryModule } from './featured-category/featured-category.module';
+import { UrgencyBannerModule } from './urgency-banner/urgency-banner.module';
 
 @Module({
   imports: [
@@ -102,6 +104,8 @@ import { PaymentMethodConfigModule } from './payment-method-config/payment-metho
     HomepageGalleryModule,
     BannerModule,
     PaymentMethodConfigModule,
+    FeaturedCategoryModule,
+    UrgencyBannerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

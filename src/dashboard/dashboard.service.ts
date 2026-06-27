@@ -383,7 +383,7 @@ export class DashboardService {
   }
 
   // ── Top Search Keywords ──────
-  private async getTopSearchKeywords(range: DateRange) {
+  private async getTopSearchKeywords(range: DateRange, limit = 10) {
     const keywords = await this.prisma.searchLog.groupBy({
       by: ['keyword'],
       where: {
@@ -391,7 +391,7 @@ export class DashboardService {
       },
       _count: { keyword: true },
       orderBy: { _count: { keyword: 'desc' } },
-      take: 10,
+      take: limit,
     });
 
     return keywords.map((k) => ({
@@ -481,8 +481,12 @@ export class DashboardService {
 
   // Public range-based entry points so other modules (e.g. AnalyticsService)
   // can reuse this exact aggregation logic instead of re-implementing it.
-  async getTopSearchKeywordsForRange(startStr: string, endStr: string) {
-    return this.getTopSearchKeywords(this.buildRange(startStr, endStr));
+  async getTopSearchKeywordsForRange(
+    startStr: string,
+    endStr: string,
+    limit = 10,
+  ) {
+    return this.getTopSearchKeywords(this.buildRange(startStr, endStr), limit);
   }
 
   async getUserRetentionForRange(startStr: string, endStr: string) {

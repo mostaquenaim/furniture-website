@@ -1741,6 +1741,22 @@ export class ProductService {
     };
   }
 
+  async getSaleStatus() {
+    const now = new Date();
+    const count = await this.prisma.product.count({
+      where: {
+        isActive: true,
+        discount: { gt: 0 },
+        totalProductQuantity: { gt: 0 },
+        OR: [
+          { discountStart: null, discountEnd: null },
+          { discountStart: { lte: now }, discountEnd: { gte: now } },
+        ],
+      },
+    });
+    return { hasActiveSale: count > 0, count };
+  }
+
   // get product's all reviews
   async getProductReviews({
     productSlug,

@@ -90,7 +90,11 @@
       "Read(//e/Sammtech/furniture-bideshi/**)",
       "Bash(git stash *)",
       "Bash(node -e \"const u=new URL\\(process.env.DATABASE_URL||require\\('fs'\\).readFileSync\\('.env','utf8'\\).match\\(/DATABASE_URL=\\(.*\\)/\\)[1].replace\\(/^\\\\\"|\\\\\"$/g,''\\)\\); console.log\\('host:', u.hostname\\); console.log\\('db:', u.pathname\\);\")",
-      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")"
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(xargs grep -l \"homepage\\\\|featured\\\\|seasonal\\\\|top.*categor\\\\|all.*categor\")",
+      "PowerShell(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"\\\\.spec\\\\.ts\" } | Select-Object -First 30)",
+      "PowerShell(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"\\\\.spec\\\\.ts\" -and $_ -match \"error TS\" })",
+      "PowerShell(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\"; npx tsc --noEmit 2>&1 | Select-String \"error TS\" | Where-Object { $_ -notmatch \"spec.ts\" })"
     ]
   }
 }

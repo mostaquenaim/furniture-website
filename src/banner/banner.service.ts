@@ -9,7 +9,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ActivityLogService } from '../activity-log/activity-log.service'; // Assuming this exists
+import { ActivityLogService } from '../activity-log/activity-log.service';
 import { CreateBroadBannerDto } from './dto/create-broad-banner.dto';
 import { UpdateBroadBannerDto } from './dto/update-broad-banner.dto';
 import { BroadBanner } from '@prisma/client';
@@ -23,17 +23,12 @@ export class BroadBannerService {
     private readonly activityLog: ActivityLogService,
   ) {}
 
-  /**
-   * Creates a new banner. If the new banner is set to active,
-   * it automatically deactivates all other banners to maintain a single-active state.
-   */
   async create(
     dto: CreateBroadBannerDto,
     adminId: number,
   ): Promise<BroadBanner> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // If this banner is meant to be active, deactivate others first
         if (dto.isActive) {
           await tx.broadBanner.updateMany({
             where: { isActive: true },
@@ -41,10 +36,8 @@ export class BroadBannerService {
           });
         }
 
-        // Create the banner
         const banner = await tx.broadBanner.create({ data: dto });
 
-        // 3. Log the action for audit trails
         await this.activityLog.log({
           adminId,
           action: 'CREATE_BROAD_BANNER',
@@ -62,18 +55,12 @@ export class BroadBannerService {
     }
   }
 
-  /**
-   * Retrieves all banners, prioritized by active status then newest first.
-   */
   findAll(): Promise<BroadBanner[]> {
     return this.prisma.broadBanner.findMany({
       orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
-  /**
-   * Optimized fetch for the public-facing active banner.
-   */
   findActive() {
     return this.prisma.broadBanner.findFirst({
       where: { isActive: true },
@@ -87,9 +74,6 @@ export class BroadBannerService {
     return banner;
   }
 
-  /**
-   * Updates banner and manages global active state.
-   */
   async update(
     id: string,
     dto: UpdateBroadBannerDto,
@@ -99,7 +83,6 @@ export class BroadBannerService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // If we are activating this banner, deactivate all others
         if (dto.isActive === true) {
           await tx.broadBanner.updateMany({
             where: { id: { not: id }, isActive: true },
@@ -130,9 +113,6 @@ export class BroadBannerService {
     }
   }
 
-  /**
-   * Hard delete with logging.
-   */
   async remove(id: string, adminId: number): Promise<void> {
     const banner = await this.findOne(id);
 

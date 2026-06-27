@@ -1,5 +1,4 @@
-// create-banner.dto.ts
-import { IsString, IsUrl, IsBoolean, IsOptional, IsInt } from 'class-validator';
+import { IsString, IsUrl, IsBoolean, IsOptional } from 'class-validator';
 
 export class CreateBroadBannerDto {
   @IsString()
@@ -9,6 +8,7 @@ export class CreateBroadBannerDto {
   image!: string;
 
   @IsOptional()
+  @IsString()
   link?: string;
 
   @IsOptional()

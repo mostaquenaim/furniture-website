@@ -1362,6 +1362,18 @@ model BroadBanner {
   updatedAt DateTime @updatedAt
 }
 
+model UrgencyBanner {
+  id        Int      @id @default(autoincrement())
+  message   String
+  eventType String?
+  link      String?
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model PromoBanner {
   id        Int      @id @default(autoincrement())
   title     String

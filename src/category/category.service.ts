@@ -124,10 +124,10 @@ export class CategoryService {
   // =====================
   // SERIES
   // =====================
-  getAllSeries(withRelations = false, isActive?: boolean | null) {
+  async getAllSeries(withRelations = false, isActive?: boolean | null) {
   // console.log('check if active', isActive);
 
-    return this.prisma.series.findMany({
+    const results = await this.prisma.series.findMany({
       where: {
         ...(isActive !== undefined && isActive !== null && { isActive }),
       },
@@ -141,6 +141,7 @@ export class CategoryService {
         notice: true,
         sortOrder: true,
         isActive: true,
+        seriesType: true,
 
         ...(withRelations && {
           categories: {
@@ -170,6 +171,10 @@ export class CategoryService {
         }),
       },
     });
+
+    // NEW is always pinned first, SALE always pinned last; NORMAL sorted by sortOrder (DB already handles NORMAL order).
+    const typeRank = (t: string) => (t === 'NEW' ? -1 : t === 'SALE' ? 1 : 0);
+    return results.sort((a, b) => typeRank(a.seriesType) - typeRank(b.seriesType));
   }
 
   getSeriesBySlug(slug: string) {

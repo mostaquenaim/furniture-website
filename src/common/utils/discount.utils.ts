@@ -3,28 +3,41 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { BadRequestException } from '@nestjs/common';
 
-export function sanitizeDiscount(product: any): any {
-  if (!product || !product.discount) return product;
+const NEW_BADGE_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
 
-  const start = product.discountStart ? new Date(product.discountStart) : null;
-  const end = product.discountEnd ? new Date(product.discountEnd) : null;
+export function sanitizeDiscount(product: any): any {
+  if (!product) return product;
+
+  // Compute isNew badge — true for 60 days after createdAt, then false automatically.
+  const isNew = product.createdAt
+    ? Date.now() - new Date(product.createdAt).getTime() <= NEW_BADGE_MS
+    : false;
+
+  const normalized = { ...product, isNew };
+
+  if (!normalized.discount) return normalized;
+
+  const start = normalized.discountStart
+    ? new Date(normalized.discountStart)
+    : null;
+  const end = normalized.discountEnd ? new Date(normalized.discountEnd) : null;
 
   // No window set on either side → the discount has no expiry, always active.
-  if (!start && !end) return product;
+  if (!start && !end) return normalized;
 
   // A window is only enforced once both ends are set — see
   // assertValidDiscountWindow, which rejects a half-set window at write time.
   const now = new Date();
   if (start && end && (start > now || end < now)) {
     return {
-      ...product,
+      ...normalized,
       discount: 0,
       discountType: null,
-      price: product.basePrice,
+      price: normalized.basePrice,
     };
   }
 
-  return product;
+  return normalized;
 }
 
 /**
