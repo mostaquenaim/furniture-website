@@ -9,13 +9,29 @@ export class DashboardController {
 
   @Get()
   async getDashboard(@Query() query: DashboardQueryDto) {
-    const end = query.end ?? new Date().toISOString().split('T')[0];
-    const start =
-      query.start ??
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const todayStr = new Date().toISOString().split('T')[0];
+    let start: string;
+    let end: string = todayStr;
+
+    if (query.period === 'day') {
+      start = todayStr;
+    } else if (query.period === 'week') {
+      start = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split('T')[0];
+    } else if (query.period === 'month') {
+      start = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+    } else {
+      end = query.end ?? todayStr;
+      start =
+        query.start ??
+        new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0];
+    }
 
-    return await this.dashboardService.getDashboardData(start, end);
+    return await this.dashboardService.getDashboardData(start, end, query.period);
   }
 }

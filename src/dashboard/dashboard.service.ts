@@ -22,7 +22,11 @@ export class DashboardService {
   }
 
   // ── Main entry point ─────────
-  async getDashboardData(startStr: string, endStr: string) {
+  async getDashboardData(
+    startStr: string,
+    endStr: string,
+    period?: 'day' | 'week' | 'month',
+  ) {
     const range = this.buildRange(startStr, endStr);
 
     const [
@@ -35,7 +39,7 @@ export class DashboardService {
       userRetention,
     ] = await Promise.all([
       this.getStats(range),
-      this.getSalesTrend(range),
+      this.getSalesTrend(range, period),
       this.getTopProducts(range),
       this.getRecentOrders(),
       this.getTopViewedProducts(range),
@@ -131,46 +135,92 @@ export class DashboardService {
   }
 
   // ── Sales Trend ──────────────
-  private async getSalesTrend(range: DateRange) {
+  private async getSalesTrend(
+    range: DateRange,
+    period?: 'day' | 'week' | 'month',
+  ) {
     const orders = await this.prisma.order.findMany({
       where: {
         createdAt: { gte: range.start, lte: range.end },
         status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED] },
       },
-      select: {
-        createdAt: true,
-        total: true,
-      },
+      select: { createdAt: true, total: true },
       orderBy: { createdAt: 'asc' },
     });
 
-    // Group by calendar date
-    const byDay = new Map<string, { revenue: number; orders: number }>();
+    type Bucket = { revenue: number; orders: number };
 
-    for (const order of orders) {
-      const day = order.createdAt.toISOString().split('T')[0]; // "YYYY-MM-DD"
-      const existing = byDay.get(day) ?? { revenue: 0, orders: 0 };
-      byDay.set(day, {
-        revenue: existing.revenue + (order.total ?? 0),
-        orders: existing.orders + 1,
+    if (period === 'day') {
+      // Group by hour (0–23)
+      const byHour = new Map<number, Bucket>();
+      for (const order of orders) {
+        const h = order.createdAt.getUTCHours();
+        const b = byHour.get(h) ?? { revenue: 0, orders: 0 };
+        byHour.set(h, {
+          revenue: b.revenue + (order.total ?? 0),
+          orders: b.orders + 1,
+        });
+      }
+      return Array.from({ length: 24 }, (_, h) => {
+        const b = byHour.get(h) ?? { revenue: 0, orders: 0 };
+        return {
+          date: `${h.toString().padStart(2, '0')}:00`,
+          revenue: parseFloat(b.revenue.toFixed(2)),
+          orders: b.orders,
+        };
       });
     }
 
-    // Fill every day in the range so the chart line has no gaps
+    if (period === 'week') {
+      const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      // Group by "YYYY-MM-DD" then map to weekday label
+      const byDay = new Map<string, Bucket>();
+      for (const order of orders) {
+        const key = order.createdAt.toISOString().split('T')[0];
+        const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
+        byDay.set(key, {
+          revenue: b.revenue + (order.total ?? 0),
+          orders: b.orders + 1,
+        });
+      }
+      const result: { date: string; revenue: number; orders: number }[] = [];
+      const cursor = new Date(range.start);
+      while (cursor <= range.end) {
+        const key = cursor.toISOString().split('T')[0];
+        const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
+        result.push({
+          date: DAY_NAMES[cursor.getUTCDay()],
+          revenue: parseFloat(b.revenue.toFixed(2)),
+          orders: b.orders,
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return result;
+    }
+
+    // Default (month / custom range): group by calendar date
+    const byDay = new Map<string, Bucket>();
+    for (const order of orders) {
+      const key = order.createdAt.toISOString().split('T')[0];
+      const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
+      byDay.set(key, {
+        revenue: b.revenue + (order.total ?? 0),
+        orders: b.orders + 1,
+      });
+    }
+
     const result: { date: string; revenue: number; orders: number }[] = [];
     const cursor = new Date(range.start);
-
     while (cursor <= range.end) {
       const key = cursor.toISOString().split('T')[0];
-      const data = byDay.get(key) ?? { revenue: 0, orders: 0 };
+      const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
       result.push({
         date: key.slice(5), // "MM-DD"
-        revenue: parseFloat(data.revenue.toFixed(2)),
-        orders: data.orders,
+        revenue: parseFloat(b.revenue.toFixed(2)),
+        orders: b.orders,
       });
       cursor.setDate(cursor.getDate() + 1);
     }
-
     return result;
   }
 

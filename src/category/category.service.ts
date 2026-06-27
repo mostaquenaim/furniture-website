@@ -60,7 +60,7 @@ export class CategoryService {
     }
   }
 
-  // ✅ GET ALL CATEGORIES (for admin)
+  // GET ALL CATEGORIES (for admin)
   async findAll() {
     return this.prisma.category.findMany({
       include: {
@@ -73,7 +73,7 @@ export class CategoryService {
     });
   }
 
-  // ✅ GET ACTIVE CATEGORIES BY SERIES (frontend menu)
+  // GET ACTIVE CATEGORIES BY SERIES (frontend menu)
   async findBySeries(seriesId: number) {
     return this.prisma.category.findMany({
       where: {
@@ -92,7 +92,7 @@ export class CategoryService {
     });
   }
 
-  // ✅ UPDATE CATEGORY
+  // UPDATE CATEGORY
   async update(
     id: number,
     data: {
@@ -111,7 +111,7 @@ export class CategoryService {
     });
   }
 
-  // ✅ DELETE CATEGORY (cascade handles subCategories)
+  // DELETE CATEGORY (cascade handles subCategories)
   async remove(id: number) {
     const category = await this.prisma.category.findUnique({ where: { id } });
     if (!category) throw new NotFoundException('Category not found');
@@ -221,6 +221,7 @@ export class CategoryService {
     search,
     isActive = true,
     slug,
+    admin = false,
 
     colorIds,
     materialIds,
@@ -234,6 +235,7 @@ export class CategoryService {
     search?: string;
     isActive?: boolean;
     slug?: string;
+    admin?: boolean;
 
     colorIds?: number[];
     materialIds?: number[];
@@ -328,7 +330,10 @@ export class CategoryService {
         include: {
           images: true,
           colors: {
-            include: { color: true },
+            include: {
+              color: true,
+              ...(!admin && { sizes: { where: { quantity: { gt: 0 } } } }),
+            },
           },
           subCategories: {
             include: {
@@ -405,7 +410,18 @@ export class CategoryService {
     }
 
     return {
-      products: products.map((p) => sanitizeDiscount(p)),
+      products: products.map((p) =>
+        sanitizeDiscount(
+          admin
+            ? p
+            : {
+                ...p,
+                colors: ((p as any).colors as any[]).filter(
+                  (c: any) => c.sizes.length > 0,
+                ),
+              },
+        ),
+      ),
       subcategories: Array.from(subCategoryMap.values()),
       blog,
       series: selectedSeries.name,
@@ -896,6 +912,7 @@ export class CategoryService {
     search,
     isActive = true,
     slug,
+    admin = false,
 
     colorIds,
     materialIds,
@@ -908,6 +925,7 @@ export class CategoryService {
     search?: string;
     isActive?: boolean;
     slug?: string;
+    admin?: boolean;
 
     colorIds?: number[];
     materialIds?: number[];
@@ -1007,7 +1025,10 @@ export class CategoryService {
         include: {
           images: true,
           colors: {
-            include: { color: true },
+            include: {
+              color: true,
+              ...(!admin && { sizes: { where: { quantity: { gt: 0 } } } }),
+            },
           },
           subCategories: {
             include: {
@@ -1073,7 +1094,18 @@ export class CategoryService {
     }
 
     return {
-      products: rows.map((p) => sanitizeDiscount(p)),
+      products: rows.map((p) =>
+        sanitizeDiscount(
+          admin
+            ? p
+            : {
+                ...p,
+                colors: ((p as any).colors as any[]).filter(
+                  (c: any) => c.sizes.length > 0,
+                ),
+              },
+        ),
+      ),
       blog,
       subCategory,
       meta: {

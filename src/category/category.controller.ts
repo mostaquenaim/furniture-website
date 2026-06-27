@@ -39,6 +39,7 @@ export class CategoryController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
+    @Query('admin') admin?: string,
 
     @Query('colorIds') colorIds?: string,
     @Query('materialIds') materialIds?: string,
@@ -55,6 +56,7 @@ export class CategoryController {
       limit: Number(limit) || 10,
       search,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      admin: admin === 'true',
 
       colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
       materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
@@ -165,6 +167,7 @@ export class CategoryController {
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('isActive') isActive?: string,
+    @Query('admin') admin?: string,
 
     @Query('colorIds') colorIds?: string,
     @Query('materialIds') materialIds?: string,
@@ -179,6 +182,7 @@ export class CategoryController {
       limit: Number(limit) || 10,
       search,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      admin: admin === 'true',
       slug,
       colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
       materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
