@@ -279,6 +279,10 @@ model InventoryItem {
   quantity   Int @default(0)
   lowStockAt Int @default(5) // ← ADD THIS
 
+  // Label print info
+  lotNumber   String?
+  packingDate DateTime?
+
   // Audit
   lastCountedAt DateTime? // ← ADD THIS — last physical stock count
   printCount    Int       @default(0)

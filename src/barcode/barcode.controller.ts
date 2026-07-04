@@ -9,14 +9,12 @@ import {
   Body,
   Param,
   Query,
-  Res,
   ParseIntPipe,
   UseGuards,
   HttpCode,
   HttpStatus,
   Req,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import { BarcodeService } from './barcode.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -75,8 +73,8 @@ export class BarcodeController {
 
   @Post('print')
   @Permission(Action.BARCODE_VIEW)
-  printLabels(@Body() dto: PrintLabelsDto, @Res() res: Response) {
-    return this.barcodeService.printLabelSheet(dto.barcodeIds, res);
+  printLabels(@Body() dto: PrintLabelsDto) {
+    return this.barcodeService.confirmPrint(dto.items);
   }
 
   @Post('locations')

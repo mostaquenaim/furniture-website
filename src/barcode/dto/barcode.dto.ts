@@ -7,7 +7,10 @@ import {
   Min,
   IsArray,
   IsInt,
+  IsDateString,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { BarcodeType } from '@prisma/client';
 
 export class CreateBarcodeDto {
@@ -66,10 +69,29 @@ export class CreateLocationDto {
   label?: string;
 }
 
+export class PrintLabelItemDto {
+  @IsString()
+  barcodeId: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  labelQty?: number;
+
+  @IsOptional()
+  @IsString()
+  lotNumber?: string;
+
+  @IsOptional()
+  @IsDateString()
+  packingDate?: string;
+}
+
 export class PrintLabelsDto {
   @IsArray()
-  @IsString({ each: true })
-  barcodeIds: string[];
+  @ValidateNested({ each: true })
+  @Type(() => PrintLabelItemDto)
+  items: PrintLabelItemDto[];
 }
 
 export class UpdateQuantityDto {

@@ -10,11 +10,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Response } from 'express';
 import * as bwipjs from 'bwip-js';
-import puppeteer, { Browser } from 'puppeteer';
 import {
   AssignLocationDto,
   CreateBarcodeDto,
   CreateLocationDto,
+  PrintLabelItemDto,
 } from './dto/barcode.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { sanitizeDiscount } from 'src/common/utils/discount.utils';
@@ -89,7 +89,16 @@ export class BarcodeService {
   async getByProductId(productId: number) {
     const bc = await this.prisma.inventoryItem.findMany({
       where: { productId },
-      include: { product: true, location: true },
+      include: {
+        product: true,
+        location: true,
+        productSize: {
+          include: {
+            size: true,
+            color: { include: { color: true } },
+          },
+        },
+      },
     });
     if (!bc) throw new NotFoundException('No barcode for this product');
     return bc;
@@ -249,193 +258,42 @@ export class BarcodeService {
     res.end(png);
   }
 
-  // ── Print label sheet PDF (multiple labels per page) ──────────────────────
-  async printLabelSheet(barcodeIds: string[], res: Response) {
-    if (!barcodeIds?.length) {
-      throw new NotFoundException('No barcode IDs provided');
+  // ── Confirm label print: persist lot/packing info, bump print counters ────
+  async confirmPrint(items: PrintLabelItemDto[]) {
+    if (!items?.length) {
+      throw new NotFoundException('No label items provided');
     }
 
-    const barcodes = await this.prisma.inventoryItem.findMany({
+    const barcodeIds = items.map((i) => i.barcodeId);
+    const existing = await this.prisma.inventoryItem.findMany({
       where: { id: { in: barcodeIds } },
-      include: { product: true, location: true },
+      select: { id: true },
     });
-
-    if (!barcodes.length) {
+    if (!existing.length) {
       throw new NotFoundException('No barcodes found');
     }
 
-    const withImages = await Promise.all(
-      barcodes.map(async (bc) => {
-        const png =
-          bc.barcodeType === 'QR'
-            ? await this.generateQrPng(bc.barcode)
-            : await this.generateBarcodePng(bc.barcode);
-
-        return {
-          ...bc,
-          imgBase64: png.toString('base64'),
-        };
-      }),
+    await Promise.all(
+      items.map((item) =>
+        this.prisma.inventoryItem.update({
+          where: { id: item.barcodeId },
+          data: {
+            ...(item.lotNumber !== undefined && {
+              lotNumber: item.lotNumber,
+            }),
+            ...(item.packingDate !== undefined && {
+              packingDate: new Date(item.packingDate),
+            }),
+            printedAt: new Date(),
+            printCount: { increment: 1 },
+          },
+        }),
+      ),
     );
 
-    await this.prisma.inventoryItem.updateMany({
+    return this.prisma.inventoryItem.findMany({
       where: { id: { in: barcodeIds } },
-      data: {
-        printedAt: new Date(),
-        printCount: { increment: 1 },
-      },
+      include: { product: true, location: true },
     });
-
-    // One label page per physical piece
-    const expandedLabels = withImages.flatMap((bc) =>
-      Array.from({ length: Math.max(bc.quantity, 1) }, () => bc),
-    );
-
-    const html = this.buildLabelSheetHtml(expandedLabels);
-    const pdf = await this.renderPdf(html);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename=ondorkotha-labels.pdf',
-    );
-
-    res.end(pdf);
-  }
-
-  // ── Puppeteer render ───────────────────────────────────────────────────────
-  private browser: Browser | null = null;
-
-  private async renderPdf(html: string): Promise<Buffer> {
-    if (!this.browser) {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
-    }
-
-    const page = await this.browser.newPage();
-
-    await page.setContent(html, {
-      waitUntil: 'domcontentloaded',
-    });
-
-    const pdf = await page.pdf({
-      width: '100mm',
-      height: '50mm',
-      printBackground: true,
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
-    });
-
-    await page.close();
-
-    return Buffer.from(pdf);
-  }
-
-  // ── Thermal label HTML (100mm × 50mm, one label per page) ───────────────
-  private buildLabelSheetHtml(barcodes: any[]): string {
-    const labels = barcodes
-      .map(
-        (bc) => `
-      <div class="label">
-        <div class="top-row">
-          <span class="brand">SAKIGAI</span>
-          ${bc.quantity <= bc.lowStockAt ? '<span class="low">LOW</span>' : ''}
-        </div>
-        <div class="product-name">${this.truncate(bc.product?.title ?? '—', 40)}</div>
-        <img class="barcode-img" src="data:image/png;base64,${bc.imgBase64}" alt="${bc.barcode}" />
-        <div class="bottom-row">
-          <code class="barcode-val">${bc.barcode}</code>
-          ${bc.location ? `<span class="loc">${bc.location.code}</span>` : ''}
-        </div>
-      </div>`,
-      )
-      .join('');
-
-    return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8"/>
-<style>
-  @page { size: 100mm 50mm; margin: 0; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    width: 100mm;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .label {
-    width: 100mm;
-    height: 50mm;
-    padding: 3mm;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    page-break-after: always;
-  }
-  .label:last-child { page-break-after: avoid; }
-  .top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .brand {
-    font-size: 7pt;
-    font-weight: 800;
-    letter-spacing: 0.25em;
-    color: #999;
-    text-transform: uppercase;
-  }
-  .low {
-    font-size: 6pt;
-    font-weight: 800;
-    color: #dc2626;
-    border: 0.3mm solid #dc2626;
-    padding: 0.5mm 1.5mm;
-    border-radius: 1mm;
-  }
-  .product-name {
-    font-size: 9pt;
-    font-weight: 700;
-    color: #000;
-    text-align: center;
-    line-height: 1.2;
-  }
-  .barcode-img {
-    width: 90mm;
-    height: 17mm;
-    object-fit: contain;
-    display: block;
-    margin: 0 auto;
-  }
-  .bottom-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .barcode-val {
-    font-family: 'Courier New', monospace;
-    font-size: 7pt;
-    color: #444;
-  }
-  .loc {
-    font-size: 7pt;
-    font-weight: 700;
-    font-family: 'Courier New', monospace;
-    background: #000;
-    color: #e2c97e;
-    padding: 0.5mm 2mm;
-    border-radius: 1mm;
-  }
-</style>
-</head>
-<body>${labels}</body>
-</html>`;
-  }
-
-  private truncate(str: string, n: number) {
-    return str.length > n ? str.slice(0, n - 1) + '…' : str;
   }
 }
