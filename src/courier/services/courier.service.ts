@@ -413,6 +413,12 @@ export class CourierService {
             dto.deliveryCharge || providerResponse.deliveryFee || 0,
           codAmount: dto.codAmount || order.total,
           metadata: providerResponse.metadata,
+          weight: Number(shipmentData.weight),
+          itemDescription: shipmentData.itemDescription,
+          special_instruction: dto.special_instruction,
+          recipientName: shipmentData.customerName,
+          recipientPhone: shipmentData.customerPhone,
+          recipientAddress: shipmentData.shippingAddress,
         },
       });
 
