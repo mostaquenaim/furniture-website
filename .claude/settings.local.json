@@ -94,7 +94,21 @@
       "Bash(xargs grep -l \"homepage\\\\|featured\\\\|seasonal\\\\|top.*categor\\\\|all.*categor\")",
       "PowerShell(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"\\\\.spec\\\\.ts\" } | Select-Object -First 30)",
       "PowerShell(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"\\\\.spec\\\\.ts\" -and $_ -match \"error TS\" })",
-      "PowerShell(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\"; npx tsc --noEmit 2>&1 | Select-String \"error TS\" | Where-Object { $_ -notmatch \"spec.ts\" })"
+      "PowerShell(cd \"e:\\\\Sammtech\\\\furniture-bideshi\\\\furniture-backend\\\\sakigai-furniture-website\"; npx tsc --noEmit 2>&1 | Select-String \"error TS\" | Where-Object { $_ -notmatch \"spec.ts\" })",
+      "Bash(awk '/model InventoryItem/,/^}/' prisma/schema.prisma)",
+      "Bash(awk '/model ReturnRequest /,/^}/' prisma/schema.prisma)",
+      "Bash(awk '/model ReturnRequestItem/,/^}/' prisma/schema.prisma)",
+      "Bash(node \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Sammtech-furniture-bideshi-furniture-backend-sakigai-furniture-website\\\\fa8b5035-2b1a-4f63-8c34-5e8d5c21f75f\\\\scratchpad\\\\render-pdf.js\")",
+      "Bash(cp \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Sammtech-furniture-bideshi-furniture-backend-sakigai-furniture-website\\\\fa8b5035-2b1a-4f63-8c34-5e8d5c21f75f\\\\scratchpad\\\\Inventory-System-Implementation-Plan.pdf\" \"e:/Sammtech/furniture-bideshi/furniture-backend/sakigai-furniture-website/Inventory-System-Implementation-Plan.pdf\" && ls -la \"e:/Sammtech/furniture-bideshi/furniture-backend/sakigai-furniture-website/Inventory-System-Implementation-Plan.pdf\")",
+      "Bash(sleep 15 && cat /tmp/nest-boot.log | tail -100)",
+      "Bash(grep -i \"payments\\\\|successfully started\\\\|Application is running\" /tmp/nest-boot.log)",
+      "Bash(powershell -NoProfile -Command 'Get-Process node -ErrorAction SilentlyContinue | Where-Object {$_.Path -notlike '\\\\''*'\\\\''} | Select-Object -ExpandProperty Id')",
+      "Bash(taskkill //F //IM node.exe //T)",
+      "Bash(node gen-reference.js)",
+      "Bash(node -e ' *)"
+    ],
+    "additionalDirectories": [
+      "e:\\Sammtech\\furniture-bideshi\\furniture-backend\\sakigai-furniture-website"
     ]
   }
 }

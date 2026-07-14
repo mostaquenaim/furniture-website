@@ -9,6 +9,8 @@ import {
   Query,
   Body,
   Res,
+  Version,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -46,6 +48,9 @@ export class PaymentController {
     }
   }
 
+  // Version-neutral: SSLCommerz is given this exact URL at transaction
+  // initiation time, so it must keep working across API version bumps.
+  @Version(VERSION_NEUTRAL)
   @Post('success')
   async success(
     @Query('transactionId') transactionId: string,
@@ -62,6 +67,7 @@ export class PaymentController {
     );
   }
 
+  @Version(VERSION_NEUTRAL)
   @Post('fail')
   async fail(
     @Query('transactionId') transactionId: string,
@@ -78,6 +84,7 @@ export class PaymentController {
     );
   }
 
+  @Version(VERSION_NEUTRAL)
   @Post('cancel')
   async cancel(
     @Query('transactionId') transactionId: string,
@@ -94,6 +101,7 @@ export class PaymentController {
     );
   }
 
+  @Version(VERSION_NEUTRAL)
   @Post('ipn')
   async ipn(@Body() body: any) {
     await this.paymentService.handleIPN(body);

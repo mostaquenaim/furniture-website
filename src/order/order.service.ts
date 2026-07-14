@@ -36,6 +36,7 @@ import {
   StockUpdatedPayload,
 } from '../realtime/stock-events.gateway';
 import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
+import { ReservationService } from 'src/reservation/reservation.service';
 
 @Injectable()
 export class OrderService {
@@ -49,6 +50,7 @@ export class OrderService {
     private stockLedgerService: StockLedgerService,
     private stockEventsGateway: StockEventsGateway,
     private paymentMethodConfigService: PaymentMethodConfigService,
+    private reservationService: ReservationService,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -1224,6 +1226,7 @@ export class OrderService {
         color: item.color,
         size: item.size,
         sku: item.sku,
+        productSizeId: item.productSizeId,
         subtotal: item.totalPriceAtPurchase,
         isReviewed: item.isReviewed,
         slug: item.product.slug,
@@ -1265,12 +1268,33 @@ export class OrderService {
 
       previousStatus = order.status;
 
+      // Same hard gate as the courier-booking path (CourierService.createShipment)
+      // — the manual status dropdown must not be a way to bypass "every
+      // reserved piece must be scan-confirmed as Picked before shipping."
+      if (status === OrderStatus.SHIPPED && order.status !== OrderStatus.SHIPPED) {
+        const pickGate = await this.reservationService.checkFullyPickedForOrder(
+          order.id,
+          tx,
+        );
+        if (!pickGate.isFullyPicked) {
+          throw new BadRequestException(
+            `Cannot mark as Shipped — only ${pickGate.pickedCount}/${pickGate.requiredCount} piece(s) have been picked for this order`,
+          );
+        }
+      }
+
       const shouldRestoreStock =
         OrderService.STOCK_RESTORE_STATUSES.includes(status) &&
         !OrderService.STOCK_RESTORE_STATUSES.includes(order.status) &&
         !order.stockRestored;
 
       if (shouldRestoreStock) {
+        // Free any piece-level reservations for this order back to IN_STOCK
+        // before restoring the aggregate ProductSize.quantity below — a
+        // cancelled/failed order must never leave a physical piece
+        // permanently locked in RESERVED/PICKED with no order to fulfill.
+        await this.reservationService.releaseReservationsForOrder(tx, order.id);
+
         for (const item of order.items) {
           if (!item.productSizeId) {
             this.logger.warn(

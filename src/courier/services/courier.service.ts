@@ -27,6 +27,7 @@ import { CreateCourierProviderDto } from '../dto/create-courier-provider.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { UpdateCourierProviderDto } from '../dto/update-courier-provider.dto';
 import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
+import { ReservationService } from 'src/reservation/reservation.service';
 
 @Injectable()
 export class CourierService {
@@ -38,6 +39,7 @@ export class CourierService {
     private activityLogService: ActivityLogService,
     private httpService: HttpService,
     private configService: ConfigService,
+    private reservationService: ReservationService,
   ) {
     this.registerProviders();
   }
@@ -319,6 +321,20 @@ export class CourierService {
         throw new NotFoundException('Order not found');
       }
 
+      // Hard gate: if this order has piece-tracked line items, every
+      // reserved piece must be scan-confirmed as Picked before a courier
+      // shipment (and its delivery label) can be created. Orders with no
+      // piece-tracked lines aren't affected — see checkFullyPickedForOrder.
+      const pickGate = await this.reservationService.checkFullyPickedForOrder(
+        order.id,
+        tx,
+      );
+      if (!pickGate.isFullyPicked) {
+        throw new BadRequestException(
+          `Cannot create shipment — only ${pickGate.pickedCount}/${pickGate.requiredCount} piece(s) have been picked for this order`,
+        );
+      }
+
       // Check if shipment already exists
       const existingShipment = await tx.courierShipment.findFirst({
         where: {
@@ -401,6 +417,14 @@ export class CourierService {
       });
 
       await this.syncOrderStatusFromShipment(shipment.id, tx);
+
+      // Move this order's reserved/picked pieces to SHIPPED now that a real
+      // shipment + label exist. No-op for orders with no piece-tracked lines.
+      await this.reservationService.markShipmentGroupShipped(
+        tx,
+        order.id,
+        shipment.id,
+      );
 
       await this.activityLogService.log({
         adminId,

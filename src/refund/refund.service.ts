@@ -283,7 +283,9 @@ export class RefundService {
     const returnRequest = await this.prisma.returnRequest.findUnique({
       where: { id },
       include: {
-        items: { include: { orderItem: true } },
+        items: {
+          include: { orderItem: { include: { productSize: true } } },
+        },
         order: { include: { items: true, payments: true } },
         refunds: true,
       },
@@ -453,6 +455,18 @@ export class RefundService {
         if (!orderItem.productSizeId) {
           this.logger.warn(
             `Return request ${id} item ${item.id} has no productSizeId snapshot — skipping stock restore`,
+          );
+          continue;
+        }
+        if (orderItem.productSize?.trackingMode === 'PIECE_BARCODE') {
+          // Piece-tracked variant — never restock here. Stock only moves
+          // when an Inventory Manager scans the physical piece back in via
+          // PieceService.returnReceive (POST /pieces/return/receive), which
+          // also correctly branches Good vs Damaged. This bulk endpoint just
+          // acknowledges the return request administratively; it does not
+          // assert the item has physically arrived.
+          this.logger.log(
+            `Return request ${id} item ${item.id} is piece-tracked — skipping bulk stock restore, awaiting physical scan`,
           );
           continue;
         }

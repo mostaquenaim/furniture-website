@@ -16,6 +16,7 @@ import { StockLedgerService } from 'src/inventory/stock-ledger.service';
 import { StockEventsModule } from 'src/realtime/stock-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { SettingsModule } from 'src/settings/settings.module';
+import { ReservationModule } from 'src/reservation/reservation.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SettingsModule } from 'src/settings/settings.module';
     StockEventsModule,
     PaymentMethodConfigModule,
     SettingsModule,
+    ReservationModule,
   ],
   controllers: [CmsController],
   providers: [

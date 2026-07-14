@@ -4,7 +4,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
@@ -35,6 +35,12 @@ async function bootstrap() {
 
   // prefix is set to "api"
   app.setGlobalPrefix('api');
+  // Routes are now served under /api/v1, so future breaking changes can
+  // ship as /api/v2 without touching existing integrations.
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
   // Without this, cookies + IPs can behave weird.
   // app.set('trust proxy', 1);
   // Listen AFTER all config

@@ -57,12 +57,16 @@ model User {
   fraudChecks      FraudCheck[]
   stockAdjustments StockAdjustment[]
   searchLogs       SearchLog[]
+  pieceStatusEvents PieceStatusEvent[]
+  reservationsReserved OrderLineReservation[] @relation("ReservationReservedBy")
+  reservationsPicked   OrderLineReservation[] @relation("ReservationPickedBy")
 }
 
 enum UserRole {
   SUPERADMIN
   PRODUCTMANAGER
   ORDERMANAGER
+  INVENTORYMANAGER
   SUPPORT
   CUSTOMER
 }
@@ -307,10 +311,153 @@ model WarehouseLocation {
   bin   String
   label String? // "Dining Tables North"
 
-  items InventoryItem[]
+  items  InventoryItem[]
+  pieces Piece[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pieces Piece[]
+}
+
+// One row per physical unit — the piece-level counterpart to InventoryItem
+// (which remains a per-lot/SKU record for ProductSize rows still on
+// LEGACY_QUANTITY tracking). Every status transition is written by
+// PieceService and logged to PieceStatusEvent; transitions that affect
+// sellable count go through the existing StockLedgerService so
+// ProductSize.quantity — the number checkout actually reads — never
+// diverges from piece reality.
+model Piece {
+  id           Int         @id @default(autoincrement())
+  barcodeValue String      @unique
+
+  productSizeId Int
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+
+  supplierId Int?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
+  status PieceStatus @default(CREATED)
+
+  locationId String?
+  location   WarehouseLocation? @relation(fields: [locationId], references: [id])
+
+  // Groups pieces received together in one scan session; nullable since a
+  // piece isn't received yet at CREATED.
+  receiveBatchId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusEvents PieceStatusEvent[]
+  reservations OrderLineReservation[]
+
+  @@index([productSizeId, status])
+  @@index([locationId])
+}
+
+model PieceStatusEvent {
+  id      Int   @id @default(autoincrement())
+  pieceId Int
+  piece   Piece @relation(fields: [pieceId], references: [id])
+
+  fromStatus PieceStatus?
+  toStatus   PieceStatus
+
+  actorUserId Int?
+  actor       User?     @relation(fields: [actorUserId], references: [id])
+  actorRole   UserRole?
+
+  source     String // "SCAN" | "WEBHOOK" | "SYSTEM"
+  reasonCode String?
+  note       String?
+
+  createdAt DateTime @default(now())
+
+  @@index([pieceId])
+}
+
+enum PieceStatus {
+  CREATED
+  DAMAGED_INCOMING
+  IN_STOCK
+  RESERVED
+  PICKED
+  SHIPPED
+  DELIVERED
+  RETURNING
+  RETURNED_IN_STOCK
+  DAMAGED_RETURN
+}
+
+// One per order — groups every reserved Piece for that order so "has
+// everything been physically picked" is a single query instead of tracking
+// N independent reservations. `isFullyPicked` is deliberately NOT a stored
+// field on this model — it's computed live by ReservationService against
+// the order's piece-tracked line items, so it can never drift out of sync
+// with the underlying reservations the way a cached flag could.
+model ShipmentGroup {
+  id      Int                 @id @default(autoincrement())
+  orderId Int                 @unique
+  order   Order               @relation(fields: [orderId], references: [id])
+  status  ShipmentGroupStatus @default(OPEN)
+
+  courierShipmentId Int?             @unique
+  courierShipment   CourierShipment? @relation(fields: [courierShipmentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reservations OrderLineReservation[]
+}
+
+enum ShipmentGroupStatus {
+  OPEN
+  SHIPPED
+}
+
+// One row per physical unit fulfilling one order line — an OrderItem with
+// quantity 3 gets 3 rows, each bound to a distinct Piece (pieceId is
+// unique: a piece can never fulfill more than one order line at once).
+model OrderLineReservation {
+  id          Int       @id @default(autoincrement())
+  orderItemId Int
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+
+  // NOT unique: a physical piece is sold, delivered, and (sometimes) returned
+  // many times over its life, and each cycle gets its own reservation row for
+  // history. At most one row per piece has pickedAt: null at any given time —
+  // that's "the active reservation" — enforced by Piece.status (RESERVED),
+  // not by a DB constraint on this table.
+  pieceId Int
+  piece   Piece @relation(fields: [pieceId], references: [id])
+
+  shipmentGroupId Int
+  shipmentGroup   ShipmentGroup @relation(fields: [shipmentGroupId], references: [id])
+
+  reservedAt       DateTime @default(now())
+  reservedByUserId Int?
+  reservedBy       User?    @relation("ReservationReservedBy", fields: [reservedByUserId], references: [id])
+
+  pickedAt       DateTime?
+  pickedByUserId Int?
+  pickedBy       User?     @relation("ReservationPickedBy", fields: [pickedByUserId], references: [id])
+
+  @@index([shipmentGroupId])
+  @@index([orderItemId])
+  @@index([pieceId])
 }
 
 model StockAdjustment {
@@ -475,6 +622,13 @@ model ProductSize {
 
   soldCount Int @default(0)
 
+  // Piece-level barcode tracking (see Piece model): LEGACY_QUANTITY keeps
+  // using this row's `quantity` column directly (today's behavior, unchanged
+  // for existing variants); PIECE_BARCODE means `quantity` is derived from
+  // counting related Piece rows with status IN_STOCK and mutated only via
+  // PieceService going through StockLedgerService, never adjusted directly.
+  trackingMode ProductTrackingMode @default(LEGACY_QUANTITY)
+
   sizeId Int
   size   Size @relation(fields: [sizeId], references: [id])
 
@@ -484,6 +638,12 @@ model ProductSize {
   inventoryItems   InventoryItem[]
   orderItems       OrderItem[]
   stockAdjustments StockAdjustment[]
+  pieces           Piece[]
+}
+
+enum ProductTrackingMode {
+  LEGACY_QUANTITY
+  PIECE_BARCODE
 }
 
 model Variant {
@@ -626,6 +786,7 @@ model Order {
   invoice              Invoice?
   courierShipments     CourierShipment[]
   returnRequests       ReturnRequest[]
+  shipmentGroup        ShipmentGroup?
 }
 
 model OrderItem {
@@ -653,6 +814,7 @@ model OrderItem {
   review Review?
 
   returnRequestItems ReturnRequestItem[]
+  reservations        OrderLineReservation[]
 }
 
 enum OrderStatus {
@@ -881,6 +1043,7 @@ model CourierShipment {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   courierWebhookLogs CourierWebhookLog[]
+  shipmentGroup      ShipmentGroup?
 
   @@unique([orderId, providerId])
   @@index([trackingNumber])

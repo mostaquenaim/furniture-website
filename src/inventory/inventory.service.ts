@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
@@ -118,6 +122,12 @@ export class InventoryService {
     });
     if (!productSize) {
       throw new NotFoundException(`Product size #${productSizeId} not found`);
+    }
+    if (productSize.trackingMode === 'PIECE_BARCODE') {
+      throw new BadRequestException(
+        `${productSize.color.product.title} is tracked by piece-level barcodes — ` +
+          'adjust stock by receiving/returning individual pieces instead of a manual quantity edit.',
+      );
     }
 
     const result = await this.prisma.$transaction((tx) =>

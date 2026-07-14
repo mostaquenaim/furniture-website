@@ -14,6 +14,8 @@ import {
   Req,
   Res,
   Logger,
+  Version,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { CourierWebhookGuard } from './guards/courier.guard';
 import type { Request, Response } from 'express';
@@ -25,6 +27,9 @@ export class CourierWebhookController {
 
   constructor(private readonly webhookService: CourierWebhookService) {}
 
+  // Version-neutral: this URL is registered directly in each courier
+  // provider's dashboard (e.g. Pathao), so it must not move to /v1, /v2, etc.
+  @Version(VERSION_NEUTRAL)
   @Post('courier/:provider')
   @HttpCode(HttpStatus.OK)
   @UseGuards(CourierWebhookGuard)

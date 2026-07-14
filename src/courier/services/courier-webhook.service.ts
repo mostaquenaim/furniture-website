@@ -18,6 +18,7 @@ import { RedxProvider } from '../providers/redx.provider';
 import { PaperflyProvider } from '../providers/paperfly.provider';
 import { PathaoProvider } from '../providers/pathao.provider';
 import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
+import { ReservationService } from 'src/reservation/reservation.service';
 
 @Injectable()
 export class CourierWebhookService {
@@ -28,6 +29,7 @@ export class CourierWebhookService {
     private prisma: PrismaService,
     private httpService: HttpService,
     private configService: ConfigService,
+    private reservationService: ReservationService,
   ) {
     this.registerProviders();
   }
@@ -330,6 +332,24 @@ export class CourierWebhookService {
 
     // Sync order status based on shipment status
     await this.syncOrderStatusFromShipment(shipment.id);
+
+    // Cascade the same event onto this order's piece-tracked barcodes, if
+    // any (no-op for legacy/non-piece orders — see ReservationService).
+    // PARTIALLY_DELIVERED is treated the same as DELIVERED here, matching
+    // COURIER_TO_ORDER_STATUS's existing convention of treating a partial
+    // delivery as delivered at the order level — we don't have per-piece
+    // attribution from the courier payload to know exactly which physical
+    // units were delivered vs returned in a partial-delivery event.
+    if (mappedStatus === 'DELIVERED' || mappedStatus === 'PARTIALLY_DELIVERED') {
+      await this.reservationService.markShipmentGroupDelivered(
+        shipment.orderId,
+      );
+    } else if (mappedStatus === 'RETURNED') {
+      await this.reservationService.markShipmentGroupReturning(
+        shipment.orderId,
+        providerStatus,
+      );
+    }
   }
 
   private extractConsignmentId(provider: string, payload: any): string {

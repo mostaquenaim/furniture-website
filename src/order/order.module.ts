@@ -9,6 +9,7 @@ import { StockLedgerService } from 'src/inventory/stock-ledger.service';
 import { StockEventsModule } from 'src/realtime/stock-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { RefundModule } from 'src/refund/refund.module';
+import { ReservationModule } from 'src/reservation/reservation.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RefundModule } from 'src/refund/refund.module';
     StockEventsModule,
     PaymentMethodConfigModule,
     RefundModule,
+    ReservationModule,
   ],
   providers: [
     OrderService,

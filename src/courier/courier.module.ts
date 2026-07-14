@@ -16,6 +16,7 @@ import { SteadfastProvider } from './providers/steadfast.provider';
 import { CourierWebhookController } from './courier-webhook.controller';
 import { CourierWebhookService } from './services/courier-webhook.service';
 import { CourierService } from './services/courier.service';
+import { ReservationModule } from 'src/reservation/reservation.module';
 
 // Providers
 
@@ -27,6 +28,7 @@ import { CourierService } from './services/courier.service';
     }),
     PrismaModule,
     ConfigModule,
+    ReservationModule,
   ],
   controllers: [CourierController, CourierWebhookController],
   providers: [

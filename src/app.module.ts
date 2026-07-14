@@ -48,6 +48,9 @@ import { BannerModule } from './banner/banner.module';
 import { PaymentMethodConfigModule } from './payment-method-config/payment-method-config.module';
 import { FeaturedCategoryModule } from './featured-category/featured-category.module';
 import { UrgencyBannerModule } from './urgency-banner/urgency-banner.module';
+import { SupplierModule } from './supplier/supplier.module';
+import { PieceModule } from './piece/piece.module';
+import { ReservationModule } from './reservation/reservation.module';
 
 @Module({
   imports: [
@@ -106,6 +109,9 @@ import { UrgencyBannerModule } from './urgency-banner/urgency-banner.module';
     PaymentMethodConfigModule,
     FeaturedCategoryModule,
     UrgencyBannerModule,
+    SupplierModule,
+    PieceModule,
+    ReservationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

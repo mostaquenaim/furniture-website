@@ -21,6 +21,7 @@ import { StockEventsModule } from 'src/realtime/stock-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { RefundModule } from 'src/refund/refund.module';
+import { ReservationModule } from 'src/reservation/reservation.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { RefundModule } from 'src/refund/refund.module';
     PaymentMethodConfigModule,
     SettingsModule,
     RefundModule,
+    ReservationModule,
   ],
   controllers: [AdminController],
   providers: [

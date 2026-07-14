@@ -15,6 +15,8 @@ import {
   Query,
   Patch,
   Res,
+  Version,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -108,6 +110,9 @@ export class AuthController {
   }
 
   // ── Redirect user to Google consent screen ──────────────────────────
+  // Version-neutral: GOOGLE_CALLBACK_URL below is registered as a fixed
+  // redirect URI in Google Cloud Console, so this path must not move.
+  @Version(VERSION_NEUTRAL)
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   googleLogin() {
@@ -115,6 +120,7 @@ export class AuthController {
   }
 
   // Google redirects back here with the user profile ────────────────
+  @Version(VERSION_NEUTRAL)
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() req: Request, @Res() res: Response) {

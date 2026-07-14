@@ -102,6 +102,28 @@ export enum Action {
   INVENTORY_VIEW = 'INVENTORY_VIEW',
   INVENTORY_MANAGE = 'INVENTORY_MANAGE',
 
+  // Suppliers
+  SUPPLIER_VIEW = 'SUPPLIER_VIEW',
+  SUPPLIER_MANAGE = 'SUPPLIER_MANAGE',
+
+  // Pieces (piece-level barcode tracking)
+  PIECE_VIEW = 'PIECE_VIEW',
+  PIECE_GENERATE = 'PIECE_GENERATE',
+  PIECE_RECEIVE = 'PIECE_RECEIVE',
+  PIECE_LOCATION_ASSIGN = 'PIECE_LOCATION_ASSIGN',
+
+  // Reservations (Order Manager: reserve pieces, pick slip, pick-confirm)
+  RESERVATION_MANAGE = 'RESERVATION_MANAGE',
+  RESERVATION_PICK_CONFIRM = 'RESERVATION_PICK_CONFIRM',
+  PICK_SLIP_VIEW = 'PICK_SLIP_VIEW',
+
+  // Returns (Inventory Manager: scan a returned piece, mark good/damaged)
+  RETURN_RECEIVE_SCAN = 'RETURN_RECEIVE_SCAN',
+
+  // Piece inventory dashboard reporting
+  DASHBOARD_SHELF_MAP_VIEW = 'DASHBOARD_SHELF_MAP_VIEW',
+  DASHBOARD_DAMAGE_REPORT_VIEW = 'DASHBOARD_DAMAGE_REPORT_VIEW',
+
   // Payment methods (gateway/COD enable, fees, limits)
   PAYMENT_METHOD_VIEW = 'PAYMENT_METHOD_VIEW',
   PAYMENT_METHOD_MANAGE = 'PAYMENT_METHOD_MANAGE',
