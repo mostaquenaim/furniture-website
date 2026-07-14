@@ -77,6 +77,9 @@ export enum Action {
   // Promo Banners
   BANNER_MANAGE = 'BANNER_MANAGE',
 
+  // Flash Sales (curated campaign shown on the homepage + /sales)
+  FLASH_SALE_MANAGE = 'FLASH_SALE_MANAGE',
+
   // Reviews
   REVIEW_MANAGE = 'REVIEW_MANAGE',
 

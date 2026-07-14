@@ -204,6 +204,13 @@ export class ProductController {
     return this.productService.getTrendingProducts(parsedLimit);
   }
 
+  // featured products (Product.isFeatured, set from the product admin form)
+  @Get('featured')
+  getFeaturedProducts(@Query('limit') limit?: string) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    return this.productService.getFeaturedProducts(parsedLimit);
+  }
+
   @Get('on-sale/status')
   getSaleStatus() {
     return this.productService.getSaleStatus();

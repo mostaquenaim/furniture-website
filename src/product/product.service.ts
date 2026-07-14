@@ -1646,6 +1646,19 @@ export class ProductService {
     return products.map((p) => sanitizeDiscount(p));
   }
 
+  async getFeaturedProducts(limit: number = 10) {
+    const products = await this.prisma.product.findMany({
+      where: { isActive: true, isFeatured: true },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      take: limit,
+      include: {
+        images: true,
+        colors: { include: { color: true } },
+      },
+    });
+    return products.map((p) => sanitizeDiscount(p));
+  }
+
   async getOnSaleProducts({
     page = 1,
     limit = 18,

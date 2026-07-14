@@ -262,6 +262,7 @@ model Product {
   productTags      ProductTag[]
   inventoryItems   InventoryItem[]
   stockAdjustments StockAdjustment[]
+  flashSaleProducts FlashSaleProduct[]
 }
 
 model InventoryItem {
@@ -1608,6 +1609,31 @@ model FeaturedCategory {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model FlashSale {
+  id         Int      @id @default(autoincrement())
+  title      String
+  subtitle   String?
+  bannerText String?
+  startDate  DateTime
+  endDate    DateTime
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  products FlashSaleProduct[]
+}
+
+model FlashSaleProduct {
+  id          Int       @id @default(autoincrement())
+  flashSaleId Int
+  flashSale   FlashSale @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sortOrder   Int       @default(0)
+
+  @@unique([flashSaleId, productId])
 }
 
 model ActivityLog {

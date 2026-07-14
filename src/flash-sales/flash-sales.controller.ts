@@ -1,39 +1,73 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { FlashSalesService } from './flash-sales.service';
-import { CreateFlashSaleDto } from './dto/create-flash.dto';
-import { UpdateFlashSaleDto } from './dto/update-flash.dto';
+import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
+import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Permission } from '../permission/permission.decorator';
+import { Action } from '../permission/action.enum';
 
 @Controller('flash-sales')
 export class FlashSalesController {
   constructor(private readonly service: FlashSalesService) {}
 
-  @Get()
-  getActive() {
-    return this.service.getActive();
+  /** Public — the current live campaign (within date window) */
+  @Get('active')
+  findActive() {
+    return this.service.findActive();
   }
 
-  @Post()
-  create(@Body() dto: CreateFlashSaleDto) {
-    return this.service.create(dto);
+  /** Admin — all campaigns */
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.FLASH_SALE_MANAGE)
+  findAll() {
+    return this.service.findAll();
   }
 
   @Get(':id')
-  getDetails(@Param('id') id: string) {
-    return this.service.getById(id);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.FLASH_SALE_MANAGE)
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
   }
 
-  @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateFlashSaleDto) {
-    return this.service.update(id, dto);
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.FLASH_SALE_MANAGE)
+  create(@Body() dto: CreateFlashSaleDto, @Req() req: any) {
+    return this.service.create(dto, req?.user?.userId);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.FLASH_SALE_MANAGE)
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateFlashSaleDto,
+    @Req() req: any,
+  ) {
+    return this.service.update(id, dto, req?.user?.userId);
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.service.delete(id);
-  }
-
-  @Get(':id/products')
-  getProducts(@Param('id') id: string) {
-    return this.service.getProducts(id);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.FLASH_SALE_MANAGE)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.service.remove(id, req?.user?.userId);
   }
 }
