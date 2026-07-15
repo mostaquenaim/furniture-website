@@ -70,20 +70,13 @@ export class NotificationsService {
         total: order.total,
       },
     });
-
-    // Send SMS (can be simpler)
-    await this.notificationQueue.add('sendSMS', {
-      phone: user.phone,
-      message: `Hi ${order.customerName}, your order #${order.orderId} has been confirmed. Total: ৳${order.total}.`,
-    });
   }
 
   /**
-   * Queues the customer-facing email/SMS for an order status change. Both
-   * channels are optional and independent — a guest with only a phone number
-   * still gets the SMS, a customer with only an email still gets the email.
-   * Never throws: a malformed contact field shouldn't fail the status update
-   * itself, only skip that one channel (logged by the caller's catch, if any).
+   * Queues the customer-facing email for an order status change. SMS is
+   * reserved for OTP only, so this is email-only despite the contact param
+   * still accepting phone. Never throws: a missing email just skips the send
+   * (logged by the caller's catch, if any).
    */
   async sendStatusUpdate(
     contact: { email?: string | null; phone?: string | null },
@@ -122,25 +115,12 @@ export class NotificationsService {
       );
     }
 
-    if (contact.phone) {
-      jobs.push(
-        this.notificationQueue.add('sendSMS', {
-          phone: contact.phone,
-          message: `Hi ${order.customerName}, your order #${order.orderId} is now ${statusLabel}.`,
-        }),
-      );
-    } else {
-      this.logger.warn(
-        `Skipping status-update SMS for order ${order.orderId} — no phone on file`,
-      );
-    }
-
     await Promise.all(jobs);
   }
 
   /**
-   * Queues the customer-facing email/SMS for a return-request lifecycle
-   * event (filed, approved, rejected, item received). Same never-throws
+   * Queues the customer-facing email for a return-request lifecycle event
+   * (filed, approved, rejected, item received). Same email-only, never-throws
    * contract as sendStatusUpdate.
    */
   async sendReturnRequestUpdate(
@@ -192,23 +172,10 @@ export class NotificationsService {
       );
     }
 
-    if (contact.phone) {
-      jobs.push(
-        this.notificationQueue.add('sendSMS', {
-          phone: contact.phone,
-          message: `Hi ${data.customerName}, ${line}`,
-        }),
-      );
-    } else {
-      this.logger.warn(
-        `Skipping return-request SMS for order ${data.orderId} — no phone on file`,
-      );
-    }
-
     await Promise.all(jobs);
   }
 
-  /** Queues the customer-facing email/SMS once a refund has been completed. */
+  /** Queues the customer-facing email once a refund has been completed. */
   async sendRefundUpdate(
     contact: { email?: string | null; phone?: string | null },
     data: { orderId: string; customerName: string; amount: number },
@@ -231,19 +198,6 @@ export class NotificationsService {
     } else {
       this.logger.warn(
         `Skipping refund-update email for order ${data.orderId} — no email on file`,
-      );
-    }
-
-    if (contact.phone) {
-      jobs.push(
-        this.notificationQueue.add('sendSMS', {
-          phone: contact.phone,
-          message: `Hi ${data.customerName}, your refund of TK ${data.amount} for order #${data.orderId} has been processed.`,
-        }),
-      );
-    } else {
-      this.logger.warn(
-        `Skipping refund-update SMS for order ${data.orderId} — no phone on file`,
       );
     }
 

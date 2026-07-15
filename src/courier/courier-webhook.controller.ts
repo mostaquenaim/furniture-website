@@ -56,6 +56,7 @@ export class CourierWebhookController {
         `Pathao webhook handshake received for provider="${provider}"`,
       );
       res.status(HttpStatus.ACCEPTED).json({ received: true });
+      return;
     }
 
     // Always return { received: true } — never expose internal errors to Pathao

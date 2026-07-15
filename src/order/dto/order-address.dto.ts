@@ -34,5 +34,6 @@ export class OrderAddressDto {
   phone: string;
 
   @IsString()
-  postCode: string;
+  @IsOptional()
+  postCode?: string;
 }
