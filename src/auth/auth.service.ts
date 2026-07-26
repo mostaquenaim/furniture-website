@@ -15,8 +15,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import * as bcrypt from 'bcrypt';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { hashPassword, comparePassword } from 'src/common/utils/password.utils';
 import * as crypto from 'crypto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
@@ -133,7 +133,7 @@ export class AuthService {
     if (user.password && dto.password) {
       // console.log('im in');
       // throw new UnauthorizedException('Please login with Google');
-      const valid = await bcrypt.compare(dto.password, user.password);
+      const valid = await comparePassword(dto.password, user.password);
 
       if (!valid) {
         await this.recordFailedAttempt(identifier);
@@ -343,7 +343,7 @@ export class AuthService {
     // Hash password
     let hashedPassword = '';
     if (dto.password) {
-      hashedPassword = await bcrypt.hash(dto.password, 10);
+      hashedPassword = await hashPassword(dto.password);
     }
 
     // Create new user
@@ -646,13 +646,13 @@ export class AuthService {
       throw new UnauthorizedException('Please login with Google');
     }
 
-    const isOldValid = await bcrypt.compare(dto.oldPassword, user.password);
+    const isOldValid = await comparePassword(dto.oldPassword, user.password);
 
     if (!isOldValid) {
       throw new BadRequestException('Old password is incorrect');
     }
 
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    const hashedPassword = await hashPassword(dto.newPassword);
 
     await this.prisma.user.update({
       where: { id: userId },

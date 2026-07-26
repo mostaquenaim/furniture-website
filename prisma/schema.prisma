@@ -118,6 +118,8 @@ model BlackListToken {
   id     Int    @id @default(autoincrement())
   jti    String
   expiry BigInt
+
+  @@index([jti])
 }
 
 model LoginAttempt {

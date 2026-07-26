@@ -37,5 +37,6 @@ import { NotificationsService } from 'src/notifications/notifications.service';
     GoogleStrategy,
     NotificationsService,
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}

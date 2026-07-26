@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { UserRole } from '@prisma/client';
+import { deleteUserSafely } from './user-deletion.util';
 
 // Never select `password` (bcrypt hash) or `googleId` out to API responses.
 const SAFE_USER_SELECT = {
@@ -44,11 +45,7 @@ export class UserService {
 
   // Delete user
   async remove(id: number) {
-    const user = await this.findOne(id); // check existence
-    if (user.role === UserRole.SUPERADMIN) {
-      throw new ForbiddenException('Cannot delete a SUPERADMIN account.');
-    }
-    return this.prisma.user.delete({ where: { id } });
+    return deleteUserSafely(this.prisma, id);
   }
 
   // Get user orders
@@ -67,7 +64,9 @@ export class UserService {
     });
   }
 
-  // Suspend user (fraud)
+  // Suspend user (fraud) — reuses the same `isActive` flag toggleStatus()
+  // (admin-user.service.ts) already uses, so suspend/reactivate is one
+  // consistent mechanism instead of two.
   async suspendUser(dto: SuspendUserDto) {
     const user = await this.findOne(dto.userId);
     if (user.role === UserRole.SUPERADMIN) {
@@ -75,7 +74,7 @@ export class UserService {
     }
     return this.prisma.user.update({
       where: { id: dto.userId },
-      data: { role: 'CUSTOMER' }, // optionally, add a `suspended` boolean in schema
+      data: { isActive: false },
       select: SAFE_USER_SELECT,
     });
   }

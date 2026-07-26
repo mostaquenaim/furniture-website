@@ -27,10 +27,7 @@ import { Action } from 'src/permission/action.enum';
 @Controller('banners')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BannerController {
-  constructor(
-    private readonly bannerService: BroadBannerService,
-    private readonly broadBannerService: BroadBannerService,
-  ) {}
+  constructor(private readonly broadBannerService: BroadBannerService) {}
 
   @Post('broad-banner')
   @HttpCode(HttpStatus.CREATED)

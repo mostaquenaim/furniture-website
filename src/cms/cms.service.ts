@@ -13,10 +13,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateAboutDto } from './dto/create-about.dto';
-import { UpdateAboutDto } from './dto/update-about.dto';
-import { CreateTnCDto } from './dto/create-tnc.dto';
-import { UpdateTnCDto } from './dto/update-tnc.dto';
 import { UpdateBannerDto } from './dto/Banner/update-banner.dto';
 import { CreatePromoBannerDto } from './dto/Banner/create-promo-banner.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -53,10 +49,6 @@ export class CmsService {
     private activityLogService: ActivityLogService,
     private appSettingsService: AppSettingsService,
   ) {}
-
-  private about = { content: '' };
-  private tnc = { content: '' };
-  private banners = [];
 
   // get all tags
   async getAllTags(search?: string, limit?: number) {
@@ -100,49 +92,6 @@ export class CmsService {
     });
 
     return tag;
-  }
-
-  // About
-  getAbout() {
-    return this.about;
-  }
-  createAbout(dto: CreateAboutDto) {
-    this.about = dto;
-    return this.about;
-  }
-  updateAbout(dto: UpdateAboutDto) {
-    this.about = { ...this.about, ...dto };
-    return this.about;
-  }
-
-  // T&C
-  getTnC() {
-    return this.tnc;
-  }
-  createTnC(dto: CreateTnCDto) {
-    this.tnc = dto;
-    return this.tnc;
-  }
-  updateTnC(dto: UpdateTnCDto) {
-    this.tnc = { ...this.tnc, ...dto };
-    return this.tnc;
-  }
-
-  // Banners
-  getBanners() {
-    return this.banners;
-  }
-  updateBanner(id: string, dto: UpdateBannerDto) {
-    // console.log(id, dto);
-    // const idx = this.banners.findIndex(b => b.id == id);
-    // if (idx === -1) return null;
-    // this.banners[idx] = { ...this.banners[idx], ...dto };
-    // return this.banners[idx];
-  }
-  deleteBanner(id: string) {
-    // console.log(id);
-    // this.banners = this.banners.filter(b => b.id != id);
-    // return { message: 'Banner deleted' };
   }
 
   getHomepageBanners(isActive?: boolean, device?: 'DESKTOP' | 'MOBILE') {

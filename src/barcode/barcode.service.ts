@@ -6,7 +6,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // src/barcode/barcode.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Response } from 'express';
 import * as bwipjs from 'bwip-js';
@@ -183,16 +187,30 @@ export class BarcodeService {
   }
 
   // ── Update stock quantity ──────────────────────────────────────────────────
+  // Atomic conditional update (same oversell-guard pattern as
+  // StockLedgerService.recordAdjustment) — a plain findUnique-then-update here
+  // would let a large enough negative delta drive quantity below zero.
   async updateQuantity(barcodeId: string, delta: number) {
-    const bc = await this.prisma.inventoryItem.findUnique({
-      where: { id: barcodeId },
-    });
-    if (!bc) throw new NotFoundException('Barcode not found');
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.inventoryItem.updateMany({
+        where: { id: barcodeId, quantity: { gte: -delta } },
+        data: { quantity: { increment: delta } },
+      });
 
-    return this.prisma.inventoryItem.update({
-      where: { id: barcodeId },
-      data: { quantity: { increment: delta } },
-      include: { product: true, location: true },
+      if (updated.count === 0) {
+        const exists = await tx.inventoryItem.findUnique({
+          where: { id: barcodeId },
+        });
+        if (!exists) throw new NotFoundException('Barcode not found');
+        throw new BadRequestException(
+          'Insufficient barcode stock for this adjustment',
+        );
+      }
+
+      return tx.inventoryItem.findUnique({
+        where: { id: barcodeId },
+        include: { product: true, location: true },
+      });
     });
   }
 

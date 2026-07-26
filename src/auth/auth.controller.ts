@@ -93,9 +93,10 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: any) {
-    // console.log(req, 'qqqqqqqqqqqqqqq');
     const tokenJti = req?.user?.jti;
-    const exp = 3600;
+    // Real unix-seconds expiry from the token's own `exp` claim (JwtStrategy
+    // passes it through) — addToBlacklist converts it to ms internally.
+    const exp = req?.user?.exp;
 
     await this.authService.addToBlacklist(tokenJti, exp);
 

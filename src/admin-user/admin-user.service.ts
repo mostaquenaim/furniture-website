@@ -10,8 +10,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserRole } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { hashPassword } from 'src/common/utils/password.utils';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { deleteUserSafely } from 'src/user/user-deletion.util';
 
 const ADMIN_ROLES: UserRole[] = [
   UserRole.SUPERADMIN,
@@ -76,7 +77,7 @@ export class AdminUsersService {
 
     let hashed = '';
     if (dto.password) {
-      hashed = await bcrypt.hash(dto.password, 10);
+      hashed = await hashPassword(dto.password);
     }
 
     const user = await this.prisma.user.create({
@@ -170,7 +171,7 @@ export class AdminUsersService {
 
     // Generate a temporary password
     const tempPassword = this.generateTempPassword();
-    const hashed = await bcrypt.hash(tempPassword, 10);
+    const hashed = await hashPassword(tempPassword);
 
     await this.prisma.user.update({
       where: { id },
@@ -194,49 +195,7 @@ export class AdminUsersService {
 
   // delete user
   async deleteUser(id: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      include: {
-        orders: true,
-        activityLogs: true,
-        supportTickets: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Never delete superadmin
-    if (user.role === 'SUPERADMIN') {
-      throw new BadRequestException('Super admin cannot be deleted');
-    }
-
-    // Block deletion if critical data exists
-    if (
-      user.orders.length > 0 ||
-      user.activityLogs.length > 0 ||
-      user.supportTickets.length > 0
-    ) {
-      throw new BadRequestException(
-        'User has associated data. Deactivate instead.',
-      );
-    }
-
-    await this.prisma.cartItem.deleteMany({
-      where: { cart: { userId: id } },
-    });
-
-    await this.prisma.oTP.deleteMany({
-      where: { userId: id },
-    });
-
-    // Safe to delete
-    await this.prisma.user.delete({
-      where: { id },
-    });
-
-    return { message: 'User deleted successfully' };
+    return deleteUserSafely(this.prisma, id);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

@@ -18,11 +18,6 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { CmsService } from './cms.service';
-import { CreateAboutDto } from './dto/create-about.dto';
-import { UpdateAboutDto } from './dto/update-about.dto';
-import { CreateTnCDto } from './dto/create-tnc.dto';
-import { UpdateTnCDto } from './dto/update-tnc.dto';
-import { UpdateBannerDto } from './dto/Banner/update-banner.dto';
 import { ValidateCouponDto } from './dto/Coupon/validate-coupon.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
@@ -59,54 +54,6 @@ export class CmsController {
       search,
       limit ? parseInt(limit) : undefined,
     );
-  }
-
-  // About
-  @Get('about')
-  getAbout() {
-    return this.cmsService.getAbout();
-  }
-
-  @Post('about')
-  createAbout(@Body() dto: CreateAboutDto) {
-    return this.cmsService.createAbout(dto);
-  }
-
-  @Put('about')
-  updateAbout(@Body() dto: UpdateAboutDto) {
-    return this.cmsService.updateAbout(dto);
-  }
-
-  // T&C
-  @Get('tnc')
-  getTnC() {
-    return this.cmsService.getTnC();
-  }
-
-  @Post('tnc')
-  createTnC(@Body() dto: CreateTnCDto) {
-    return this.cmsService.createTnC(dto);
-  }
-
-  @Put('tnc')
-  updateTnC(@Body() dto: UpdateTnCDto) {
-    return this.cmsService.updateTnC(dto);
-  }
-
-  // Banners
-  @Get('banners')
-  getBanners() {
-    return this.cmsService.getBanners();
-  }
-
-  @Put('banners/:id')
-  updateBanner(@Param('id') id: string, @Body() dto: UpdateBannerDto) {
-    return this.cmsService.updateBanner(id, dto);
-  }
-
-  @Delete('banners/:id')
-  deleteBanner(@Param('id') id: string) {
-    return this.cmsService.deleteBanner(id);
   }
 
   // GET ALL ACTIVE PROMO BANNERS (Frontend)
@@ -291,9 +238,21 @@ export class CmsController {
 
   // Static Pages (About, T&C, Privacy Policy, etc.)
 
+  // Staff (non-CUSTOMER) callers see all pages by default; anonymous/customer
+  // callers default to active-only so drafts aren't publicly enumerable.
+  // ?onlyActive=true/false always overrides the role-based default.
   @Get('static-pages')
-  getAllStaticPages(@Query('onlyActive') onlyActive?: string) {
-    return this.cmsService.getAllStaticPages(onlyActive === 'true');
+  @UseGuards(OptionalJwtAuthGuard)
+  getAllStaticPages(
+    @Req() req: any,
+    @Query('onlyActive') onlyActive?: string,
+  ) {
+    if (onlyActive === 'true') return this.cmsService.getAllStaticPages(true);
+    if (onlyActive === 'false')
+      return this.cmsService.getAllStaticPages(false);
+
+    const isStaff = !!req?.user?.role && req.user.role !== UserRole.CUSTOMER;
+    return this.cmsService.getAllStaticPages(!isStaff);
   }
 
   @Get('static-pages/:slug')

@@ -780,6 +780,14 @@ export class AdminController {
       module: query.module,
       adminId: query.adminId ? Number(query.adminId) : undefined,
       action: query.action,
+      search: query.search,
+      dateRange:
+        query.from && query.to
+          ? { from: new Date(query.from), to: new Date(query.to) }
+          : undefined,
+      page: query.page ? Number(query.page) : undefined,
+      limit: query.limit ? Number(query.limit) : undefined,
+      orderBy: query.orderBy,
     });
   }
 
@@ -787,11 +795,9 @@ export class AdminController {
   //// STATIC PAGES //
   ///////////////////
 
-  @Get('static-pages')
-  @Permission(Action.CMS_VIEW)
-  adminGetAllStaticPages() {
-    return this.cmsService.getAllStaticPages();
-  }
+  // GET is served by CmsController's /static-pages (role-aware default:
+  // active-only for the public, all pages for staff) — no separate admin
+  // read route needed here.
 
   @Put('static-pages/:slug')
   @Permission(Action.CMS_STATIC_PAGE_MANAGE)
@@ -928,7 +934,7 @@ export class AdminController {
     return this.adminService.updateUserFraudStatus(userId, status);
   }
 
-  @Get('users')
+  @Get('fraud/users')
   @Permission(Action.FRAUD_MANAGE)
   getUsers(
     @Query('page') page = 1,
