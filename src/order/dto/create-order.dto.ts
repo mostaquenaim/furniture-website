@@ -16,10 +16,6 @@ export class CreateOrderDto {
   @Type(() => OrderAddressDto)
   address: OrderAddressDto;
 
-  @IsInt()
-  @IsOptional()
-  deliveryFee?: number;
-
   @IsString()
   @IsIn(['COD', 'ONLINE'])
   paymentMethod: string;

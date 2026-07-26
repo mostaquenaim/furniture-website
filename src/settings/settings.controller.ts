@@ -39,6 +39,36 @@ export class SettingsController {
     return this.service.updateShipping(body);
   }
 
+  // Printing — courier delivery label size. Just dimensions, no secrets,
+  // so reads are public (needed by the courier label print flow).
+  @Get('printing') getPrinting() { return this.service.getPrinting(); }
+
+  @Put('printing')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.SETTINGS_MANAGE)
+  updatePrinting(
+    @Body() body: { courierLabelWidthMm?: number; courierLabelHeightMm?: number },
+  ) {
+    return this.service.updatePrinting(body);
+  }
+
+  // Invoice — print/PDF paper size. Public reads (needed by invoice print).
+  @Get('invoice') getInvoiceSettings() { return this.service.getInvoiceSettings(); }
+
+  @Put('invoice')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.SETTINGS_MANAGE)
+  updateInvoiceSettings(
+    @Body()
+    body: {
+      invoicePaperSize?: string;
+      invoicePaperWidthMm?: number | null;
+      invoicePaperHeightMm?: number | null;
+    },
+  ) {
+    return this.service.updateInvoiceSettings(body);
+  }
+
   @Get('email')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Permission(Action.SETTINGS_MANAGE)

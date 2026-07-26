@@ -16,6 +16,12 @@ interface ProviderConfig {
   /** CIDR ranges or exact IPs. Empty array = skip IP check. */
   allowedIps: string[];
   signatureHeader?: string;
+  /**
+   * Query-string param carrying the shared secret, as a fallback for
+   * couriers whose merchant panel lets you set an arbitrary callback URL
+   * but not a custom header. Checked if the header is absent.
+   */
+  secretQueryParam?: string;
   signatureSecretEnvKey?: string;
   signatureMode?: SignatureMode;
 }
@@ -31,13 +37,24 @@ const PROVIDER_CONFIG: Record<string, ProviderConfig> = {
     allowedIps: ['103.139.192.0/24'],
     // No signature header — IP check only
   },
+  // RedX/Paperfly don't document a webhook signature scheme, and are not
+  // our primary courier (Pathao is), so we can't verify an incoming
+  // signature. Instead we mint our own secret and require it back on every
+  // call — either as a header, or as `?secret=` on the callback URL
+  // registered in their merchant panel, whichever the panel supports.
   redx: {
     allowedIps: [],
-    // Add signatureHeader if RedX provides one
+    signatureHeader: 'x-webhook-secret',
+    secretQueryParam: 'secret',
+    signatureSecretEnvKey: 'REDX_WEBHOOK_SECRET',
+    signatureMode: 'plain',
   },
   paperfly: {
     allowedIps: [],
-    // Add signatureHeader if Paperfly provides one
+    signatureHeader: 'x-webhook-secret',
+    secretQueryParam: 'secret',
+    signatureSecretEnvKey: 'PAPERFLY_WEBHOOK_SECRET',
+    signatureMode: 'plain',
   },
 };
 
@@ -72,8 +89,15 @@ export class CourierWebhookGuard implements CanActivate {
     }
 
     // ── 2. Secret / signature header ───────────────────────────────────────
-    if (cfg.signatureHeader && cfg.signatureSecretEnvKey) {
-      const incoming = req.headers[cfg.signatureHeader] as string | undefined;
+    if (cfg.signatureSecretEnvKey && (cfg.signatureHeader || cfg.secretQueryParam)) {
+      const headerValue = cfg.signatureHeader
+        ? (req.headers[cfg.signatureHeader] as string | undefined)
+        : undefined;
+      const queryValue = cfg.secretQueryParam
+        ? (req.query[cfg.secretQueryParam] as string | undefined)
+        : undefined;
+      const incoming = headerValue || queryValue;
+
       const secret = this.config.get<string>(cfg.signatureSecretEnvKey);
 
       if (!secret) {
@@ -85,9 +109,11 @@ export class CourierWebhookGuard implements CanActivate {
 
       if (!incoming) {
         this.logger.warn(
-          `Webhook rejected — missing header "${cfg.signatureHeader}" for "${provider}"`,
+          `Webhook rejected — missing verification secret for "${provider}"`,
         );
-        throw new UnauthorizedException('Missing webhook verification header');
+        throw new UnauthorizedException(
+          'Missing webhook verification secret',
+        );
       }
 
       const mode = cfg.signatureMode ?? 'plain';

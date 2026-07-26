@@ -51,6 +51,7 @@ import { UrgencyBannerModule } from './urgency-banner/urgency-banner.module';
 import { SupplierModule } from './supplier/supplier.module';
 import { PieceModule } from './piece/piece.module';
 import { ReservationModule } from './reservation/reservation.module';
+import { LabelSizeModule } from './label-size/label-size.module';
 
 @Module({
   imports: [
@@ -112,6 +113,7 @@ import { ReservationModule } from './reservation/reservation.module';
     SupplierModule,
     PieceModule,
     ReservationModule,
+    LabelSizeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

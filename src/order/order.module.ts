@@ -10,6 +10,7 @@ import { StockEventsModule } from 'src/realtime/stock-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { RefundModule } from 'src/refund/refund.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
+import { OrderStatusModule } from 'src/order-status/order-status.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ReservationModule } from 'src/reservation/reservation.module';
     PaymentMethodConfigModule,
     RefundModule,
     ReservationModule,
+    OrderStatusModule,
   ],
   providers: [
     OrderService,

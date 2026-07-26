@@ -28,6 +28,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { UpdateCourierProviderDto } from '../dto/update-courier-provider.dto';
 import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
 import { ReservationService } from 'src/reservation/reservation.service';
+import { OrderStatusService } from 'src/order-status/order-status.service';
 
 @Injectable()
 export class CourierService {
@@ -40,6 +41,7 @@ export class CourierService {
     private httpService: HttpService,
     private configService: ConfigService,
     private reservationService: ReservationService,
+    private orderStatusService: OrderStatusService,
   ) {
     this.registerProviders();
   }
@@ -281,24 +283,33 @@ export class CourierService {
 
     if (newRank <= currentRank) return;
 
-    await db.order.update({
-      where: { id: shipment.orderId },
-      data: {
-        status: mappedStatus,
-        // set AWB when first tracking number arrives
-        ...(shipment.trackingNumber && !shipment.order.awbNumber
-          ? { awbNumber: shipment.trackingNumber }
-          : {}),
-      },
-    });
+    // Routes through the same chokepoint as the admin status dropdown, so a
+    // courier-reported CANCELLED/FAILED/RETURNED restores stock and releases
+    // piece reservations instead of silently leaking inventory.
+    if (!tx) {
+      await this.prisma.$transaction((innerTx) =>
+        this.applyCourierStatusSync(innerTx, shipment, mappedStatus),
+      );
+    } else {
+      await this.applyCourierStatusSync(tx, shipment, mappedStatus);
+    }
+  }
 
-    // Write to history log
-    await db.orderStatusHistory.create({
-      data: {
-        orderId: shipment.orderId,
-        status: mappedStatus,
-        note: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,
-      },
+  private async applyCourierStatusSync(
+    tx: Prisma.TransactionClient,
+    shipment: Prisma.CourierShipmentGetPayload<{
+      include: { order: true; provider: true };
+    }>,
+    mappedStatus: OrderStatus,
+  ) {
+    await this.orderStatusService.applyStatusChange(tx, {
+      orderPk: shipment.orderId,
+      newStatus: mappedStatus,
+      historyNote: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,
+      extraOrderData:
+        shipment.trackingNumber && !shipment.order.awbNumber
+          ? { awbNumber: shipment.trackingNumber }
+          : undefined,
     });
   }
 
@@ -591,6 +602,107 @@ export class CourierService {
     }
 
     return shipments;
+  }
+
+  // Pull the latest status from the provider's API for one shipment and
+  // apply it locally (mirrors the update a webhook would have made).
+  async syncShipmentStatus(shipmentId: number) {
+    const shipment = await this.prisma.courierShipment.findUnique({
+      where: { id: shipmentId },
+      include: { provider: true },
+    });
+    if (!shipment) throw new NotFoundException('Shipment not found');
+
+    const providerImpl = this.providers.get(
+      shipment.provider.name.toLowerCase(),
+    );
+    if (!providerImpl) {
+      // No live integration registered for this provider (e.g. a manual/
+      // test provider) — just stamp lastSyncAt so the UI reflects the
+      // attempt instead of silently doing nothing.
+      return this.prisma.courierShipment.update({
+        where: { id: shipmentId },
+        data: { lastSyncAt: new Date() },
+        include: { provider: true },
+      });
+    }
+
+    let tracking: any;
+    try {
+      tracking = await providerImpl.trackShipment(
+        shipment.consignmentId || shipment.trackingNumber || '',
+      );
+    } catch (error) {
+      this.logger.error(`Failed to sync shipment ${shipmentId}:`, error);
+      throw new BadRequestException('Failed to fetch live status from courier');
+    }
+
+    const updated = await this.prisma.courierShipment.update({
+      where: { id: shipmentId },
+      data: {
+        status: tracking.status ?? shipment.status,
+        providerStatus: tracking.providerStatus ?? shipment.providerStatus,
+        lastSyncAt: new Date(),
+        ...(tracking.status === CourierStatus.DELIVERED
+          ? { deliveredAt: new Date() }
+          : {}),
+      },
+      include: { provider: true },
+    });
+
+    await this.syncOrderStatusFromShipment(shipmentId);
+
+    return updated;
+  }
+
+  async getShipmentById(shipmentId: number) {
+    const shipment = await this.prisma.courierShipment.findUnique({
+      where: { id: shipmentId },
+      include: { order: true, provider: true },
+    });
+    if (!shipment) throw new NotFoundException('Shipment not found');
+    return shipment;
+  }
+
+  async cancelShipment(shipmentId: number, adminId: number) {
+    const shipment = await this.prisma.courierShipment.findUnique({
+      where: { id: shipmentId },
+      include: { provider: true },
+    });
+    if (!shipment) throw new NotFoundException('Shipment not found');
+
+    const providerImpl = this.providers.get(
+      shipment.provider.name.toLowerCase(),
+    );
+
+    if (providerImpl) {
+      try {
+        await providerImpl.cancelShipment(
+          shipment.consignmentId || shipment.trackingNumber || '',
+        );
+      } catch (error) {
+        this.logger.error(`Failed to cancel shipment ${shipmentId}:`, error);
+        throw new BadRequestException('Failed to cancel shipment with courier');
+      }
+    }
+
+    const updated = await this.prisma.courierShipment.update({
+      where: { id: shipmentId },
+      data: { status: CourierStatus.CANCELLED },
+      include: { provider: true },
+    });
+
+    await this.syncOrderStatusFromShipment(shipmentId);
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'CANCEL_COURIER-SHIPMENT',
+      module: 'SYSTEM',
+      targetId: shipment.id,
+      targetLabel: shipment.trackingNumber || shipment.consignmentId || String(shipment.id),
+    });
+
+    return updated;
   }
 
   private calculateTotalWeight(items: any[]): number {

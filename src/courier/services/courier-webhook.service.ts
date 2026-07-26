@@ -19,6 +19,7 @@ import { PaperflyProvider } from '../providers/paperfly.provider';
 import { PathaoProvider } from '../providers/pathao.provider';
 import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
 import { ReservationService } from 'src/reservation/reservation.service';
+import { OrderStatusService } from 'src/order-status/order-status.service';
 
 @Injectable()
 export class CourierWebhookService {
@@ -30,6 +31,7 @@ export class CourierWebhookService {
     private httpService: HttpService,
     private configService: ConfigService,
     private reservationService: ReservationService,
+    private orderStatusService: OrderStatusService,
   ) {
     this.registerProviders();
   }
@@ -91,25 +93,25 @@ export class CourierWebhookService {
 
     if (newRank <= currentRank) return;
 
-    await db.order.update({
-      where: { id: shipment.orderId },
-      data: {
-        status: mappedStatus,
-        // set AWB when first tracking number arrives
-        ...(shipment.trackingNumber && !shipment.order.awbNumber
-          ? { awbNumber: shipment.trackingNumber }
-          : {}),
-      },
-    });
+    // Routes through the same chokepoint as the admin status dropdown, so a
+    // courier-reported CANCELLED/FAILED/RETURNED restores stock and releases
+    // piece reservations instead of silently leaking inventory.
+    const applyChange = (innerTx: Prisma.TransactionClient) =>
+      this.orderStatusService.applyStatusChange(innerTx, {
+        orderPk: shipment.orderId,
+        newStatus: mappedStatus,
+        historyNote: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,
+        extraOrderData:
+          shipment.trackingNumber && !shipment.order.awbNumber
+            ? { awbNumber: shipment.trackingNumber }
+            : undefined,
+      });
 
-    // Write to history log
-    await db.orderStatusHistory.create({
-      data: {
-        orderId: shipment.orderId,
-        status: mappedStatus,
-        note: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,
-      },
-    });
+    if (tx) {
+      await applyChange(tx);
+    } else {
+      await this.prisma.$transaction(applyChange);
+    }
   }
 
   async updateShipmentStatus(id: number, dto: UpdateShipmentStatusDto) {
@@ -139,24 +141,17 @@ export class CourierWebhookService {
       },
     });
 
-    // If delivered, update order status
+    // If delivered, update order status through the shared chokepoint —
+    // keeps this manual endpoint from ever becoming a way to mutate
+    // Order.status without going through stock/reservation handling.
     if (mappedStatus === 'DELIVERED') {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: shipment.orderId },
-          data: {
-            status: 'DELIVERED',
-          },
-        });
-
-        await tx.orderStatusHistory.create({
-          data: {
-            orderId: shipment.orderId,
-            status: 'DELIVERED',
-            note: 'Order delivered successfully',
-          },
-        });
-      });
+      await this.prisma.$transaction((tx) =>
+        this.orderStatusService.applyStatusChange(tx, {
+          orderPk: shipment.orderId,
+          newStatus: OrderStatus.DELIVERED,
+          historyNote: 'Order delivered successfully',
+        }),
+      );
     }
 
     return updatedShipment;

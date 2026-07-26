@@ -23,6 +23,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { ConfigService } from '@nestjs/config';
 import type { Response, Request } from 'express';
@@ -84,8 +85,8 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Put('profile')
-  updateProfile(@Req() req, @Body() data) {
-    return this.authService.updateProfile(req?.user?.userId, data);
+  updateProfile(@Req() req, @Body() dto: UpdateProfileDto) {
+    return this.authService.updateProfile(req?.user?.userId, dto);
   }
 
   //logout

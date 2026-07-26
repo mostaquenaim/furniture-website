@@ -1,10 +1,11 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { SkipPermission } from 'src/permission/skip-permission.decorator';
+import { Roles } from 'src/auth/roles.decorator';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { NotificationsService } from './notifications.service';
 import { SendOfferDto } from './dto/send-offer.dto';
+import { UserRole } from '@prisma/client';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,7 +16,7 @@ export class NotificationsController {
   ) {}
 
   @Post('send-offer')
-  @SkipPermission()
+  @Roles(UserRole.SUPERADMIN, UserRole.PRODUCTMANAGER)
   async sendOffer(@Body() dto: SendOfferDto) {
     const recipients = await this.prisma.user.findMany({
       where: { email: { not: null }, isActive: true },

@@ -68,8 +68,14 @@ export class CartController {
     @Param('cartId', ParseIntPipe) cartId: number,
     @Body('code') code: string,
     @Req() req: any,
+    @Query('visitorId') visitorId?: string,
   ) {
-    return this.cartService.applyCoupon(req?.user?.id, null, cartId, code);
+    return this.cartService.applyCoupon(
+      req?.user?.userId,
+      visitorId || null,
+      cartId,
+      code,
+    );
   }
 
   // update cart item quantity
@@ -78,10 +84,11 @@ export class CartController {
     @Param('id', ParseIntPipe) id: number,
     @Body('quantity', ParseIntPipe) quantity: number,
     @Req() req: any,
+    @Query('visitorId') visitorId?: string,
   ) {
     return this.cartService.updateItemQuantity(
-      req?.user?.id,
-      null,
+      req?.user?.userId,
+      visitorId || null,
       id,
       quantity,
     );
@@ -94,6 +101,10 @@ export class CartController {
     @Req() req: any,
     @Query('visitorId') visitorId?: string,
   ) {
-    return this.cartService.removeItem(req?.user?.id, visitorId || null, id);
+    return this.cartService.removeItem(
+      req?.user?.userId,
+      visitorId || null,
+      id,
+    );
   }
 }

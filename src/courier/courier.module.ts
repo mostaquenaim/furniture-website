@@ -17,6 +17,7 @@ import { CourierWebhookController } from './courier-webhook.controller';
 import { CourierWebhookService } from './services/courier-webhook.service';
 import { CourierService } from './services/courier.service';
 import { ReservationModule } from 'src/reservation/reservation.module';
+import { OrderStatusModule } from 'src/order-status/order-status.module';
 
 // Providers
 
@@ -29,6 +30,7 @@ import { ReservationModule } from 'src/reservation/reservation.module';
     PrismaModule,
     ConfigModule,
     ReservationModule,
+    OrderStatusModule,
   ],
   controllers: [CourierController, CourierWebhookController],
   providers: [

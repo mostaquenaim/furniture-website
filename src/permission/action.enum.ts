@@ -134,6 +134,10 @@ export enum Action {
   // General settings (shipping defaults, etc.)
   SETTINGS_MANAGE = 'SETTINGS_MANAGE',
 
+  // Dashboard / Analytics (revenue, order, and traffic reporting)
+  DASHBOARD_VIEW = 'DASHBOARD_VIEW',
+  ANALYTICS_VIEW = 'ANALYTICS_VIEW',
+
   // Misc / Admin-only (no permission check needed — SUPERADMIN bypass handles it)
   // CLOUDINARY_SIGNATURE, ACTIVITY_LOG, PROFILE — see note below
 }

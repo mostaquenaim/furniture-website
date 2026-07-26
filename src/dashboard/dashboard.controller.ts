@@ -1,9 +1,14 @@
 // src/dashboard/dashboard.controller.ts
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { DashboardQueryDto } from './dto/dashboard.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Permission } from 'src/permission/permission.decorator';
+import { Action } from 'src/permission/action.enum';
 
 @Controller('dashboard')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
@@ -13,6 +18,7 @@ export class DashboardController {
    * GET /dashboard/top-searches?start=2026-01-01&end=2026-06-27&limit=20
    */
   @Get('top-searches')
+  @Permission(Action.DASHBOARD_VIEW)
   getTopSearches(
     @Query('start') start?: string,
     @Query('end') end?: string,
@@ -33,6 +39,7 @@ export class DashboardController {
   }
 
   @Get()
+  @Permission(Action.DASHBOARD_VIEW)
   async getDashboard(@Query() query: DashboardQueryDto) {
     const todayStr = new Date().toISOString().split('T')[0];
     let start: string;

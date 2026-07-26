@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
@@ -19,6 +20,7 @@ import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { GoogleUserDto } from './dto/google-user.dto';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
@@ -391,20 +393,42 @@ export class AuthService {
   }
 
   // update profile
-  async updateProfile(userId: number, data: any) {
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-      },
-    });
+  // Explicitly whitelisted here (not just at the DTO layer) so a future
+  // caller passing a raw object can never smuggle role/isActive/password
+  // into a Prisma update — see PUT /auth/profile mass-assignment fix.
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    const data: Pick<UpdateProfileDto, 'name' | 'email' | 'phone'> = {
+      name: dto.name,
+      email: dto.email,
+      phone: dto.phone,
+    };
 
-    return updatedUser;
+    try {
+      const updatedUser = await this.prisma.user.update({
+        where: { id: userId },
+        data,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+        },
+      });
+
+      return updatedUser;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const fields = (error.meta?.target as string[])?.join(', ') || 'field';
+        throw new ConflictException(
+          `An account with this ${fields} already exists`,
+        );
+      }
+      throw error;
+    }
   }
 
   // Store blacklisted token in the database

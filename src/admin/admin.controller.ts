@@ -498,13 +498,6 @@ export class AdminController {
     return await this.cmsService.deleteCoupon(id, req?.user?.userId);
   }
 
-  // ── Validate a coupon code (used by the storefront cart) ───────────────────
-
-  @Post('coupons/validate')
-  async validateCoupon(@Body() body: { code: string; orderValue: number }) {
-    return await this.cmsService.validateCoupon(body.code, body.orderValue);
-  }
-
   // update order status
   @Patch('orders/:orderId/status')
   @Permission(Action.ORDER_UPDATE_STATUS)
@@ -676,6 +669,12 @@ export class AdminController {
     return this.courierService.createShipment(dto, req?.user?.userId);
   }
 
+  @Post('courier/shipments/:id/sync')
+  @Permission(Action.COURIER_MANAGE)
+  syncShipment(@Param('id', ParseIntPipe) id: number) {
+    return this.courierService.syncShipmentStatus(id);
+  }
+
   @Get('courier/shipments')
   @Permission(Action.COURIER_VIEW)
   getShipments(
@@ -692,6 +691,18 @@ export class AdminController {
       status,
       search,
     });
+  }
+
+  @Get('courier/shipments/:id')
+  @Permission(Action.COURIER_VIEW)
+  getShipmentById(@Param('id', ParseIntPipe) id: number) {
+    return this.courierService.getShipmentById(id);
+  }
+
+  @Post('courier/shipments/:id/cancel')
+  @Permission(Action.COURIER_MANAGE)
+  cancelShipment(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.courierService.cancelShipment(id, req?.user?.userId);
   }
 
   // @Post('create-mock-coupons')
@@ -749,7 +760,7 @@ export class AdminController {
 
   // district id
   @Patch('districts/:id')
-  @SkipPermission()
+  @Permission(Action.DISTRICT_MANAGE)
   async updateDistrict(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDistrictDto: UpdateDistrictDto,

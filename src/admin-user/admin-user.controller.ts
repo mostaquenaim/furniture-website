@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { SkipPermission } from 'src/permission/skip-permission.decorator';
+import { Roles } from 'src/auth/roles.decorator';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UserRole } from '@prisma/client';
 import { AdminUsersService } from './admin-user.service';
@@ -23,19 +23,19 @@ export class AdminUsersController {
   constructor(private readonly adminUsersService: AdminUsersService) {}
 
   @Get()
-  @SkipPermission()
+  @Roles(UserRole.SUPERADMIN)
   getAdminUsers() {
     return this.adminUsersService.getAdminUsers();
   }
 
   @Post()
-  @SkipPermission()
+  @Roles(UserRole.SUPERADMIN)
   createAdminUser(@Body() dto: CreateAdminUserDto) {
     return this.adminUsersService.createAdminUser(dto);
   }
 
   @Patch(':id/role')
-  @SkipPermission()
+  @Roles(UserRole.SUPERADMIN)
   changeRole(
     @Param('id', ParseIntPipe) id: number,
     @Body('role') role: UserRole,
@@ -44,7 +44,7 @@ export class AdminUsersController {
   }
 
   @Patch(':id/status')
-  @SkipPermission()
+  @Roles(UserRole.SUPERADMIN)
   toggleStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('isActive') isActive: boolean,
@@ -53,13 +53,13 @@ export class AdminUsersController {
   }
 
   @Post(':id/reset-password')
-  @SkipPermission()
+  @Roles(UserRole.SUPERADMIN)
   resetPassword(@Param('id', ParseIntPipe) id: number) {
     return this.adminUsersService.resetPassword(id);
   }
 
   @Delete(':id')
-  @SkipPermission()
+  @Roles(UserRole.SUPERADMIN)
   deleteUser(@Param('id', ParseIntPipe) id: number) {
     return this.adminUsersService.deleteUser(id);
   }

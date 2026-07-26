@@ -34,6 +34,7 @@ import { ReceiveReturnItemsDto } from './dto/receive-return-items.dto';
 import { ProcessRefundDto } from './dto/process-refund.dto';
 import { DirectRefundDto } from './dto/direct-refund.dto';
 import { CompleteManualRefundDto } from './dto/complete-manual-refund.dto';
+import { ReservationService } from '../reservation/reservation.service';
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURNABLE_ORDER_STATUSES: OrderStatus[] = [
@@ -60,6 +61,7 @@ export class RefundService {
     private stockLedgerService: StockLedgerService,
     private stockEventsGateway: StockEventsGateway,
     private paymentService: PaymentService,
+    private reservationService: ReservationService,
   ) {}
 
   // =====================================================================
@@ -537,6 +539,18 @@ export class RefundService {
       );
 
       if (isFullyReturned) {
+        // An admin can mark items received here without every piece-tracked
+        // unit having gone through PieceService.returnReceive's physical
+        // scan-in first — release any reservation still sitting in
+        // RESERVED/PICKED so the order doesn't flip to RETURNED while a
+        // physical piece stays permanently locked with no order to fulfill
+        // (releaseReservationsForOrder is a no-op for pieces already
+        // progressed past PICKED, e.g. SHIPPED/RETURNING/RETURNED_IN_STOCK).
+        await this.reservationService.releaseReservationsForOrder(
+          tx,
+          returnRequest.orderId,
+        );
+
         await tx.order.update({
           where: { id: returnRequest.orderId },
           data: { status: OrderStatus.RETURNED, stockRestored: true },

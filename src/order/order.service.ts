@@ -37,6 +37,7 @@ import {
 } from '../realtime/stock-events.gateway';
 import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
 import { ReservationService } from 'src/reservation/reservation.service';
+import { OrderStatusService } from 'src/order-status/order-status.service';
 
 @Injectable()
 export class OrderService {
@@ -51,6 +52,7 @@ export class OrderService {
     private stockEventsGateway: StockEventsGateway,
     private paymentMethodConfigService: PaymentMethodConfigService,
     private reservationService: ReservationService,
+    private orderStatusService: OrderStatusService,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -267,11 +269,10 @@ export class OrderService {
       }
     }
 
+    // Delivery fee is always server-computed from the validated district —
+    // never trust a client-supplied value here, or a customer could zero out shipping.
     const deliveryCharge =
-      dto.deliveryFee ??
-      district.deliveryFee ??
-      Number(process.env.DEFAULT_DELIVERY_FEE) ??
-      120;
+      district.deliveryFee ?? Number(process.env.DEFAULT_DELIVERY_FEE) ?? 120;
     const total = subtotal + deliveryCharge;
 
     if (dto.paymentMethod === 'COD') {
@@ -1241,32 +1242,23 @@ export class OrderService {
   }
 
   // update status of order
-  private static readonly STOCK_RESTORE_STATUSES: OrderStatus[] = [
-    OrderStatus.CANCELLED,
-    OrderStatus.FAILED,
-    OrderStatus.RETURNED,
-  ];
-
   async updateOrderStatus(
     orderId: string,
     status: OrderStatus,
     adminId: number,
   ) {
-    const stockEvents: StockUpdatedPayload[] = [];
     let previousStatus: OrderStatus | undefined;
+    let stockEvents: StockUpdatedPayload[] = [];
 
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       // 1. Find order
       const order = await tx.order.findUnique({
         where: { orderId: orderId },
-        include: { items: true },
       });
 
       if (!order) {
         throw new NotFoundException('Order not found');
       }
-
-      previousStatus = order.status;
 
       // Same hard gate as the courier-booking path (CourierService.createShipment)
       // — the manual status dropdown must not be a way to bypass "every
@@ -1283,76 +1275,17 @@ export class OrderService {
         }
       }
 
-      const shouldRestoreStock =
-        OrderService.STOCK_RESTORE_STATUSES.includes(status) &&
-        !OrderService.STOCK_RESTORE_STATUSES.includes(order.status) &&
-        !order.stockRestored;
-
-      if (shouldRestoreStock) {
-        // Free any piece-level reservations for this order back to IN_STOCK
-        // before restoring the aggregate ProductSize.quantity below — a
-        // cancelled/failed order must never leave a physical piece
-        // permanently locked in RESERVED/PICKED with no order to fulfill.
-        await this.reservationService.releaseReservationsForOrder(tx, order.id);
-
-        for (const item of order.items) {
-          if (!item.productSizeId) {
-            this.logger.warn(
-              `Order ${order.orderId} item ${item.id} has no productSizeId snapshot — skipping stock restore for this legacy item`,
-            );
-            continue;
-          }
-
-          const result = await this.stockLedgerService.recordAdjustment(tx, {
-            productSizeId: item.productSizeId,
-            productId: item.productId,
-            delta: item.quantity,
-            reason:
-              status === OrderStatus.RETURNED
-                ? StockAdjustReason.ORDER_RETURNED
-                : StockAdjustReason.ORDER_CANCELLED,
-            adminId,
-            note: `Order ${order.orderId} status changed to ${status}`,
-          });
-
-          await tx.productSize.update({
-            where: { id: item.productSizeId },
-            data: { soldCount: { decrement: item.quantity } },
-          });
-
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { soldCount: { decrement: item.quantity } },
-          });
-
-          stockEvents.push({
-            productSizeId: item.productSizeId,
-            productId: item.productId,
-            quantity: result.quantityAfter,
-            lowStockAt: result.lowStockAt,
-          });
-        }
-      }
-
-      // 2. Update order
-      const updatedOrder = await tx.order.update({
-        where: { orderId: orderId },
-        data: {
-          status,
-          ...(shouldRestoreStock && { stockRestored: true }),
-        },
+      // 2. Apply the transition — restores stock and releases reservations
+      // for CANCELLED/FAILED/RETURNED via the same chokepoint every other
+      // order-status mutation (courier webhook, courier shipment sync) uses.
+      const result = await this.orderStatusService.applyStatusChange(tx, {
+        orderPk: order.id,
+        newStatus: status,
+        adminId,
       });
 
-      // 3. Save status history
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: order.id,
-          status,
-          note: shouldRestoreStock
-            ? `Order status changed to ${status} — stock restored for ${stockEvents.length} item(s)`
-            : `Order status changed to ${status}`,
-        },
-      });
+      previousStatus = result.previousStatus;
+      stockEvents = result.stockEvents;
 
       this.activityLogService.log({
         adminId,
@@ -1361,15 +1294,15 @@ export class OrderService {
         targetId: order.id,
         targetLabel: '',
         oldValue: {
-          status: order.status,
+          status: result.previousStatus,
         },
         newValue: {
-          status: updatedOrder.status,
-          stockRestored: updatedOrder.stockRestored,
+          status: result.order.status,
+          stockRestored: result.order.stockRestored,
         },
       });
 
-      return updatedOrder;
+      return result.order;
     });
 
     for (const event of stockEvents) {

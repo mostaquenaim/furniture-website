@@ -1730,7 +1730,33 @@ model AppSettings {
 
   defaultDeliveryFee Float @default(120)
 
+  // Courier delivery label — single configurable size used for every
+  // shipment label print (see CourierShipment label printing).
+  courierLabelWidthMm  Float @default(100)
+  courierLabelHeightMm Float @default(150)
+
+  // Invoice print/PDF paper size. "A4" | "LETTER" | "CUSTOM" — width/height
+  // are only read when CUSTOM.
+  invoicePaperSize     String @default("A4")
+  invoicePaperWidthMm  Float?
+  invoicePaperHeightMm Float?
+
   updatedAt DateTime @updatedAt
+}
+
+// Saved, admin-managed product barcode label presets (name + physical
+// size in mm) used by the Print Labels screen. Exactly one row should be
+// isDefault at a time — enforced in LabelSizeService, not at the DB level.
+model LabelSize {
+  id        Int      @id @default(autoincrement())
+  name      String
+  widthMm   Float
+  heightMm  Float
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("label_sizes")
 }
 
 model CompanyInfo {

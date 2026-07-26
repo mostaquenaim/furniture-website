@@ -84,6 +84,32 @@ export class SettingsService {
     return this.getShipping();
   }
 
+  // Printing settings — courier delivery label size. Product barcode label
+  // presets live in their own CRUD (see LabelSizeService / GET /label-sizes).
+  getPrinting() {
+    return this.appSettingsService.getPrinting();
+  }
+
+  updatePrinting(payload: {
+    courierLabelWidthMm?: number;
+    courierLabelHeightMm?: number;
+  }) {
+    return this.appSettingsService.updatePrinting(payload);
+  }
+
+  // Invoice settings — print/PDF paper size.
+  getInvoiceSettings() {
+    return this.appSettingsService.getInvoiceSettings();
+  }
+
+  updateInvoiceSettings(payload: {
+    invoicePaperSize?: string;
+    invoicePaperWidthMm?: number | null;
+    invoicePaperHeightMm?: number | null;
+  }) {
+    return this.appSettingsService.updateInvoiceSettings(payload);
+  }
+
   // Email settings
   getEmail() { return this.settings.email; }
   updateEmail(payload: any) {

@@ -23,6 +23,7 @@ import { UpdateAboutDto } from './dto/update-about.dto';
 import { CreateTnCDto } from './dto/create-tnc.dto';
 import { UpdateTnCDto } from './dto/update-tnc.dto';
 import { UpdateBannerDto } from './dto/Banner/update-banner.dto';
+import { ValidateCouponDto } from './dto/Coupon/validate-coupon.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
 import { UserRole } from '@prisma/client';
@@ -43,6 +44,13 @@ export class CmsController {
     private readonly homepageGalleryService: HomepageGalleryService,
     private readonly broadBannerService: BroadBannerService,
   ) {}
+
+  // Validate a coupon code — public storefront endpoint (guest or logged-in
+  // customer), so it must not sit behind the admin JWT/permission guards.
+  @Post('coupons/validate')
+  validateCoupon(@Body() dto: ValidateCouponDto) {
+    return this.cmsService.validateCoupon(dto.code, dto.orderValue);
+  }
 
   // get tags
   @Get('tags')

@@ -43,7 +43,7 @@ export class PaymentController {
       console.error('Payment controller error:', error);
       return {
         success: false,
-        message: error.message || 'Payment initialization failed',
+        message: error?.message || 'Payment initialization failed',
       };
     }
   }

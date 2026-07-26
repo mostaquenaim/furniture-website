@@ -6,9 +6,25 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Payment, PaymentMethod } from '@prisma/client';
+import { Payment, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { PaymentMethodConfigService } from 'src/payment-method-config/payment-method-config.service';
 import SSLCommerzPayment from 'sslcommerz-lts';
+
+/**
+ * Statuses that represent a payment which has already reached its final
+ * outcome. Once a payment is in one of these, none of the callback/IPN
+ * handlers should mutate it further — this is what makes duplicate IPN
+ * deliveries and racing success/fail/cancel callbacks idempotent instead of
+ * clobbering each other.
+ */
+const SETTLED_PAYMENT_STATUSES: PaymentStatus[] = [
+  'PAID',
+  'FAILED',
+  'CANCELLED',
+  'REFUNDED',
+  'PARTIALLY_REFUNDED',
+  'ON_HOLD',
+];
 
 export interface GatewayRefundResult {
   /** SSLCommerz's refund_ref_id — needed for later refundQuery polling. Null if the gateway didn't return one. */
@@ -294,6 +310,14 @@ export class PaymentService {
       throw new BadRequestException('Payment not found');
     }
 
+    // Idempotency guard: the success callback and the IPN both call this
+    // method for the same transaction, and can arrive concurrently. If the
+    // payment has already been settled, treat this as a duplicate delivery
+    // rather than re-validating and re-applying order updates.
+    if (SETTLED_PAYMENT_STATUSES.includes(payment.status)) {
+      return payment;
+    }
+
     // Verify payment with SSL Commerz
     const { storeId, storePassword, isLive } = this.getStoreConfig();
     const sslcz = new SSLCommerzPayment(storeId, storePassword, isLive);
@@ -356,9 +380,16 @@ export class PaymentService {
 
       const actualMethod = this.mapGatewayMethod(validationResponse.card_type);
 
-      // Update payment as successful
-      const updatedPayment = await this.prisma.payment.update({
-        where: { id: payment.id },
+      // Atomically claim this payment for finalization: the `status` filter
+      // means only one of a racing success-callback/IPN pair can win this
+      // update. The loser's count is 0, so it skips straight to the
+      // already-settled return below instead of double-applying the order
+      // update / status history that follows.
+      const claim = await this.prisma.payment.updateMany({
+        where: {
+          id: payment.id,
+          status: { notIn: SETTLED_PAYMENT_STATUSES },
+        },
         data: {
           status: 'PAID',
           method: actualMethod,
@@ -380,6 +411,16 @@ export class PaymentService {
           },
         },
       });
+
+      const updatedPayment = await this.prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+      });
+
+      if (claim.count === 0) {
+        // Lost the race to a concurrent success/IPN call that already
+        // finalized this payment — nothing left to do.
+        return updatedPayment;
+      }
 
       const isAdvancePayment = payment.phase === 'ADVANCE';
 
@@ -421,30 +462,110 @@ export class PaymentService {
     }
   }
 
+  /**
+   * The `/payments/fail` and `/payments/cancel` endpoints are hit by the
+   * customer's browser being redirected by SSLCommerz — there's no way to
+   * authenticate that request (no session, no signature), so anyone who
+   * learns or guesses a transactionId can POST to these URLs directly and
+   * try to force a payment into FAILED/CANCELLED. Before trusting the
+   * client-supplied redirect, confirm with SSLCommerz server-to-server
+   * whether the transaction actually is settled successfully; if the
+   * gateway disagrees, refuse to touch the payment and log it instead.
+   *
+   * Returns true if the gateway confirms the transaction is NOT a valid/paid
+   * one (safe to mark failed/cancelled), false if it looks like a forged
+   * request against a genuinely successful payment.
+   */
+  private async confirmNotActuallyPaidAtGateway(
+    payment: Payment,
+  ): Promise<boolean> {
+    if (!payment.gatewayTranId) {
+      // Nothing to check against — proceed as before rather than blocking
+      // legitimate callbacks for payments that predate this field.
+      return true;
+    }
+
+    try {
+      const { storeId, storePassword, isLive } = this.getStoreConfig();
+      const sslcz = new SSLCommerzPayment(storeId, storePassword, isLive);
+      const query: any = await sslcz.transactionQueryByTransactionId({
+        tran_id: payment.gatewayTranId,
+      });
+
+      const element = Array.isArray(query?.element)
+        ? query.element[0]
+        : query?.element;
+      const gatewayStatus = String(
+        element?.status ?? query?.status ?? '',
+      ).toUpperCase();
+
+      if (gatewayStatus === 'VALID' || gatewayStatus === 'VALIDATED') {
+        await this.prisma.paymentLog.create({
+          data: {
+            paymentId: payment.id,
+            action: 'FRAUD_ALERT',
+            status: payment.status,
+            message:
+              'Fail/cancel callback received but SSLCommerz reports this transaction as valid — ignoring the callback',
+            gatewayResponse: query,
+          },
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      // Verification call itself failed (network/gateway issue) — fall back
+      // to trusting the callback rather than leaving the payment stuck
+      // PENDING forever, but record that verification wasn't possible.
+      await this.prisma.paymentLog.create({
+        data: {
+          paymentId: payment.id,
+          action: 'GATEWAY_VERIFY_ERROR',
+          status: payment.status,
+          message: `Could not verify transaction status with gateway before processing fail/cancel: ${error.message}`,
+          gatewayResponse: { error: error.message },
+        },
+      });
+      return true;
+    }
+  }
+
   // Fail handler
   async handlePaymentFail(transactionId: string, sslData: any): Promise<void> {
     const payment = await this.prisma.payment.findUnique({
       where: { transactionId },
     });
 
-    if (payment) {
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: 'FAILED',
-          failedAt: new Date(),
-          gatewayResponse: sslData,
-          paymentLogs: {
-            create: {
-              action: 'FAILED',
-              status: 'FAILED',
-              message: sslData.error || 'Payment failed by user/gateway',
-              gatewayResponse: sslData,
-            },
-          },
-        },
-      });
-    }
+    if (!payment) return;
+
+    // Idempotency + anti-downgrade guard: never let a fail callback clobber
+    // a payment that's already settled (paid, refunded, already
+    // failed/cancelled, or under manual review).
+    if (SETTLED_PAYMENT_STATUSES.includes(payment.status)) return;
+
+    if (!(await this.confirmNotActuallyPaidAtGateway(payment))) return;
+
+    const claim = await this.prisma.payment.updateMany({
+      where: { id: payment.id, status: { notIn: SETTLED_PAYMENT_STATUSES } },
+      data: {
+        status: 'FAILED',
+        failedAt: new Date(),
+        gatewayResponse: sslData,
+      },
+    });
+
+    if (claim.count === 0) return;
+
+    await this.prisma.paymentLog.create({
+      data: {
+        paymentId: payment.id,
+        action: 'FAILED',
+        status: 'FAILED',
+        message: sslData?.error || 'Payment failed by user/gateway',
+        gatewayResponse: sslData,
+      },
+    });
   }
 
   // Cancel handler
@@ -456,28 +577,36 @@ export class PaymentService {
       where: { transactionId },
     });
 
-    if (payment) {
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: 'CANCELLED',
-          gatewayResponse: sslData,
-          paymentLogs: {
-            create: {
-              action: 'CANCELLED',
-              status: 'CANCELLED',
-              message: 'Payment cancelled by user',
-              gatewayResponse: sslData,
-            },
-          },
-        },
-      });
-    }
+    if (!payment) return;
+
+    if (SETTLED_PAYMENT_STATUSES.includes(payment.status)) return;
+
+    if (!(await this.confirmNotActuallyPaidAtGateway(payment))) return;
+
+    const claim = await this.prisma.payment.updateMany({
+      where: { id: payment.id, status: { notIn: SETTLED_PAYMENT_STATUSES } },
+      data: {
+        status: 'CANCELLED',
+        gatewayResponse: sslData,
+      },
+    });
+
+    if (claim.count === 0) return;
+
+    await this.prisma.paymentLog.create({
+      data: {
+        paymentId: payment.id,
+        action: 'CANCELLED',
+        status: 'CANCELLED',
+        message: 'Payment cancelled by user',
+        gatewayResponse: sslData,
+      },
+    });
   }
 
   // IPN (Instant Payment Notification) handler
   async handleIPN(ipnData: any): Promise<void> {
-    const { tran_id, val_id, status, amount } = ipnData;
+    const { tran_id, status } = ipnData;
 
     // Find payment by gateway transaction ID
     const payment = await this.prisma.payment.findFirst({
@@ -489,12 +618,14 @@ export class PaymentService {
       return;
     }
 
-    // Check if already processed
-    if (payment.status === 'PAID' || payment.status === 'FAILED') {
+    // Check if already processed — covers all settled states, not just
+    // PAID/FAILED, so a duplicate IPN can't re-trigger cancellation/refund
+    // logic either.
+    if (SETTLED_PAYMENT_STATUSES.includes(payment.status)) {
       return;
     }
 
-    if (status === 'VALID') {
+    if (status === 'VALID' || status === 'VALIDATED') {
       await this.handlePaymentSuccess(payment.transactionId, ipnData);
     } else {
       await this.handlePaymentFail(payment.transactionId, ipnData);

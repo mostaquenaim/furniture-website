@@ -51,6 +51,7 @@ import { PermissionService } from 'src/permission/permission.service';
 import { UserRole } from '@prisma/client';
 import { PERMISSION_KEY } from 'src/permission/permission.decorator';
 import { SKIP_PERMISSION_KEY } from 'src/permission/skip-permission.decorator';
+import { ROLES_KEY } from './roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -69,6 +70,22 @@ export class RolesGuard implements CanActivate {
 
     // SUPERADMIN always passes — no DB lookup needed
     if (user.role === UserRole.SUPERADMIN) return true;
+
+    // Hard allowlist via @Roles(...) — takes priority over @SkipPermission()
+    // and the togglable permission table. Use for actions (like granting
+    // roles) that must never become configurable by a non-superadmin.
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (requiredRoles) {
+      if (!requiredRoles.includes(user.role)) {
+        throw new ForbiddenException(
+          `Role ${user.role} is not permitted to perform this action.`,
+        );
+      }
+      return true;
+    }
 
     // Explicitly skipped → allow all authenticated admin roles
     const skip = this.reflector.getAllAndOverride<boolean>(
