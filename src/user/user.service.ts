@@ -8,21 +8,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { UserRole } from '@prisma/client';
 import { deleteUserSafely } from './user-deletion.util';
-
-// Never select `password` (bcrypt hash) or `googleId` out to API responses.
-const SAFE_USER_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  phone: true,
-  role: true,
-  isVerified: true,
-  isActive: true,
-  fraudStatus: true,
-  avatar: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
+import { SAFE_USER_SELECT } from './safe-user.select';
 
 @Injectable()
 export class UserService {

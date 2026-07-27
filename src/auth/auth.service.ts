@@ -17,6 +17,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { hashPassword, comparePassword } from 'src/common/utils/password.utils';
+import { SAFE_USER_SELECT } from 'src/user/safe-user.select';
 import * as crypto from 'crypto';
 import { UpdateUserDto } from 'src/user/dto/update-user.dto';
 import { ChangePasswordDto } from './dto/ChangePasswordDto.dto';
@@ -381,14 +382,7 @@ export class AuthService {
   async profile(userId: number) {
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        isActive: true,
-      },
+      select: SAFE_USER_SELECT,
     });
   }
 
@@ -407,13 +401,7 @@ export class AuthService {
       const updatedUser = await this.prisma.user.update({
         where: { id: userId },
         data,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          role: true,
-        },
+        select: SAFE_USER_SELECT,
       });
 
       return updatedUser;
@@ -620,12 +608,7 @@ export class AuthService {
         email: dto.email ?? user.email,
         phone: dto.phone ?? user.phone,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-      },
+      select: SAFE_USER_SELECT,
     });
 
     return {

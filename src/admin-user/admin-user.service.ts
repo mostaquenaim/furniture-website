@@ -13,6 +13,7 @@ import { UserRole } from '@prisma/client';
 import { hashPassword } from 'src/common/utils/password.utils';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { deleteUserSafely } from 'src/user/user-deletion.util';
+import { SAFE_USER_SELECT } from 'src/user/safe-user.select';
 
 const ADMIN_ROLES: UserRole[] = [
   UserRole.SUPERADMIN,
@@ -35,15 +36,7 @@ export class AdminUsersService {
   async getAdminUsers() {
     return this.prisma.user.findMany({
       where: { role: { in: ADMIN_ROLES } },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-      },
+      select: SAFE_USER_SELECT,
       orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
     });
   }
@@ -90,15 +83,7 @@ export class AdminUsersService {
         isVerified: true,
         isActive: true,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-      },
+      select: SAFE_USER_SELECT,
     });
 
     return { message: 'Admin user created successfully.', data: user };
@@ -121,13 +106,7 @@ export class AdminUsersService {
     const updated = await this.prisma.user.update({
       where: { id },
       data: { role },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-      },
+      select: SAFE_USER_SELECT,
     });
 
     return { message: 'Role updated successfully.', data: updated };
@@ -144,13 +123,7 @@ export class AdminUsersService {
     const updated = await this.prisma.user.update({
       where: { id },
       data: { isActive },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-      },
+      select: SAFE_USER_SELECT,
     });
 
     return {
