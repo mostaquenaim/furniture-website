@@ -62,7 +62,11 @@ export class PieceService {
   }
 
   // ── Product Manager: generate N pieces for a ProductSize ───────────────────
-  async generatePieces(dto: GeneratePiecesDto, adminId: number, actorRole?: UserRole) {
+  async generatePieces(
+    dto: GeneratePiecesDto,
+    adminId: number,
+    actorRole?: UserRole,
+  ): Promise<PieceWithRelations[]> {
     const productSize = await this.prisma.productSize.findUnique({
       where: { id: dto.productSizeId },
       include: {
@@ -86,6 +90,7 @@ export class PieceService {
               productSizeId: dto.productSizeId,
               status: PieceStatus.CREATED,
             },
+            include: PIECE_INCLUDE,
           }),
         ),
       );
