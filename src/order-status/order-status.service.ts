@@ -1,6 +1,12 @@
 // src/order-status/order-status.service.ts
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Order, OrderStatus, Prisma, StockAdjustReason } from '@prisma/client';
+import {
+  Order,
+  OrderStatus,
+  Prisma,
+  ProductTrackingMode,
+  StockAdjustReason,
+} from '@prisma/client';
 import { StockLedgerService } from '../inventory/stock-ledger.service';
 import { ReservationService } from '../reservation/reservation.service';
 import { StockUpdatedPayload } from '../realtime/stock-events.gateway';
@@ -57,7 +63,9 @@ export class OrderStatusService {
 
     const order = await tx.order.findUnique({
       where: { id: orderPk },
-      include: { items: true },
+      include: {
+        items: { include: { productSize: { select: { trackingMode: true } } } },
+      },
     });
     if (!order) {
       throw new NotFoundException(`Order #${orderPk} not found`);
@@ -82,6 +90,24 @@ export class OrderStatusService {
         if (!item.productSizeId) {
           this.logger.warn(
             `Order ${order.orderId} item ${item.id} has no productSizeId snapshot — skipping stock restore for this legacy item`,
+          );
+          continue;
+        }
+
+        if (
+          newStatus === OrderStatus.RETURNED &&
+          item.productSize?.trackingMode === ProductTrackingMode.PIECE_BARCODE
+        ) {
+          // Piece-tracked variant — the physical unit left the warehouse when
+          // it shipped, so a courier/admin "returned" status is only a claim
+          // that it's on its way back, not proof it's arrived. Never restock
+          // here; ReservationService.markShipmentGroupReturning already moved
+          // the piece to RETURNING, and PieceService.returnReceive (the only
+          // path allowed to increment quantity for PIECE_BARCODE — see its
+          // comment) does so once staff actually scan it back in. Restoring
+          // stock here too would double-count it on top of that scan.
+          this.logger.log(
+            `Order ${order.orderId} item ${item.id} is piece-tracked — skipping stock restore on RETURNED, awaiting physical scan`,
           );
           continue;
         }
