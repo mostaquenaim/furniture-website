@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsEmail } from 'class-validator';
+import { IsOptional, IsString, IsEmail, Matches } from 'class-validator';
+import { BD_PHONE_REGEX, BD_PHONE_MESSAGE } from 'src/common/utils/phone.utils';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -11,6 +12,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
+  @Matches(BD_PHONE_REGEX, { message: BD_PHONE_MESSAGE })
   phone?: string;
 
   @IsOptional()
