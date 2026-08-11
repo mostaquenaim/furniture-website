@@ -7,7 +7,10 @@
       "PowerShell(Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\")",
       "Bash(grep -n 'count\\\\|transaction\\\\|MAX_ACTIVE\\\\|\\\\$transaction' src/featured-category/featured-category.service.ts)",
       "Bash(grep -n 'isDefault\\\\|transaction\\\\|\\\\$transaction' src/label-size/label-size.service.ts)",
-      "Bash(echo \"EXIT_CODE=$?\")"
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(PGPASSWORD=root psql -U postgres -h localhost -p 5432 -d sakigai -c \"SELECT last_value FROM piece_barcode_seq;\" -c \"SELECT count\\(*\\), min\\(\\\\\"barcodeValue\\\\\"\\), max\\(\\\\\"barcodeValue\\\\\"\\) FROM \\\\\"Piece\\\\\";\" -c \"SELECT \\\\\"barcodeValue\\\\\" FROM \\\\\"Piece\\\\\" ORDER BY \\\\\"barcodeValue\\\\\" DESC LIMIT 5;\")",
+      "Bash(node \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Sammtech-furniture-bideshi-furniture-backend-sakigai-furniture-website\\\\55da94c8-bbe3-4f7b-b906-2e8ee46de4cd\\\\scratchpad\\\\check.js\")",
+      "Bash(node scratch-check.js)"
     ],
     "additionalDirectories": [
       "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component\\Headers",
