@@ -18,7 +18,12 @@ import {
   ReceiveBatchDto,
   ReceiveOutcome,
   ReceivePieceDto,
+  VoidPiecesDto,
 } from './dto/piece.dto';
+
+// A CREATED piece older than this with no receipt/void is considered stale
+// and surfaced by StalePieceAlertService.
+export const STALE_PIECE_DAYS = 7;
 
 const PIECE_INCLUDE = {
   productSize: {
@@ -49,16 +54,19 @@ export class PieceService {
   ) {}
 
   // ── Barcode value generation ──────────────────────────────────────────────
+  // Backed by a Postgres sequence (see migration `add_piece_barcode_sequence`)
+  // rather than `COUNT(*) + i` — piece generation now runs on every product
+  // creation, not just the occasional manual "Generate & Print" action, so
+  // it needs to be race-safe under concurrent transactions.
   private async nextBarcodeValues(
     tx: Prisma.TransactionClient,
     count: number,
   ): Promise<string[]> {
-    const existing = await tx.piece.count();
-    const values: string[] = [];
-    for (let i = 1; i <= count; i++) {
-      values.push(`PC-${String(existing + i).padStart(8, '0')}`);
-    }
-    return values;
+    if (count <= 0) return [];
+    const rows = await tx.$queryRaw<{ v: bigint }[]>`
+      SELECT nextval('piece_barcode_seq') AS v FROM generate_series(1, ${count})
+    `;
+    return rows.map((row) => `PC-${String(row.v).padStart(8, '0')}`);
   }
 
   // ── Product Manager: generate N pieces for a ProductSize ───────────────────
@@ -66,7 +74,7 @@ export class PieceService {
     dto: GeneratePiecesDto,
     adminId: number,
     actorRole?: UserRole,
-  ): Promise<PieceWithRelations[]> {
+  ): Promise<{ batchId: string; pieces: PieceWithRelations[] }> {
     const productSize = await this.prisma.productSize.findUnique({
       where: { id: dto.productSizeId },
       include: {
@@ -79,45 +87,15 @@ export class PieceService {
       );
     }
 
-    const pieces = await this.prisma.$transaction(async (tx) => {
-      const barcodeValues = await this.nextBarcodeValues(tx, dto.quantity);
-
-      const created = await Promise.all(
-        barcodeValues.map((barcodeValue) =>
-          tx.piece.create({
-            data: {
-              barcodeValue,
-              productSizeId: dto.productSizeId,
-              status: PieceStatus.CREATED,
-            },
-            include: PIECE_INCLUDE,
-          }),
-        ),
-      );
-
-      await tx.pieceStatusEvent.createMany({
-        data: created.map((p) => ({
-          pieceId: p.id,
-          fromStatus: null,
-          toStatus: PieceStatus.CREATED,
-          actorUserId: adminId,
-          actorRole,
-          source: 'SYSTEM',
-        })),
-      });
-
-      // Generating pieces is the deliberate, staff-triggered action that
-      // moves this variant onto piece-level tracking (see migration plan —
-      // legacy variants opt in by generating pieces + re-stickering).
-      if (productSize.trackingMode !== ProductTrackingMode.PIECE_BARCODE) {
-        await tx.productSize.update({
-          where: { id: dto.productSizeId },
-          data: { trackingMode: ProductTrackingMode.PIECE_BARCODE },
-        });
-      }
-
-      return created;
-    });
+    const { batchId, pieces } = await this.prisma.$transaction((tx) =>
+      this.runGeneratePieces(
+        tx,
+        dto,
+        productSize.trackingMode,
+        adminId,
+        actorRole,
+      ),
+    );
 
     await this.activityLogService.log({
       adminId,
@@ -125,10 +103,87 @@ export class PieceService {
       module: 'INVENTORY',
       targetId: dto.productSizeId,
       targetLabel: productSize.color.product.title,
-      newValue: { quantity: dto.quantity },
+      newValue: { quantity: dto.quantity, batchId },
     });
 
-    return pieces;
+    return { batchId, pieces };
+  }
+
+  // Shared core used both by the standalone "Generate & Print" action above
+  // and by ProductService (product creation/edit), which needs piece
+  // generation to happen inside its own product-creation transaction.
+  private async runGeneratePieces(
+    tx: Prisma.TransactionClient,
+    dto: { productSizeId: number; quantity: number },
+    currentTrackingMode: ProductTrackingMode,
+    adminId: number,
+    actorRole?: UserRole,
+  ): Promise<{ batchId: string; pieces: PieceWithRelations[] }> {
+    const batch = await tx.generationBatch.create({
+      data: {
+        productSizeId: dto.productSizeId,
+        quantity: dto.quantity,
+        createdByUserId: adminId,
+      },
+    });
+
+    const barcodeValues = await this.nextBarcodeValues(tx, dto.quantity);
+
+    const created = await Promise.all(
+      barcodeValues.map((barcodeValue) =>
+        tx.piece.create({
+          data: {
+            barcodeValue,
+            productSizeId: dto.productSizeId,
+            status: PieceStatus.CREATED,
+            generateBatchId: batch.id,
+          },
+          include: PIECE_INCLUDE,
+        }),
+      ),
+    );
+
+    await tx.pieceStatusEvent.createMany({
+      data: created.map((p) => ({
+        pieceId: p.id,
+        fromStatus: null,
+        toStatus: PieceStatus.CREATED,
+        actorUserId: adminId,
+        actorRole,
+        source: 'SYSTEM',
+      })),
+    });
+
+    // Generating pieces is the deliberate, staff-triggered action that
+    // moves this variant onto piece-level tracking (see migration plan —
+    // legacy variants opt in by generating pieces + re-stickering).
+    if (currentTrackingMode !== ProductTrackingMode.PIECE_BARCODE) {
+      await tx.productSize.update({
+        where: { id: dto.productSizeId },
+        data: { trackingMode: ProductTrackingMode.PIECE_BARCODE },
+      });
+    }
+
+    return { batchId: batch.id, pieces: created };
+  }
+
+  // Used by ProductService when creating a brand-new ProductSize row (or a
+  // new row added during a structural product edit): the row always starts
+  // at the schema default (LEGACY_QUANTITY) since it was just created in the
+  // same transaction, so there's no need to re-fetch it to learn that.
+  async generatePiecesForNewSize(
+    tx: Prisma.TransactionClient,
+    params: { productSizeId: number; quantity: number },
+    adminId: number,
+    actorRole?: UserRole,
+  ): Promise<{ batchId: string; pieces: PieceWithRelations[] }> {
+    return this.runGeneratePieces(
+      tx,
+      params,
+      ProductTrackingMode.LEGACY_QUANTITY,
+      adminId,
+      actorRole,
+    );
   }
 
   // ── Listing ──────────────────────────────────────────────────────────────
@@ -285,6 +340,158 @@ export class PieceService {
     }
 
     return { receiveBatchId, succeeded, failed };
+  }
+
+  // ── Admin: reconciliation for one print run — expected vs. what actually
+  // happened to those barcodes so far (received, still pending, voided) ──────
+  async getBatchReconciliation(batchId: string) {
+    const batch = await this.prisma.generationBatch.findUnique({
+      where: { id: batchId },
+    });
+    if (!batch) {
+      throw new NotFoundException(`Generation batch ${batchId} not found`);
+    }
+
+    const counts = await this.prisma.piece.groupBy({
+      by: ['status'],
+      where: { generateBatchId: batchId },
+      _count: { _all: true },
+    });
+    const byStatus: Record<string, number> = {};
+    for (const c of counts) byStatus[c.status] = c._count._all;
+
+    const received =
+      (byStatus[PieceStatus.IN_STOCK] ?? 0) +
+      (byStatus[PieceStatus.DAMAGED_INCOMING] ?? 0);
+    const pending = byStatus[PieceStatus.CREATED] ?? 0;
+    const voided = byStatus[PieceStatus.VOID] ?? 0;
+
+    return {
+      batchId: batch.id,
+      productSizeId: batch.productSizeId,
+      quantity: batch.quantity,
+      received,
+      pending,
+      voided,
+      createdAt: batch.createdAt,
+    };
+  }
+
+  // ── Admin: batches that still have unreceived pieces sitting in CREATED ────
+  async listOpenBatches(productSizeId?: number) {
+    const batches = await this.prisma.generationBatch.findMany({
+      where: { ...(productSizeId ? { productSizeId } : {}) },
+      include: {
+        productSize: {
+          include: {
+            size: true,
+            color: {
+              include: {
+                color: true,
+                product: { select: { id: true, title: true } },
+              },
+            },
+          },
+        },
+        pieces: { select: { status: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return batches
+      .map((b) => {
+        const pending = b.pieces.filter(
+          (p) => p.status === PieceStatus.CREATED,
+        ).length;
+        const received = b.pieces.filter(
+          (p) =>
+            p.status === PieceStatus.IN_STOCK ||
+            p.status === PieceStatus.DAMAGED_INCOMING,
+        ).length;
+        const voided = b.pieces.filter(
+          (p) => p.status === PieceStatus.VOID,
+        ).length;
+        return {
+          batchId: b.id,
+          productSizeId: b.productSizeId,
+          productTitle: b.productSize.color.product.title,
+          color: b.productSize.color.color.name,
+          size: b.productSize.size.name,
+          quantity: b.quantity,
+          received,
+          pending,
+          voided,
+          createdAt: b.createdAt,
+        };
+      })
+      .filter((b) => b.pending > 0);
+  }
+
+  // ── Admin: open batches whose CREATED pieces have sat unreceived past the
+  // stale threshold — same shape as listOpenBatches() plus ageDays ─────────
+  async getStaleBatches(thresholdDays: number = STALE_PIECE_DAYS) {
+    const cutoffMs = thresholdDays * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const open = await this.listOpenBatches();
+    return open
+      .filter((b) => now - b.createdAt.getTime() >= cutoffMs)
+      .map((b) => ({
+        ...b,
+        ageDays: Math.floor((now - b.createdAt.getTime()) / (24 * 60 * 60 * 1000)),
+      }));
+  }
+
+  // ── Admin: void unused CREATED barcodes (overprint cleanup) ────────────────
+  // Only ever transitions CREATED -> VOID, so it never touches
+  // StockLedgerService — these pieces were never counted as stock.
+  async voidPieces(dto: VoidPiecesDto, adminId: number, actorRole?: UserRole) {
+    const succeeded: PieceWithRelations[] = [];
+    const failed: { barcodeValue: string; error: string }[] = [];
+
+    for (const barcodeValue of dto.barcodeValues) {
+      try {
+        const piece = await this.findByBarcodeOrThrow(barcodeValue);
+        if (piece.status !== PieceStatus.CREATED) {
+          throw new BadRequestException(
+            `Barcode ${barcodeValue} is not awaiting receipt (current status: ${piece.status}) — only unreceived barcodes can be voided`,
+          );
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          const updated = await tx.piece.updateMany({
+            where: { id: piece.id, status: PieceStatus.CREATED },
+            data: { status: PieceStatus.VOID },
+          });
+          if (updated.count === 0) {
+            throw new BadRequestException(
+              `Barcode ${barcodeValue} was already processed by another request`,
+            );
+          }
+
+          await tx.pieceStatusEvent.create({
+            data: {
+              pieceId: piece.id,
+              fromStatus: PieceStatus.CREATED,
+              toStatus: PieceStatus.VOID,
+              actorUserId: adminId,
+              actorRole,
+              source: 'MANUAL',
+              reasonCode: 'VOID',
+              note: dto.reasonNote,
+            },
+          });
+        });
+
+        succeeded.push(await this.findByBarcodeOrThrow(barcodeValue));
+      } catch (err) {
+        failed.push({
+          barcodeValue,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    }
+
+    return { succeeded, failed };
   }
 
   // ── Inventory Manager: assign / clear shelf location via scan ─────────────

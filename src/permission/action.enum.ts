@@ -114,6 +114,7 @@ export enum Action {
   PIECE_GENERATE = 'PIECE_GENERATE',
   PIECE_RECEIVE = 'PIECE_RECEIVE',
   PIECE_LOCATION_ASSIGN = 'PIECE_LOCATION_ASSIGN',
+  PIECE_VOID = 'PIECE_VOID',
 
   // Reservations (Order Manager: reserve pieces, pick slip, pick-confirm)
   RESERVATION_MANAGE = 'RESERVATION_MANAGE',

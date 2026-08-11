@@ -16,6 +16,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { DiscountType } from './roles.enum';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { PieceService } from 'src/piece/piece.service';
+import { Prisma, UserRole } from '@prisma/client';
 import {
   assertValidDiscountWindow,
   sanitizeDiscount,
@@ -28,7 +30,74 @@ export class ProductService {
   constructor(
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
+    private pieceService: PieceService,
   ) {}
+
+  // Creates one ProductSize row and, if a positive quantity was requested,
+  // generates that many piece-level barcodes for it inside the same
+  // transaction. Real stock (ProductSize.quantity) stays 0 — it only
+  // increments once an Inventory Manager physically receives each barcode
+  // (see PieceService.receiveOne/receiveBatch) — so the number an admin
+  // types here is a "how many to generate" count, not a stock write.
+  private async createSizeWithPieces(
+    tx: Prisma.TransactionClient,
+    productColorId: number,
+    size: {
+      sizeId: number;
+      sku?: string | null;
+      price?: number | null;
+      discount?: number | null;
+      discountType?: DiscountType | null;
+      quantity: number | string;
+    },
+    basePriceFallback: number,
+    adminId: number,
+    actorRole?: UserRole,
+  ): Promise<{ productSizeId: number; quantity: number }> {
+    const sizeBasePrice =
+      size.price !== undefined && size.price !== null
+        ? Number(size.price)
+        : basePriceFallback;
+
+    let finalPrice = sizeBasePrice;
+    if (size.discount && size.discount > 0 && size.discountType) {
+      if (size.discountType === DiscountType.PERCENT) {
+        finalPrice = Math.round(
+          sizeBasePrice - (sizeBasePrice * size.discount) / 100,
+        );
+      }
+      if (size.discountType === DiscountType.FIXED) {
+        finalPrice = sizeBasePrice - size.discount;
+      }
+      if (finalPrice < 0) finalPrice = 0;
+    }
+
+    const requestedQuantity = Math.max(0, Number(size.quantity) || 0);
+
+    const created = await tx.productSize.create({
+      data: {
+        colorId: productColorId,
+        sizeId: size.sizeId,
+        sku: size.sku || null,
+        basePrice: sizeBasePrice,
+        price: finalPrice,
+        discountType: size.discountType || null,
+        discount: size.discount || 0,
+        quantity: 0,
+      },
+    });
+
+    if (requestedQuantity > 0) {
+      await this.pieceService.generatePiecesForNewSize(
+        tx,
+        { productSizeId: created.id, quantity: requestedQuantity },
+        adminId,
+        actorRole,
+      );
+    }
+
+    return { productSizeId: created.id, quantity: requestedQuantity };
+  }
 
   // Fire-and-forget search keyword logging for the "Top Searched Keywords"
   // admin report — must never block or fail the actual product search.
@@ -44,7 +113,11 @@ export class ProductService {
   }
 
   // create a product
-  async createProduct(dto: CreateProductDto, adminId: number) {
+  async createProduct(
+    dto: CreateProductDto,
+    adminId: number,
+    actorRole?: UserRole,
+  ) {
     const existing = await this.prisma.product.findUnique({
       where: {
         slug: dto.slug,
@@ -71,20 +144,13 @@ export class ProductService {
       );
     }
 
-    // For color variants, validate that each color has at least one size with quantity > 0
+    // For color variants, validate that each color has at least one size configured.
+    // A size's quantity may legitimately be 0 (listed but not yet in stock).
     if (dto.hasColorVariants) {
       for (const color of dto.colors) {
         if (!color.sizes || color.sizes.length === 0) {
           throw new BadRequestException(
             `Color variant must have at least one size`,
-          );
-        }
-
-        // Validate that at least one size has quantity > 0
-        const hasValidQuantity = color.sizes.some((size) => size.quantity > 0);
-        if (!hasValidQuantity) {
-          throw new BadRequestException(
-            `Color variant must have at least one size with quantity greater than 0`,
           );
         }
       }
@@ -141,7 +207,14 @@ export class ProductService {
         },
       });
 
-      let totalProductQuantity = 0;
+      // Stays 0: a newly created size's real stock only becomes non-zero once
+      // its generated barcodes are physically received (see
+      // createSizeWithPieces below) — nothing here writes a starting count.
+      const totalProductQuantity = 0;
+      const piecesGenerated: {
+        productSizeId: number;
+        quantity: number;
+      }[] = [];
 
       // Create product images
       if (dto.images && dto.images.length > 0) {
@@ -193,64 +266,24 @@ export class ProductService {
             });
           }
 
-          // Create sizes with quantity
+          // Create sizes; a size may request quantity 0 (listed but not yet
+          // stocked — stays a plain LEGACY_QUANTITY row) or a positive
+          // quantity, which generates that many piece-level barcodes rather
+          // than writing a stock number directly (see createSizeWithPieces).
           if (colorVariant.sizes && colorVariant.sizes.length > 0) {
-            // keep only sizes with stock
-            const validSizes = colorVariant.sizes.filter(
-              (size) => size.quantity > 0,
-            );
-
-            if (validSizes.length > 0) {
-              totalProductQuantity += validSizes.reduce(
-                (sum, size) => sum + Number(size.quantity),
-                0,
-              );
-
-              await tx.productSize.createMany({
-                data: validSizes.map((size) => {
-                  // A size with no price override inherits the product's
-                  // basePrice rather than defaulting to 0/free.
-                  const sizeBasePrice =
-                    size.price !== undefined && size.price !== null
-                      ? Number(size.price)
-                      : dto.basePrice;
-
-                  let finalPrice = sizeBasePrice;
-
-                  // SIZE LEVEL DISCOUNT
-                  if (size.discount && size.discount > 0 && size.discountType) {
-                    if (size.discountType === DiscountType.PERCENT) {
-                      finalPrice = Math.round(
-                        sizeBasePrice - (sizeBasePrice * size.discount) / 100,
-                      );
-                    }
-
-                    if (size.discountType === DiscountType.FIXED) {
-                      finalPrice = sizeBasePrice - size.discount;
-                    }
-
-                    // prevent negative price
-                    if (finalPrice < 0) finalPrice = 0;
-                  }
-
-                  return {
-                    colorId: productColor.id,
-                    sizeId: size.sizeId,
-                    sku: size.sku || null,
-
-                    // original price
-                    basePrice: sizeBasePrice,
-
-                    // discounted price
-                    price: finalPrice,
-
-                    discountType: size.discountType || null,
-                    discount: size.discount || 0,
-
-                    quantity: Number(size.quantity),
-                  };
-                }),
-              });
+            for (const size of colorVariant.sizes) {
+              const { productSizeId, quantity } =
+                await this.createSizeWithPieces(
+                  tx,
+                  productColor.id,
+                  size,
+                  dto.basePrice,
+                  adminId,
+                  actorRole,
+                );
+              if (quantity > 0) {
+                piecesGenerated.push({ productSizeId, quantity });
+              }
             }
           }
         }
@@ -327,10 +360,11 @@ export class ProductService {
               price: s.price ?? null,
             })),
           })),
+          piecesGenerated,
         },
       });
 
-      return updatedProduct;
+      return { ...updatedProduct, pieceGeneration: { generated: piecesGenerated } };
     });
   }
 
@@ -396,15 +430,17 @@ export class ProductService {
   // get all products
   async getAllProducts({
     page = 1,
-    limit = 10,
+    limit,
     search,
     isActive,
     orderBy,
     colorIds,
     materialIds,
+    subCategoryIds,
     minPrice,
     maxPrice,
     thumb = false,
+    includeOutOfStock = false,
   }: {
     page?: number;
     limit?: number;
@@ -412,12 +448,15 @@ export class ProductService {
     isActive?: boolean;
     colorIds?: number[];
     materialIds?: number[];
+    subCategoryIds?: number[];
     minPrice?: number;
     maxPrice?: number;
     orderBy?: Record<string, 'asc' | 'desc'>;
     thumb?: boolean;
+    includeOutOfStock?: boolean;
   }) {
-    const skip = (page - 1) * limit;
+    // No limit => no pagination, return every product matching the filters.
+    const skip = limit ? (page - 1) * limit : undefined;
 
     const where: any = {};
 
@@ -453,10 +492,11 @@ export class ProductService {
       };
     }
 
-    if (minPrice || maxPrice) {
-      where.price = {
-        ...(minPrice && { gte: minPrice }),
-        ...(maxPrice && { lte: maxPrice }),
+    if (subCategoryIds && subCategoryIds?.length) {
+      where.subCategories = {
+        some: {
+          subCategoryId: { in: subCategoryIds },
+        },
       };
     }
 
@@ -467,10 +507,13 @@ export class ProductService {
       };
     }
 
-    // Always ensure product has stock
-    where.totalProductQuantity = {
-      gt: 0,
-    };
+    // Storefront listings only show in-stock products; admin views pass
+    // includeOutOfStock so they can still see/manage products at 0 stock.
+    if (!includeOutOfStock) {
+      where.totalProductQuantity = {
+        gt: 0,
+      };
+    }
 
     // --------------------------
     // Build Query Based on thumb
@@ -566,8 +609,8 @@ export class ProductService {
       meta: {
         total,
         page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        limit: limit ?? total,
+        totalPages: limit ? Math.ceil(total / limit) : 1,
       },
     };
   }
@@ -591,7 +634,12 @@ export class ProductService {
   }
 
   // update product
-  async updateProduct(slug: string, dto: UpdateProductDto, adminId: number) {
+  async updateProduct(
+    slug: string,
+    dto: UpdateProductDto,
+    adminId: number,
+    actorRole?: UserRole,
+  ) {
     const product = await this.prisma.product.findUnique({
       where: { slug },
     });
@@ -629,6 +677,8 @@ export class ProductService {
     }
 
     if (price < 0) price = 0;
+
+    const piecesGenerated: { productSizeId: number; quantity: number }[] = [];
 
     return this.prisma.$transaction(async (tx) => {
       // Update Product Core Fields
@@ -701,6 +751,8 @@ export class ProductService {
                 basePrice: true,
                 discount: true,
                 discountType: true,
+                quantity: true,
+                trackingMode: true,
               },
             },
           },
@@ -744,6 +796,24 @@ export class ProductService {
           if (cartConflict) {
             throw new BadRequestException(
               'Cannot update variants: one or more sizes are currently in a customer cart. Clear the carts first or wait for them to expire.',
+            );
+          }
+
+          // Guard: refuse a structural rebuild if any size already has
+          // piece-level barcodes — deleting it would hit the Piece→
+          // ProductSize foreign key (ON DELETE RESTRICT) and, more
+          // importantly, would orphan real physical barcodes that already
+          // exist. Once a product has piece-tracked sizes, its color/size
+          // structure is frozen; price/discount/legacy-quantity edits still
+          // work via the "structure unchanged" branch below.
+          const pieceConflict = await tx.piece.findFirst({
+            where: { productSize: { color: { productId: product.id } } },
+          });
+
+          if (pieceConflict) {
+            throw new BadRequestException(
+              'Cannot restructure variants: one or more sizes are already tracked by piece-level barcodes. ' +
+                'Make only price/quantity edits without changing colors or sizes, or manage stock via Generate & Print / Receiving.',
             );
           }
 
@@ -794,43 +864,20 @@ export class ProductService {
                 const effectiveProductBasePrice =
                   dto.basePrice ?? product.basePrice;
 
-                await tx.productSize.createMany({
-                  data: validSizes.map((size) => {
-                    const sizeLevelBasePrice =
-                      size.price !== undefined && size.price !== null
-                        ? Number(size.price)
-                        : effectiveProductBasePrice;
-
-                    let sizePrice = sizeLevelBasePrice;
-
-                    if (
-                      size.discount &&
-                      size.discount > 0 &&
-                      size.discountType
-                    ) {
-                      if (size.discountType === DiscountType.PERCENT) {
-                        sizePrice = Math.round(
-                          sizeLevelBasePrice -
-                            (sizeLevelBasePrice * size.discount) / 100,
-                        );
-                      } else if (size.discountType === DiscountType.FIXED) {
-                        sizePrice = sizeLevelBasePrice - size.discount;
-                      }
-                      if (sizePrice < 0) sizePrice = 0;
-                    }
-
-                    return {
-                      colorId: productColor.id,
-                      sizeId: size.sizeId,
-                      sku: size.sku || null,
-                      basePrice: sizeLevelBasePrice,
-                      price: sizePrice,
-                      discountType: size.discountType || null,
-                      discount: size.discount || 0,
-                      quantity: Number(size.quantity),
-                    };
-                  }),
-                });
+                for (const size of validSizes) {
+                  const { productSizeId, quantity } =
+                    await this.createSizeWithPieces(
+                      tx,
+                      productColor.id,
+                      size,
+                      effectiveProductBasePrice,
+                      adminId,
+                      actorRole,
+                    );
+                  if (quantity > 0) {
+                    piecesGenerated.push({ productSizeId, quantity });
+                  }
+                }
               }
             }
           }
@@ -872,6 +919,25 @@ export class ProductService {
               );
               if (!existingSize) continue;
 
+              // Piece-tracked sizes only change quantity via a physical
+              // receive/return scan (PieceService) or Generate & Print —
+              // never through a direct number edit on this form. Reject the
+              // write instead of silently desyncing `quantity` from the
+              // actual piece count.
+              const requestedQuantity = Number(size.quantity);
+              if (
+                existingSize.trackingMode === 'PIECE_BARCODE' &&
+                requestedQuantity !== existingSize.quantity
+              ) {
+                throw new BadRequestException(
+                  `This size is tracked by piece-level barcodes — adjust stock by receiving/returning individual pieces or via Generate & Print, not this form.`,
+                );
+              }
+              const resolvedQuantity =
+                existingSize.trackingMode === 'PIECE_BARCODE'
+                  ? existingSize.quantity
+                  : requestedQuantity;
+
               // A size update may legitimately omit price/discount (e.g. a
               // quantity-only restock) — fall back to the existing value
               // instead of wiping it, otherwise every partial update would
@@ -911,7 +977,7 @@ export class ProductService {
               await tx.productSize.update({
                 where: { id: existingSize.id },
                 data: {
-                  quantity: Number(size.quantity),
+                  quantity: resolvedQuantity,
                   sku: size.sku || null,
                   basePrice: resolvedBasePrice,
                   price: sizePrice,
@@ -980,10 +1046,11 @@ export class ProductService {
           discountType: updatedProduct?.discountType,
           isActive: updatedProduct?.isActive,
           materialId: updatedProduct?.materialId,
+          piecesGenerated,
         },
       });
 
-      return updatedProduct;
+      return { ...updatedProduct, pieceGeneration: { generated: piecesGenerated } };
     });
   }
 

@@ -22,6 +22,8 @@ import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-met
 import { SettingsModule } from 'src/settings/settings.module';
 import { RefundModule } from 'src/refund/refund.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
+import { OrderStatusService } from 'src/order-status/order-status.service';
+import { PieceModule } from 'src/piece/piece.module';
 
 @Module({
   imports: [
@@ -35,6 +37,7 @@ import { ReservationModule } from 'src/reservation/reservation.module';
     SettingsModule,
     RefundModule,
     ReservationModule,
+    PieceModule,
   ],
   controllers: [AdminController],
   providers: [
@@ -53,6 +56,7 @@ import { ReservationModule } from 'src/reservation/reservation.module';
     PathaoLocationSyncService,
     SeasonalCategoryService,
     StockLedgerService,
+    OrderStatusService,
   ],
 })
 export class AdminModule {}

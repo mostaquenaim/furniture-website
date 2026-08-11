@@ -67,3 +67,14 @@ export class ReturnReceivePieceDto {
   @IsEnum(ReceiveOutcome)
   outcome: ReceiveOutcome;
 }
+
+export class VoidPiecesDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  barcodeValues: string[];
+
+  @IsOptional()
+  @IsString()
+  reasonNote?: string;
+}

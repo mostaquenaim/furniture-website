@@ -6,9 +6,11 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { NotificationModule } from 'src/notifications/notifications.module';
+import { StockEventsModule } from 'src/realtime/stock-events.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, NotificationModule, StockEventsModule],
   controllers: [ReservationController],
   providers: [
     ReservationService,

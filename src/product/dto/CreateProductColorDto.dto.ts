@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsArray,
   IsString,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -22,6 +23,7 @@ export class ProductColorSizeDto {
   price?: number;
 
   @IsNumber()
+  @Min(0)
   quantity: number;
 
   @IsOptional()

@@ -16,7 +16,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Permission } from 'src/permission/permission.decorator';
 import { Action } from 'src/permission/action.enum';
-import { PickConfirmDto, ReservePieceDto } from './dto/reservation.dto';
+import {
+  EmailPickSlipDto,
+  PickConfirmDto,
+  ReservePieceDto,
+} from './dto/reservation.dto';
 
 @Controller('reservations')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -57,6 +61,15 @@ export class ReservationController {
   @Permission(Action.PICK_SLIP_VIEW)
   getPickSlip(@Param('orderId') orderId: string) {
     return this.reservationService.getPickSlip(orderId);
+  }
+
+  @Post('orders/:orderId/pick-slip/email')
+  @Permission(Action.PICK_SLIP_VIEW)
+  emailPickSlip(
+    @Param('orderId') orderId: string,
+    @Body() dto: EmailPickSlipDto,
+  ) {
+    return this.reservationService.emailPickSlip(orderId, dto.email);
   }
 
   @Get('orders/:orderId/shipment-group')

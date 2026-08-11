@@ -37,23 +37,30 @@ export class ProductController {
 
     @Query('colorIds') colorIds?: string,
     @Query('materialIds') materialIds?: string,
+    @Query('subCategoryIds') subCategoryIds?: string,
 
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
     @Query('sortBy') sortBy?: string,
     @Query('order') order: 'asc' | 'desc' = 'asc',
     @Query('thumb') thumb?: boolean,
+    @Query('includeOutOfStock') includeOutOfStock?: string,
   ) {
   // console.log(sortBy, order, 'sortBy', 'order');
     return this.productService.getAllProducts({
       page: Number(page) || 1,
-      limit: Number(limit) || 10,
+      // No limit passed => return every matching product (no pagination).
+      limit: limit !== undefined ? Number(limit) : undefined,
       search,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
       orderBy: sortBy ? { [sortBy]: order } : undefined,
       thumb,
+      includeOutOfStock: includeOutOfStock === 'true',
       colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
       materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
+      subCategoryIds: subCategoryIds
+        ? subCategoryIds.split(',').map(Number)
+        : undefined,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
     });

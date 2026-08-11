@@ -23,6 +23,12 @@ export interface StockUpdatedPayload {
   lowStockAt: number;
 }
 
+export interface ReturnStartedPayload {
+  orderId: string;
+  pieceCount: number;
+  reasonCode?: string | null;
+}
+
 /**
  * Admin-only realtime channel for the inventory dashboard. Staff connect with a JWT
  * in the socket.io handshake `auth.token` field (same token issued by AuthService.issueToken).
@@ -79,5 +85,9 @@ export class StockEventsGateway implements OnGatewayConnection {
     if (payload.quantity <= payload.lowStockAt) {
       this.server.emit('stock:low', payload);
     }
+  }
+
+  emitReturnStarted(payload: ReturnStartedPayload) {
+    this.server.emit('return:started', payload);
   }
 }

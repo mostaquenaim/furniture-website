@@ -5,8 +5,10 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { BarcodeService } from 'src/barcode/barcode.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { ReviewService } from 'src/review/review.service';
+import { PieceModule } from 'src/piece/piece.module';
 
 @Module({
+  imports: [PieceModule],
   controllers: [ProductController],
   providers: [
     ProductService,

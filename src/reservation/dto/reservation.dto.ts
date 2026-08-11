@@ -1,5 +1,5 @@
 // src/reservation/dto/reservation.dto.ts
-import { IsInt, IsString } from 'class-validator';
+import { IsEmail, IsInt, IsString } from 'class-validator';
 
 export class ReservePieceDto {
   @IsInt()
@@ -15,4 +15,9 @@ export class PickConfirmDto {
 
   @IsInt()
   shipmentGroupId: number;
+}
+
+export class EmailPickSlipDto {
+  @IsEmail()
+  email: string;
 }

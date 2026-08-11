@@ -43,7 +43,9 @@ export class InventoryService {
       isLowStock: item.quantity <= item.lowStockAt,
       size: item.size.name,
       color: item.color.color.name,
+      price: item.price ?? item.basePrice ?? 0,
       product: item.color.product,
+      trackingMode: item.trackingMode,
     };
   }
 

@@ -5,59 +5,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-
-enum Action {
-  UPDATE_BROAD_BANNER = 'UPDATE_BROAD_BANNER',
-  CREATE_BROAD_BANNER = 'CREATE_BROAD_BANNER',
-  DELETE_BROAD_BANNER = 'DELETE_BROAD_BANNER',
-  SEASONAL_CATEGORY_DELETE = 'SEASONAL_CATEGORY_DELETE',
-  SEASONAL_CATEGORY_CREATE = 'SEASONAL_CATEGORY_CREATE',
-  SEASONAL_CATEGORY_UPDATE = 'SEASONAL_CATEGORY_UPDATE',
-  SEASONAL_CATEGORY_REORDER = 'SEASONAL_CATEGORY_REORDER',
-  HOMEPAGE_GALLERY_UPDATE = 'HOMEPAGE_GALLERY_UPDATE',
-  HOMEPAGE_GALLERY_DELETE = 'HOMEPAGE_GALLERY_DELETE',
-  HOMEPAGE_GALLERY_REORDER = 'HOMEPAGE_GALLERY_REORDER',
-  HOMEPAGE_GALLERY_CREATE = 'HOMEPAGE_GALLERY_CREATE',
-  CATEGORY_VIEW = 'CATEGORY_VIEW',
-  CATEGORY_CREATE = 'CATEGORY_CREATE',
-  CATEGORY_UPDATE = 'CATEGORY_UPDATE',
-  CATEGORY_REORDER = 'CATEGORY_REORDER',
-  PRODUCT_VIEW = 'PRODUCT_VIEW',
-  PRODUCT_CREATE = 'PRODUCT_CREATE',
-  PRODUCT_UPDATE = 'PRODUCT_UPDATE',
-  PRODUCT_SYNC = 'PRODUCT_SYNC',
-  CMS_VIEW = 'CMS_VIEW',
-  CMS_COLOR_MANAGE = 'CMS_COLOR_MANAGE',
-  CMS_SIZE_MANAGE = 'CMS_SIZE_MANAGE',
-  CMS_VARIANT_MANAGE = 'CMS_VARIANT_MANAGE',
-  CMS_MATERIAL_MANAGE = 'CMS_MATERIAL_MANAGE',
-  BLOG_CREATE = 'BLOG_CREATE',
-  BLOG_CATEGORY_CREATE = 'BLOG_CATEGORY_CREATE',
-  ORDER_VIEW = 'ORDER_VIEW',
-  ORDER_UPDATE_STATUS = 'ORDER_UPDATE_STATUS',
-  COUPON_CREATE = 'COUPON_CREATE',
-  COUPON_READ = 'COUPON_READ',
-  COUPON_UPDATE = 'COUPON_UPDATE',
-  COUPON_DELETE = 'COUPON_DELETE',
-  COURIER_VIEW = 'COURIER_VIEW',
-  COURIER_MANAGE = 'COURIER_MANAGE',
-  DISTRICT_MANAGE = 'DISTRICT_MANAGE',
-  BANNER_MANAGE = 'BANNER_MANAGE',
-  REVIEW_MANAGE = 'REVIEW_MANAGE',
-  TAG_CREATE = 'TAG_CREATE',
-  BARCODE_VIEW = 'BARCODE_VIEW',
-  BARCODE_CREATE = 'BARCODE_CREATE',
-  BARCODE_UPDATE = 'BARCODE_UPDATE',
-  LOCATION_VIEW = 'LOCATION_VIEW',
-  LOCATION_CREATE = 'LOCATION_CREATE',
-  COMPANY_MANAGE = 'COMPANY_MANAGE',
-}
+import { Action } from '../src/permission/action.enum';
 
 const prisma = new PrismaClient();
 
 const MANAGEABLE_ROLES = [
   UserRole.PRODUCTMANAGER,
   UserRole.ORDERMANAGER,
+  UserRole.INVENTORYMANAGER,
   UserRole.SUPPORT,
 ];
 
@@ -86,6 +41,16 @@ const DEFAULT_PERMISSIONS: Partial<Record<UserRole, Action[]>> = {
     Action.BARCODE_UPDATE,
     Action.LOCATION_VIEW,
     Action.LOCATION_CREATE,
+    // Piece-level barcode generation + supplier management (Product Manager
+    // "print/generate barcodes, add suppliers"). INVENTORY_VIEW is a
+    // pragmatic exception to "no stock access" — the Generate & Print flow
+    // does a GET /inventory variant search to find what to generate against.
+    Action.PIECE_VIEW,
+    Action.PIECE_GENERATE,
+    Action.PIECE_VOID,
+    Action.SUPPLIER_VIEW,
+    Action.SUPPLIER_MANAGE,
+    Action.INVENTORY_VIEW,
   ],
 
   [UserRole.ORDERMANAGER]: [
@@ -96,6 +61,21 @@ const DEFAULT_PERMISSIONS: Partial<Record<UserRole, Action[]>> = {
     Action.COURIER_MANAGE,
     Action.DISTRICT_MANAGE,
     Action.BARCODE_VIEW,
+    // Reserve/assign pieces to orders, print pick slip, scan pick-confirm.
+    Action.RESERVATION_MANAGE,
+    Action.PICK_SLIP_VIEW,
+    Action.RESERVATION_PICK_CONFIRM,
+  ],
+
+  [UserRole.INVENTORYMANAGER]: [
+    // Scan/receive barcodes, set shelf location, confirm returns.
+    Action.PIECE_VIEW,
+    Action.PIECE_RECEIVE,
+    Action.PIECE_LOCATION_ASSIGN,
+    Action.RETURN_RECEIVE_SCAN,
+    Action.SUPPLIER_VIEW,
+    Action.DASHBOARD_SHELF_MAP_VIEW,
+    Action.DASHBOARD_DAMAGE_REPORT_VIEW,
   ],
 
   [UserRole.SUPPORT]: [

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\")",
+      "Bash(grep -n 'count\\\\|transaction\\\\|MAX_ACTIVE\\\\|\\\\$transaction' src/featured-category/featured-category.service.ts)",
+      "Bash(grep -n 'isDefault\\\\|transaction\\\\|\\\\$transaction' src/label-size/label-size.service.ts)",
+      "Bash(echo \"EXIT_CODE=$?\")"
+    ],
+    "additionalDirectories": [
+      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component\\Headers",
+      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component"
+    ]
+  }
+}

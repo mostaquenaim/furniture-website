@@ -2,13 +2,15 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Min,
-  MinLength,
   ValidateNested,
 } from 'class-validator';
+import { RETURN_REASON_CODES } from '../constants/return-reason.constant';
+import type { ReturnReasonCode } from '../constants/return-reason.constant';
 
 export class ReturnRequestItemDto {
   @IsInt()
@@ -20,9 +22,8 @@ export class ReturnRequestItemDto {
 }
 
 export class CreateReturnRequestDto {
-  @IsString()
-  @MinLength(3)
-  reason: string;
+  @IsIn(RETURN_REASON_CODES)
+  reason: ReturnReasonCode;
 
   @IsOptional()
   @IsString()

@@ -1,0 +1,26 @@
+<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;">
+  <h2 style="color: #333;">Pick Slip — #{{orderId}}</h2>
+  <p>Reserved pieces to pick from the warehouse for this order.</p>
+
+  <table style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="border-bottom: 2px solid #eee;">
+        <th style="text-align: left; padding: 10px 0;">Barcode</th>
+        <th style="text-align: left;">Product</th>
+        <th style="text-align: left;">Shelf</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each lines}}
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px 0; font-family: monospace;">{{this.barcodeValue}}</td>
+        <td>
+          <strong>{{this.productTitle}}</strong><br>
+          <small>{{this.color}} / {{this.size}}</small>
+        </td>
+        <td>{{this.locationCode}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>

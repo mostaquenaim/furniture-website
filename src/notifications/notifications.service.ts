@@ -21,6 +21,16 @@ export interface LowStockAlertItem {
   lowStockAt: number;
 }
 
+export interface StalePieceAlertItem {
+  productTitle: string;
+  color: string;
+  size: string;
+  batchId: string;
+  pending: number;
+  quantity: number;
+  ageDays: number;
+}
+
 @Injectable()
 export class NotificationsService {
   private logger = new Logger('NotificationService');
@@ -69,6 +79,25 @@ export class NotificationsService {
         deliveryCharge: order.deliveryCharge,
         total: order.total,
       },
+    });
+  }
+
+  async sendPickSlip(
+    email: string,
+    orderId: string,
+    lines: {
+      barcodeValue: string;
+      productTitle: string;
+      color: string;
+      size: string;
+      locationCode: string | null;
+    }[],
+  ) {
+    await this.notificationQueue.add('sendEmail', {
+      email,
+      subject: `Pick Slip — ${orderId}`,
+      template: 'pick-slip',
+      context: { orderId, lines },
     });
   }
 
@@ -263,6 +292,30 @@ export class NotificationsService {
           timeZone: 'Asia/Dhaka',
         }),
         dashboardUrl: `${frontendUrl}/admin/inventory?onlyLowStock=true`,
+      },
+    });
+  }
+
+  /** Queues a single digest email listing barcode batches stuck in CREATED past the stale threshold. */
+  async sendStalePiecesAlert(
+    adminEmails: string[],
+    data: { items: StalePieceAlertItem[]; thresholdDays: number; generatedAt: Date },
+  ) {
+    if (adminEmails.length === 0) return;
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? '';
+
+    await this.notificationQueue.add('sendEmail', {
+      email: adminEmails,
+      subject: `${data.items.length} barcode batch(es) still unreceived after ${data.thresholdDays}+ days`,
+      template: 'stale-pieces-alert',
+      context: {
+        items: data.items,
+        thresholdDays: data.thresholdDays,
+        generatedAt: data.generatedAt.toLocaleString('en-BD', {
+          timeZone: 'Asia/Dhaka',
+        }),
+        dashboardUrl: `${frontendUrl}/admin/pieces`,
       },
     });
   }

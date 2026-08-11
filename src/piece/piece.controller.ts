@@ -15,6 +15,7 @@ import {
 import type { Response } from 'express';
 import { PieceStatus } from '@prisma/client';
 import { PieceService } from './piece.service';
+import { StalePieceAlertService } from './stale-piece-alert.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Permission } from 'src/permission/permission.decorator';
@@ -26,12 +27,16 @@ import {
   ReceiveLookupDto,
   ReceivePieceDto,
   ReturnReceivePieceDto,
+  VoidPiecesDto,
 } from './dto/piece.dto';
 
 @Controller('pieces')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PieceController {
-  constructor(private pieceService: PieceService) {}
+  constructor(
+    private pieceService: PieceService,
+    private staleAlertService: StalePieceAlertService,
+  ) {}
 
   @Post('generate')
   @HttpCode(HttpStatus.CREATED)
@@ -60,6 +65,34 @@ export class PieceController {
   @Permission(Action.PIECE_VIEW)
   getByBarcode(@Param('barcodeValue') barcodeValue: string) {
     return this.pieceService.getByBarcode(barcodeValue);
+  }
+
+  @Get('generation-batches')
+  @Permission(Action.PIECE_VIEW)
+  listOpenBatches(@Query('productSizeId') productSizeId?: string) {
+    return this.pieceService.listOpenBatches(
+      productSizeId ? Number(productSizeId) : undefined,
+    );
+  }
+
+  @Get('generation-batches/:batchId')
+  @Permission(Action.PIECE_VIEW)
+  getBatchReconciliation(@Param('batchId') batchId: string) {
+    return this.pieceService.getBatchReconciliation(batchId);
+  }
+
+  @Get('stale')
+  @Permission(Action.PIECE_VIEW)
+  getStaleBatches() {
+    return this.pieceService.getStaleBatches();
+  }
+
+  /** Lets an admin fire the stale-batch digest on demand instead of waiting for the 9am cron. */
+  @Post('stale/notify')
+  @Permission(Action.PIECE_VIEW)
+  async triggerStaleAlert() {
+    await this.staleAlertService.run();
+    return { triggered: true };
   }
 
   @Get('dashboard/inventory-summary')
@@ -102,6 +135,16 @@ export class PieceController {
   @Permission(Action.PIECE_RECEIVE)
   receiveBatch(@Body() dto: ReceiveBatchDto, @Req() req: any) {
     return this.pieceService.receiveBatch(
+      dto,
+      req?.user?.userId,
+      req?.user?.role,
+    );
+  }
+
+  @Post('void')
+  @Permission(Action.PIECE_VOID)
+  voidPieces(@Body() dto: VoidPiecesDto, @Req() req: any) {
+    return this.pieceService.voidPieces(
       dto,
       req?.user?.userId,
       req?.user?.role,

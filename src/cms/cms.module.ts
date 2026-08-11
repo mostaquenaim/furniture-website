@@ -17,6 +17,7 @@ import { StockEventsModule } from 'src/realtime/stock-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
+import { OrderStatusService } from 'src/order-status/order-status.service';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ReservationModule } from 'src/reservation/reservation.module';
     HomepageGalleryService,
     BroadBannerService,
     StockLedgerService,
+    OrderStatusService,
   ],
 })
 export class CmsModule {}

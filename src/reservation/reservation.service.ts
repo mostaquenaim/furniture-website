@@ -3,6 +3,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma, PieceStatus, ShipmentGroupStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { StockEventsGateway } from 'src/realtime/stock-events.gateway';
 import { ReservePieceDto } from './dto/reservation.dto';
 
 const RESERVATION_INCLUDE = {
@@ -37,6 +39,8 @@ export class ReservationService {
   constructor(
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
+    private notificationsService: NotificationsService,
+    private stockEventsGateway: StockEventsGateway,
   ) {}
 
   private async resolveOrderByOrderId(orderId: string) {
@@ -257,6 +261,12 @@ export class ReservationService {
     };
   }
 
+  async emailPickSlip(orderId: string, email: string) {
+    const slip = await this.getPickSlip(orderId);
+    await this.notificationsService.sendPickSlip(email, slip.orderId, slip.lines);
+    return { sent: true };
+  }
+
   // ── Server-computed gate: has every piece-tracked unit on this order been
   // reserved AND picked? Legacy (non-piece-tracked) lines don't count toward
   // this — they were never eligible for reservation in the first place. ─────
@@ -439,10 +449,14 @@ export class ReservationService {
   async markShipmentGroupReturning(orderPk: number, reasonCode?: string) {
     const shipmentGroup = await this.prisma.shipmentGroup.findUnique({
       where: { orderId: orderPk },
-      include: { reservations: { include: { piece: true } } },
+      include: {
+        reservations: { include: { piece: true } },
+        order: { select: { orderId: true } },
+      },
     });
     if (!shipmentGroup) return;
 
+    let returnedCount = 0;
     for (const reservation of shipmentGroup.reservations) {
       const fromStatus = reservation.piece.status;
       if (fromStatus !== PieceStatus.SHIPPED && fromStatus !== PieceStatus.DELIVERED) {
@@ -462,6 +476,16 @@ export class ReservationService {
           source: 'WEBHOOK',
           reasonCode,
         },
+      });
+
+      returnedCount++;
+    }
+
+    if (returnedCount > 0) {
+      this.stockEventsGateway.emitReturnStarted({
+        orderId: shipmentGroup.order.orderId,
+        pieceCount: returnedCount,
+        reasonCode,
       });
     }
   }

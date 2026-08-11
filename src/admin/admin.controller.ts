@@ -372,7 +372,11 @@ export class AdminController {
   async createProduct(@Body() dto: CreateProductDto, @Req() req: any) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     // return true
-    return this.productService.createProduct(dto, req?.user?.userId);
+    return this.productService.createProduct(
+      dto,
+      req?.user?.userId,
+      req?.user?.role,
+    );
   }
 
   @Patch('product/:productId')
@@ -383,7 +387,12 @@ export class AdminController {
     @Req() req: any,
   ) {
     // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
-    return this.productService.updateProduct(productId, dto, req?.user?.userId);
+    return this.productService.updateProduct(
+      productId,
+      dto,
+      req?.user?.userId,
+      req?.user?.role,
+    );
   }
 
   @Patch('set-trend-score')

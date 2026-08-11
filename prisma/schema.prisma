@@ -60,6 +60,7 @@ model User {
   pieceStatusEvents PieceStatusEvent[]
   reservationsReserved OrderLineReservation[] @relation("ReservationReservedBy")
   reservationsPicked   OrderLineReservation[] @relation("ReservationPickedBy")
+  generationBatches    GenerationBatch[]
 }
 
 enum UserRole {
@@ -361,6 +362,11 @@ model Piece {
   // piece isn't received yet at CREATED.
   receiveBatchId String?
 
+  // The print run this piece was generated in — lets receiving reconcile
+  // "how many did we print vs. how many actually showed up" per run.
+  generateBatchId String?
+  generateBatch   GenerationBatch? @relation(fields: [generateBatchId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -369,6 +375,27 @@ model Piece {
 
   @@index([productSizeId, status])
   @@index([locationId])
+  @@index([generateBatchId])
+}
+
+// One row per `generatePieces()` call — the expected quantity for that print
+// run, so receiving/void/stale-alert flows can reconcile against it instead
+// of only seeing loose CREATED pieces with no notion of "which batch."
+model GenerationBatch {
+  id            String @id @default(uuid())
+  productSizeId Int
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+
+  quantity Int
+
+  createdByUserId Int?
+  createdBy       User? @relation(fields: [createdByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  pieces Piece[]
+
+  @@index([productSizeId])
 }
 
 model PieceStatusEvent {
@@ -403,6 +430,7 @@ enum PieceStatus {
   RETURNING
   RETURNED_IN_STOCK
   DAMAGED_RETURN
+  VOID
 }
 
 // One per order — groups every reserved Piece for that order so "has
@@ -642,6 +670,7 @@ model ProductSize {
   orderItems       OrderItem[]
   stockAdjustments StockAdjustment[]
   pieces           Piece[]
+  generationBatches GenerationBatch[]
 }
 
 enum ProductTrackingMode {
