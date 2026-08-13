@@ -29,6 +29,16 @@ export interface ReturnStartedPayload {
   reasonCode?: string | null;
 }
 
+export interface AdminNotificationPayload {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  link?: string | null;
+  createdAt: Date;
+  unreadCount: number;
+}
+
 /**
  * Admin-only realtime channel for the inventory dashboard. Staff connect with a JWT
  * in the socket.io handshake `auth.token` field (same token issued by AuthService.issueToken).
@@ -89,5 +99,9 @@ export class StockEventsGateway implements OnGatewayConnection {
 
   emitReturnStarted(payload: ReturnStartedPayload) {
     this.server.emit('return:started', payload);
+  }
+
+  emitAdminNotification(payload: AdminNotificationPayload) {
+    this.server.emit('notification:new', payload);
   }
 }

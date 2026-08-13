@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { StockEventsGateway } from 'src/realtime/stock-events.gateway';
+import { AdminNotificationsService } from 'src/admin-notifications/admin-notifications.service';
 import { ReservePieceDto } from './dto/reservation.dto';
 
 const RESERVATION_INCLUDE = {
@@ -41,6 +42,7 @@ export class ReservationService {
     private activityLogService: ActivityLogService,
     private notificationsService: NotificationsService,
     private stockEventsGateway: StockEventsGateway,
+    private adminNotificationsService: AdminNotificationsService,
   ) {}
 
   private async resolveOrderByOrderId(orderId: string) {
@@ -486,6 +488,34 @@ export class ReservationService {
         orderId: shipmentGroup.order.orderId,
         pieceCount: returnedCount,
         reasonCode,
+      });
+
+      // Persisted counterpart to the live socket event above, so an admin
+      // who wasn't online when Pathao reported the return still sees it
+      // later via the notification bell instead of only via the ephemeral
+      // toast + dashboard card.
+      const notification = await this.adminNotificationsService.create({
+        type: 'RETURN_STARTED',
+        title: 'Return started',
+        message: `${returnedCount} piece(s) from order ${shipmentGroup.order.orderId} are returning${
+          reasonCode ? ` (${reasonCode})` : ''
+        }`,
+        link: `/admin/pieces?tab=return`,
+        metadata: {
+          orderId: shipmentGroup.order.orderId,
+          pieceCount: returnedCount,
+          reasonCode: reasonCode ?? null,
+        },
+      });
+      const unreadCount = await this.adminNotificationsService.getUnreadCount();
+      this.stockEventsGateway.emitAdminNotification({
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        link: notification.link,
+        createdAt: notification.createdAt,
+        unreadCount,
       });
     }
   }

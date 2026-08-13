@@ -1098,6 +1098,23 @@ model CourierWebhookLog {
   createdAt DateTime @default(now())
 }
 
+model AdminNotification {
+  id Int @id @default(autoincrement())
+
+  type    String
+  title   String
+  message String
+  link    String?
+  metadata Json?
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([readAt])
+  @@index([createdAt])
+}
+
 model CourierRate {
   id Int @id @default(autoincrement())
 

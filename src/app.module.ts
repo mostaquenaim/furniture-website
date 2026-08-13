@@ -47,6 +47,7 @@ import { SupplierModule } from './supplier/supplier.module';
 import { PieceModule } from './piece/piece.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { LabelSizeModule } from './label-size/label-size.module';
+import { AdminNotificationsModule } from './admin-notifications/admin-notifications.module';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { LabelSizeModule } from './label-size/label-size.module';
     PieceModule,
     ReservationModule,
     LabelSizeModule,
+    AdminNotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
