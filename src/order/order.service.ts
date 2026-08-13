@@ -1285,6 +1285,17 @@ export class OrderService {
     status: OrderStatus,
     adminId: number,
   ) {
+    // Order status is meant to be driven by the courier webhook end-to-end —
+    // this manual dropdown is an escape hatch, off by default. Flip
+    // MANUAL_ORDER_STATUS_UPDATE=true in env to let admins set it by hand
+    // (e.g. courier webhook is down, or a COD/return case the courier never reports).
+    if (process.env.MANUAL_ORDER_STATUS_UPDATE !== 'true') {
+      throw new BadRequestException(
+        'Manual order status changes are disabled — status is driven by the courier webhook. ' +
+          'Set MANUAL_ORDER_STATUS_UPDATE=true in the environment to re-enable manual updates.',
+      );
+    }
+
     let previousStatus: OrderStatus | undefined;
     let stockEvents: StockUpdatedPayload[] = [];
 

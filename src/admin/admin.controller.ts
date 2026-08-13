@@ -507,6 +507,14 @@ export class AdminController {
     return await this.cmsService.deleteCoupon(id, req?.user?.userId);
   }
 
+  // whether the manual status dropdown is allowed to submit, or is
+  // courier-webhook-only right now — read by the admin UI to disable the control
+  @Get('orders/manual-status-enabled')
+  @Permission(Action.ORDER_VIEW)
+  getManualOrderStatusEnabled() {
+    return { enabled: process.env.MANUAL_ORDER_STATUS_UPDATE === 'true' };
+  }
+
   // update order status
   @Patch('orders/:orderId/status')
   @Permission(Action.ORDER_UPDATE_STATUS)
