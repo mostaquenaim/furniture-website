@@ -11,7 +11,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -92,6 +91,32 @@ export class OrderService {
     return `SKG-${new Date().getFullYear()}-${String(next).padStart(5, '0')}`;
   }
 
+  /** Orders in these statuses haven't been physically fulfilled yet, so a stock
+   * shortfall on one of their items is still actionable by the Order Manager.
+   * Once an order ships, the pieces are already reserved/out the door — stock
+   * moves after that point are no longer this order's problem. */
+  private static readonly UNFULFILLED_STATUSES: OrderStatus[] = [
+    'PENDING',
+    'CONFIRMED',
+    'PROCESSING',
+    'PACKED',
+    'ON_HOLD',
+  ];
+
+  private orderHasOutOfStockItem(
+    status: OrderStatus,
+    items: {
+      productSizeId: number | null;
+      productSize?: { quantity: number } | null;
+    }[],
+  ): boolean {
+    if (!OrderService.UNFULFILLED_STATUSES.includes(status)) return false;
+    return items.some(
+      (item) =>
+        item.productSizeId != null && (item.productSize?.quantity ?? 0) <= 0,
+    );
+  }
+
   // create a order
   async createOrder(userId: number, dto: CreateOrderDto) {
     console.log('CreateOrderDto', dto, 'CreateOrderDto');
@@ -159,7 +184,7 @@ export class OrderService {
         },
       });
 
-      if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
+      if (!otpData) throw new BadRequestException('Invalid or expired OTP');
 
       await this.prisma.oTP.update({
         where: { id: otpData.id },
@@ -1018,6 +1043,7 @@ export class OrderService {
                     images: { take: 1, orderBy: { serialNo: 'asc' } },
                   },
                 },
+                productSize: { select: { quantity: true } },
               },
             },
             payments: { orderBy: { createdAt: 'desc' } },
@@ -1027,6 +1053,14 @@ export class OrderService {
         }),
         this.prisma.order.count({ where }),
       ]);
+
+      data = data.map((order) => ({
+        ...order,
+        hasOutOfStockItem: this.orderHasOutOfStockItem(
+          order.status,
+          order.items,
+        ),
+      }));
     }
 
     return {
@@ -1077,6 +1111,7 @@ export class OrderService {
                 },
               },
             },
+            productSize: { select: { quantity: true } },
           },
         },
         orderStatusHistories: {
@@ -1188,6 +1223,7 @@ export class OrderService {
 
     return {
       ...baseResponse,
+      hasOutOfStockItem: this.orderHasOutOfStockItem(order.status, order.items),
       awbNumber: order.awbNumber,
       deliveryMethod: order.deliveryMethod,
       deliveryCharge: order.deliveryCharge || 0,
@@ -1228,6 +1264,8 @@ export class OrderService {
         size: item.size,
         sku: item.sku,
         productSizeId: item.productSizeId,
+        isOutOfStock:
+          item.productSizeId != null && (item.productSize?.quantity ?? 0) <= 0,
         subtotal: item.totalPriceAtPurchase,
         isReviewed: item.isReviewed,
         slug: item.product.slug,
