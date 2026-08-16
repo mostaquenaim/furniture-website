@@ -189,6 +189,13 @@ export class AdminController {
     };
   }
 
+  // delete series
+  @Delete('series/:slug')
+  @Permission(Action.CATEGORY_DELETE)
+  async deleteSeries(@Req() req: any, @Param('slug') slug: string) {
+    return this.categoryService.deleteSeriesBySlug(req?.user?.userId, slug);
+  }
+
   // update categories
   @Patch('category/:slug')
   @Permission(Action.CATEGORY_UPDATE)
@@ -209,6 +216,13 @@ export class AdminController {
     };
   }
 
+  // delete category
+  @Delete('category/:slug')
+  @Permission(Action.CATEGORY_DELETE)
+  async deleteCategory(@Req() req: any, @Param('slug') slug: string) {
+    return this.categoryService.deleteCategoryBySlug(req?.user?.userId, slug);
+  }
+
   // update categories
   @Patch('subcategory/:slug')
   @Permission(Action.CATEGORY_UPDATE)
@@ -227,6 +241,16 @@ export class AdminController {
       message: 'Category updated successfully',
       data: updatedSeries,
     };
+  }
+
+  // delete subcategory
+  @Delete('subcategory/:slug')
+  @Permission(Action.CATEGORY_DELETE)
+  async deleteSubcategory(@Req() req: any, @Param('slug') slug: string) {
+    return this.categoryService.deleteSubCategoryBySlug(
+      req?.user?.userId,
+      slug,
+    );
   }
 
   // ADMIN PROFILE

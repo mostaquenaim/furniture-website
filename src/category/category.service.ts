@@ -9,6 +9,7 @@ import {
   NotFoundException,
   ConflictException,
   InternalServerErrorException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSeriesDto } from './dto/seriesDto.dto';
@@ -24,102 +25,6 @@ export class CategoryService {
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
   ) {}
-
-  // CREATE CATEGORY
-  async create(data: {
-    slug: string;
-    image?: string;
-    sortOrder?: number;
-    seriesId: number;
-  }) {
-    try {
-      const cat = await this.prisma.category.create({
-        data,
-      });
-
-      // this.activityLogService.log({
-      //   adminId,
-      //   action: 'CREATE_BLOG',
-      //   module: 'CONTENT',
-      //   targetId: blog.id,
-      //   targetLabel: blog.title,
-      //   newValue: {
-      //     title: blog.title,
-      //     slug: blog.slug,
-      //     content: blog.content,
-      //     categoryId: blog.categoryId,
-      //     published: blog.published,
-      //   },
-      // });
-
-      return cat;
-    } catch (error) {
-      throw new ConflictException(
-        'Category with this slug already exists in the series',
-      );
-    }
-  }
-
-  // GET ALL CATEGORIES (for admin)
-  async findAll() {
-    return this.prisma.category.findMany({
-      include: {
-        series: true,
-        subCategories: true,
-      },
-      orderBy: {
-        sortOrder: 'asc',
-      },
-    });
-  }
-
-  // GET ACTIVE CATEGORIES BY SERIES (frontend menu)
-  async findBySeries(seriesId: number) {
-    return this.prisma.category.findMany({
-      where: {
-        seriesId,
-        isActive: true,
-      },
-      include: {
-        subCategories: {
-          where: { isActive: true },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-      orderBy: {
-        sortOrder: 'asc',
-      },
-    });
-  }
-
-  // UPDATE CATEGORY
-  async update(
-    id: number,
-    data: {
-      slug?: string;
-      image?: string;
-      sortOrder?: number;
-      isActive?: boolean;
-    },
-  ) {
-    const category = await this.prisma.category.findUnique({ where: { id } });
-    if (!category) throw new NotFoundException('Category not found');
-
-    return this.prisma.category.update({
-      where: { id },
-      data,
-    });
-  }
-
-  // DELETE CATEGORY (cascade handles subCategories)
-  async remove(id: number) {
-    const category = await this.prisma.category.findUnique({ where: { id } });
-    if (!category) throw new NotFoundException('Category not found');
-
-    return this.prisma.category.delete({
-      where: { id },
-    });
-  }
 
   // =====================
   // SERIES
@@ -614,6 +519,42 @@ export class CategoryService {
     }
   }
 
+  // delete series
+  async deleteSeriesBySlug(userId: number, slug: string) {
+    const series = await this.prisma.series.findUnique({
+      where: { slug },
+    });
+
+    if (!series) {
+      throw new NotFoundException('Series not found');
+    }
+
+    const categoryCount = await this.prisma.category.count({
+      where: { seriesId: series.id },
+    });
+
+    if (categoryCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete this series. It still has categories under it — delete or move them first.',
+      );
+    }
+
+    const deleted = await this.prisma.series.delete({
+      where: { id: series.id },
+    });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_SERIES',
+      module: 'CATALOG',
+      targetId: series.id,
+      targetLabel: series.name,
+      oldValue: series,
+    });
+
+    return deleted;
+  }
+
   // =====================
   // CATEGORY
   // =====================
@@ -856,6 +797,42 @@ export class CategoryService {
     });
 
     return category;
+  }
+
+  // delete category
+  async deleteCategoryBySlug(userId: number, slug: string) {
+    const category = await this.prisma.category.findUnique({
+      where: { slug },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    const subCategoryCount = await this.prisma.subCategory.count({
+      where: { categoryId: category.id },
+    });
+
+    if (subCategoryCount > 0) {
+      throw new BadRequestException(
+        'Cannot delete this category. It still has product types (subcategories) under it — delete or move them first.',
+      );
+    }
+
+    const deleted = await this.prisma.category.delete({
+      where: { id: category.id },
+    });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_CATEGORY',
+      module: 'CATALOG',
+      targetId: category.id,
+      targetLabel: category.name ?? '',
+      oldValue: category,
+    });
+
+    return deleted;
   }
 
   // =====================
@@ -1395,5 +1372,41 @@ export class CategoryService {
         'Could not update categories order',
       );
     }
+  }
+
+  // delete subcategory
+  async deleteSubCategoryBySlug(userId: number, slug: string) {
+    const subCategory = await this.prisma.subCategory.findUnique({
+      where: { slug },
+    });
+
+    if (!subCategory) {
+      throw new NotFoundException('SubCategory not found');
+    }
+
+    const usedInProducts = await this.prisma.productSubCategory.count({
+      where: { subCategoryId: subCategory.id },
+    });
+
+    if (usedInProducts > 0) {
+      throw new BadRequestException(
+        'Cannot delete this product type. It is used in one or more products.',
+      );
+    }
+
+    const deleted = await this.prisma.subCategory.delete({
+      where: { id: subCategory.id },
+    });
+
+    this.activityLogService.log({
+      adminId: userId,
+      action: 'DELETE_SUBCATEGORY',
+      module: 'CATALOG',
+      targetId: subCategory.id,
+      targetLabel: subCategory.name ?? '',
+      oldValue: subCategory,
+    });
+
+    return deleted;
   }
 }
