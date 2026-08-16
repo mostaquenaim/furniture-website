@@ -99,9 +99,12 @@ export class DashboardService {
         distinct: ['userId'],
       }),
 
-      // Low-stock alert: ProductSize rows with quantity > 0 and <= 5
+      // Inventory alerts: ProductSize rows at or below their own low-stock
+      // threshold — mirrors inventory.service.ts's getLowStockSummary() so
+      // this tile and the Inventory page always agree. Includes fully
+      // out-of-stock rows (quantity <= 0), not just low-stock ones.
       this.prisma.productSize.count({
-        where: { quantity: { gt: 0, lte: 5 } },
+        where: { quantity: { lte: this.prisma.productSize.fields.lowStockAt } },
       }),
 
       // New customers registered in range (denominator for conversion rate)
@@ -249,7 +252,7 @@ export class DashboardService {
             // Stock: Product → ProductColor → ProductSize
             colors: {
               select: {
-                sizes: { select: { quantity: true } },
+                sizes: { select: { quantity: true, lowStockAt: true } },
               },
             },
           },
@@ -266,6 +269,7 @@ export class DashboardService {
         sales: number;
         revenue: number;
         stock: number;
+        lowStockAt: number;
       }
     >();
 
@@ -273,15 +277,19 @@ export class DashboardService {
       const p = item.product;
       if (!p) continue;
 
-      // Sum all size quantities across all colors for this product.
-      // Stock is computed once on the first encounter, then reused.
+      // Sum all size quantities — and each variant's own lowStockAt
+      // threshold (admin-editable, defaults to 5) — across all colors for
+      // this product. Both are computed once on the first encounter, then
+      // reused, so a product's "low stock" line scales with however many
+      // variants it has and honors per-variant threshold overrides.
       const existing = productMap.get(p.id);
+      const sizes = p.colors.flatMap((c) => c.sizes);
 
       const totalStock =
-        existing?.stock ??
-        p.colors
-          .flatMap((c) => c.sizes)
-          .reduce((sum, s) => sum + (s.quantity ?? 0), 0);
+        existing?.stock ?? sizes.reduce((sum, s) => sum + (s.quantity ?? 0), 0);
+      const totalLowStockAt =
+        existing?.lowStockAt ??
+        sizes.reduce((sum, s) => sum + s.lowStockAt, 0);
 
       productMap.set(p.id, {
         id: p.id,
@@ -290,19 +298,20 @@ export class DashboardService {
         sales: (existing?.sales ?? 0) + (item.quantity ?? 1),
         revenue: (existing?.revenue ?? 0) + (item.totalPriceAtPurchase ?? 0),
         stock: totalStock,
+        lowStockAt: totalLowStockAt,
       });
     }
 
     return Array.from(productMap.values())
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10)
-      .map((p) => ({
+      .map(({ lowStockAt, ...p }) => ({
         ...p,
         revenue: parseFloat(p.revenue.toFixed(2)),
         status:
           p.stock === 0
             ? ('out_of_stock' as const)
-            : p.stock <= 5
+            : p.stock <= lowStockAt
               ? ('low_stock' as const)
               : ('in_stock' as const),
       }));
