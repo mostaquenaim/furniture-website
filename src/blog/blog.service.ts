@@ -420,10 +420,16 @@ export class BlogsService {
   }
 
   async getBlogBySlug(slug: string) {
-    const blog = await this.prisma.blogPost.findUnique({
-      where: {
-        slug,
-      },
+    return this.findBlogBySlug(slug, true);
+  }
+
+  async getBlogBySlugAdmin(slug: string) {
+    return this.findBlogBySlug(slug, false);
+  }
+
+  private async findBlogBySlug(slug: string, publishedOnly: boolean) {
+    const blog = await this.prisma.blogPost.findFirst({
+      where: publishedOnly ? { slug, published: true } : { slug },
       include: {
         // Include the primary category
         category: {

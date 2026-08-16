@@ -78,6 +78,13 @@ export class BlogsController {
     return this.service.getBlogById(parseInt(id));
   }
 
+  @Get('admin/by-slug/:slug')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.BLOG_CREATE)
+  getBlogBySlugAdmin(@Param('slug') slug: string) {
+    return this.service.getBlogBySlugAdmin(slug);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Permission(Action.BLOG_UPDATE)
