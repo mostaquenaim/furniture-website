@@ -140,6 +140,12 @@ export enum Action {
   DASHBOARD_VIEW = 'DASHBOARD_VIEW',
   ANALYTICS_VIEW = 'ANALYTICS_VIEW',
 
+  // Support Tickets
+  TICKET_VIEW = 'TICKET_VIEW',
+  TICKET_REPLY = 'TICKET_REPLY',
+  TICKET_ASSIGN = 'TICKET_ASSIGN',
+  TICKET_MANAGE = 'TICKET_MANAGE',
+
   // Misc / Admin-only (no permission check needed — SUPERADMIN bypass handles it)
   // CLOUDINARY_SIGNATURE, ACTIVITY_LOG, PROFILE — see note below
 }

@@ -17,6 +17,8 @@ export async function deleteUserSafely(prisma: PrismaService, id: number) {
       orders: true,
       activityLogs: true,
       supportTickets: true,
+      assignedTickets: true,
+      ticketMessages: true,
     },
   });
 
@@ -31,7 +33,9 @@ export async function deleteUserSafely(prisma: PrismaService, id: number) {
   if (
     user.orders.length > 0 ||
     user.activityLogs.length > 0 ||
-    user.supportTickets.length > 0
+    user.supportTickets.length > 0 ||
+    user.assignedTickets.length > 0 ||
+    user.ticketMessages.length > 0
   ) {
     throw new BadRequestException(
       'User has associated data. Deactivate instead.',

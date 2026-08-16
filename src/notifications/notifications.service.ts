@@ -233,6 +233,42 @@ export class NotificationsService {
     await Promise.all(jobs);
   }
 
+  /** Queues the customer-facing email when a staff member replies on a support ticket. */
+  async sendTicketReplyNotification(
+    user: { email?: string | null },
+    data: {
+      ticketId: number | string;
+      subject: string;
+      replyPreview: string;
+      ticketUrl: string;
+    },
+  ) {
+    const jobs: Promise<unknown>[] = [];
+
+    if (user.email) {
+      jobs.push(
+        this.notificationQueue.add('sendEmail', {
+          email: user.email,
+          subject: `New reply on your support ticket #${data.ticketId}`,
+          template: 'ticket-reply',
+          context: {
+            customerName: 'there',
+            ticketId: data.ticketId,
+            subject: data.subject,
+            replyPreview: data.replyPreview,
+            ticketUrl: data.ticketUrl,
+          },
+        }),
+      );
+    } else {
+      this.logger.warn(
+        `Skipping ticket-reply email for ticket ${data.ticketId} — no email on file`,
+      );
+    }
+
+    await Promise.all(jobs);
+  }
+
   /**
    * Queues one offer/promotional email per recipient (never a single email
    * with every address in "to", which would leak addresses between

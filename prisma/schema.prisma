@@ -53,6 +53,8 @@ model User {
   productViews     ProductView[]
   visitors         Visitor[]
   supportTickets   SupportTicket[]
+  assignedTickets  SupportTicket[]        @relation("TicketAssignee")
+  ticketMessages   SupportTicketMessage[] @relation("TicketMessageAuthor")
   activityLogs     ActivityLog[]
   fraudChecks      FraudCheck[]
   stockAdjustments StockAdjustment[]
@@ -1488,8 +1490,32 @@ model SupportTicket {
   user   User @relation(fields: [userId], references: [id])
   userId Int
 
+  assignedTo   User? @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  assignedToId Int?
+  resolvedAt   DateTime?
+  closedAt     DateTime?
+  messages     SupportTicketMessage[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model SupportTicketMessage {
+  id       Int           @id @default(autoincrement())
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId Int
+  author   User? @relation("TicketMessageAuthor", fields: [authorId], references: [id])
+  authorId Int?
+
+  body           String
+  isInternalNote Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 enum SupportStatus {

@@ -1,10 +1,5 @@
 import { IsNotEmpty, IsString, IsOptional, IsEnum } from 'class-validator';
-
-export enum SupportPriority {
-  LOW = 'LOW',
-  NORMAL = 'NORMAL',
-  HIGH = 'HIGH',
-}
+import { SupportPriority } from '@prisma/client';
 
 export class CreateSupportTicketDto {
   @IsString()

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { CreateSupportTicketDto } from './dto/create-support-ticket.dto';
+import { CreateTicketMessageDto } from './dto/create-ticket-message.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('support')
@@ -31,5 +32,18 @@ export class SupportController {
   @Get('ticket/:id')
   getTicketById(@Req() req, @Param('id') id: string) {
     return this.supportService.getTicketById(+id, req?.user?.userId);
+  }
+
+  @Post('ticket/:id/reply')
+  addCustomerReply(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: CreateTicketMessageDto,
+  ) {
+    return this.supportService.addCustomerReply(
+      +id,
+      req?.user?.userId,
+      dto,
+    );
   }
 }
