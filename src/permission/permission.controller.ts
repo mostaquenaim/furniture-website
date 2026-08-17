@@ -6,6 +6,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { UserRole } from '@prisma/client';
 import { Action } from './action.enum';
 import { SkipPermission } from './skip-permission.decorator';
+import { Roles } from 'src/auth/roles.decorator';
 
 @Controller('permissions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -23,12 +24,17 @@ export class PermissionController {
     return { role, actions };
   }
 
+  // Grants/toggles are superadmin-only, and hard-coded via @Roles rather than
+  // the togglable @Permission table — a superadmin must never be able to
+  // configure another role's way into managing permissions.
   @Get('all')
+  @Roles(UserRole.SUPERADMIN)
   getAllPermissions() {
     return this.permissionService.getAllPermissions();
   }
 
   @Patch('bulk')
+  @Roles(UserRole.SUPERADMIN)
   async bulkUpdate(
     @Body()
     body: {

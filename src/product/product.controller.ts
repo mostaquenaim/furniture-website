@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import {
   Body,
   Controller,
@@ -16,6 +16,10 @@ import {
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Permission } from 'src/permission/permission.decorator';
+import { Action } from 'src/permission/action.enum';
 import type { Response } from 'express';
 import { BarcodeService } from 'src/barcode/barcode.service';
 import { ReviewService } from 'src/review/review.service';
@@ -46,7 +50,7 @@ export class ProductController {
     @Query('thumb') thumb?: boolean,
     @Query('includeOutOfStock') includeOutOfStock?: string,
   ) {
-  // console.log(sortBy, order, 'sortBy', 'order');
+    // console.log(sortBy, order, 'sortBy', 'order');
     return this.productService.getAllProducts({
       page: Number(page) || 1,
       // No limit passed => return every matching product (no pagination).
@@ -98,7 +102,7 @@ export class ProductController {
           .filter((n) => !isNaN(n))
       : [];
 
-  // console.log(ids, cleanProductSlug, cleanCategorySlug, catIds, 'cleaned');
+    // console.log(ids, cleanProductSlug, cleanCategorySlug, catIds, 'cleaned');
 
     if (catIds.length > 0) {
       return this.productService.getSubCategoryBasedRecommendations(
@@ -125,7 +129,7 @@ export class ProductController {
   ) {
     const userId = req?.user?.userId ?? null;
 
-  // console.log(userId, id, visitorId);
+    // console.log(userId, id, visitorId);
 
     return this.productService.addProductView(id, userId, visitorId ?? null);
   }
@@ -140,7 +144,7 @@ export class ProductController {
     // Parse limit, default to 10 if missing or invalid
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
 
-  // console.log(userId, parsedLimit);
+    // console.log(userId, parsedLimit);
     // Call the service with safe values
     return this.productService.recommendedProducts(userId, parsedLimit);
   }
@@ -250,6 +254,8 @@ export class ProductController {
   }
 
   @Patch(':productId/toggle-status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.PRODUCT_UPDATE)
   toggleProductStatusBySlug(@Param('productId') productId: string) {
     return this.productService.toggleProductStatusBySlug(productId);
   }

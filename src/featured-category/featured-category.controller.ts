@@ -19,7 +19,7 @@ import { FeaturedCategoryService } from './featured-category.service';
 import { CreateFeaturedCategoryDto } from './dto/create-featured-category.dto';
 import { UpdateFeaturedCategoryDto } from './dto/update-featured-category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { Permission } from '../permission/permission.decorator';
 import { Action } from '../permission/action.enum';
 

@@ -16,6 +16,9 @@ import {
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Permission } from 'src/permission/permission.decorator';
+import { Action } from 'src/permission/action.enum';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus } from '@prisma/client';
 import { RefundService } from '../refund/refund.service';
@@ -29,7 +32,13 @@ export class OrderController {
     private readonly refundService: RefundService,
   ) {}
 
+  // Admin-only listing (customer routes below stay on plain JwtAuthGuard —
+  // RolesGuard would incorrectly deny CUSTOMER since it has no RolePermission
+  // rows). getAllOrders() returns every customer's orders once the caller
+  // isn't a CUSTOMER, so this must be gated independently of the service.
   @Get('all')
+  @UseGuards(RolesGuard)
+  @Permission(Action.ORDER_VIEW)
   getAllOrders(
     @Req() req: any,
     @Query('page') page?: string,

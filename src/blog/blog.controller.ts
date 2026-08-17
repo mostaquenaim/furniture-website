@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Body,
@@ -43,6 +42,8 @@ export class BlogsController {
   }
 
   @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.BLOG_CREATE)
   getAllAdmin(
     @Query('activeCategory') activeCategory?: string,
     @Query('page') page?: string,
@@ -67,7 +68,7 @@ export class BlogsController {
 
   @Get('categories')
   getCategories() {
-  // console.log('here');
+    // console.log('here');
     return this.service.getCategories();
   }
 

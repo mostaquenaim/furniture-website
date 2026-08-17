@@ -702,7 +702,7 @@ export class OrderService {
 
     if (!invoice) throw new NotFoundException('Invoice not found');
 
-    console.log('invoice received:', invoice.id);
+    // console.log('invoice received:', invoice.id);
 
     this.assertInvoiceAccess(invoice, requestingUser);
 

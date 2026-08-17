@@ -18,7 +18,7 @@ import { UrgencyBannerService } from './urgency-banner.service';
 import { CreateUrgencyBannerDto } from './dto/create-urgency-banner.dto';
 import { UpdateUrgencyBannerDto } from './dto/update-urgency-banner.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { Permission } from '../permission/permission.decorator';
 import { Action } from '../permission/action.enum';
 

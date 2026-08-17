@@ -140,6 +140,9 @@ export enum Action {
   DASHBOARD_VIEW = 'DASHBOARD_VIEW',
   ANALYTICS_VIEW = 'ANALYTICS_VIEW',
 
+  // SEO metadata (per-URL title/description/schema records)
+  SEO_MANAGE = 'SEO_MANAGE',
+
   // Support Tickets
   TICKET_VIEW = 'TICKET_VIEW',
   TICKET_REPLY = 'TICKET_REPLY',

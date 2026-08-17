@@ -16,7 +16,7 @@ import { FlashSalesService } from './flash-sales.service';
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { Permission } from '../permission/permission.decorator';
 import { Action } from '../permission/action.enum';
 

@@ -11,6 +11,7 @@ import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-met
 import { RefundModule } from 'src/refund/refund.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusModule } from 'src/order-status/order-status.module';
+import { PermissionService } from 'src/permission/permission.service';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { OrderStatusModule } from 'src/order-status/order-status.module';
     PrismaService,
     ActivityLogService,
     StockLedgerService,
+    PermissionService,
   ],
   controllers: [OrderController],
 })
