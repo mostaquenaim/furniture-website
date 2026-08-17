@@ -119,7 +119,10 @@ export function validateCouponAgainstCart(
     };
   }
 
-  if (coupon.minOrderValue && discount.eligibleSubtotal < coupon.minOrderValue) {
+  if (
+    coupon.minOrderValue &&
+    discount.eligibleSubtotal < coupon.minOrderValue
+  ) {
     return {
       ok: false,
       reason: `Minimum order value for this coupon is ${coupon.minOrderValue}`,

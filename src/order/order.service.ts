@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-expressions */
+
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -315,9 +315,9 @@ export class OrderService {
 
       const eligibilityItems = cart.items.map((item) => ({
         subtotalAtAdd: item.subtotalAtAdd,
-        categoryIds: (item.productSize?.color?.product?.subCategories ?? []).map(
-          (psc) => psc.subCategory.categoryId,
-        ),
+        categoryIds: (
+          item.productSize?.color?.product?.subCategories ?? []
+        ).map((psc) => psc.subCategory.categoryId),
       }));
 
       const discountResult = computeCouponDiscount(eligibilityItems, coupon);
@@ -346,7 +346,9 @@ export class OrderService {
     // never trust a client-supplied value here, or a customer could zero out shipping.
     const deliveryCharge = freeDelivery
       ? 0
-      : (district.deliveryFee ?? Number(process.env.DEFAULT_DELIVERY_FEE) ?? 120);
+      : (district.deliveryFee ??
+        Number(process.env.DEFAULT_DELIVERY_FEE) ??
+        120);
     const total = subtotal - discount + deliveryCharge;
 
     if (dto.paymentMethod === 'COD') {
@@ -1441,7 +1443,10 @@ export class OrderService {
       // Same hard gate as the courier-booking path (CourierService.createShipment)
       // — the manual status dropdown must not be a way to bypass "every
       // reserved piece must be scan-confirmed as Picked before shipping."
-      if (status === OrderStatus.SHIPPED && order.status !== OrderStatus.SHIPPED) {
+      if (
+        status === OrderStatus.SHIPPED &&
+        order.status !== OrderStatus.SHIPPED
+      ) {
         const pickGate = await this.reservationService.checkFullyPickedForOrder(
           order.id,
           tx,

@@ -1,9 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import {
   BadRequestException,
   Injectable,
@@ -76,7 +72,10 @@ export class CartService {
     const cartCheck = validateCouponAgainstCart(coupon, discount);
     if (!cartCheck.ok) return { discountAmount: 0, freeDelivery: false };
 
-    return { discountAmount: discount.discountAmount, freeDelivery: discount.freeDelivery };
+    return {
+      discountAmount: discount.discountAmount,
+      freeDelivery: discount.freeDelivery,
+    };
   }
 
   // get all carts
@@ -493,7 +492,7 @@ export class CartService {
 
   // get or create cart
   async getOrCreateCart(userId: number) {
-  // console.log(userId, 'userId');
+    // console.log(userId, 'userId');
     let cart = await this.prisma.cart.findFirst({
       where: {
         userId,
@@ -880,7 +879,9 @@ export class CartService {
                 color: {
                   include: {
                     product: {
-                      include: { subCategories: { include: { subCategory: true } } },
+                      include: {
+                        subCategories: { include: { subCategory: true } },
+                      },
                     },
                   },
                 },

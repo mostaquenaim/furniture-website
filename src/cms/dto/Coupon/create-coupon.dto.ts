@@ -11,7 +11,6 @@ import {
   IsPositive,
   IsString,
   Matches,
-  Max,
   Min,
 } from 'class-validator';
 import { CouponDiscountType } from '@prisma/client';
