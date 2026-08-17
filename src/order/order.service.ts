@@ -647,12 +647,17 @@ export class OrderService {
   }
 
   private async renderPdf(html: string): Promise<Buffer> {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      protocolTimeout: 20_000,
-    });
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
     try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+        ],
+        protocolTimeout: 20_000,
+      });
       const page = await browser.newPage();
       await page.setContent(html, {
         waitUntil: 'networkidle0',
@@ -671,7 +676,7 @@ export class OrderService {
         'Could not generate the invoice PDF right now. Please try again shortly.',
       );
     } finally {
-      await browser.close();
+      await browser?.close();
     }
   }
 

@@ -46,20 +46,20 @@ model User {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  wishlist         Wishlist[]
-  orders           Order[]
-  otps             OTP[]
-  cart             Cart[]
-  productViews     ProductView[]
-  visitors         Visitor[]
-  supportTickets   SupportTicket[]
-  assignedTickets  SupportTicket[]        @relation("TicketAssignee")
-  ticketMessages   SupportTicketMessage[] @relation("TicketMessageAuthor")
-  activityLogs     ActivityLog[]
-  fraudChecks      FraudCheck[]
-  stockAdjustments StockAdjustment[]
-  searchLogs       SearchLog[]
-  pieceStatusEvents PieceStatusEvent[]
+  wishlist             Wishlist[]
+  orders               Order[]
+  otps                 OTP[]
+  cart                 Cart[]
+  productViews         ProductView[]
+  visitors             Visitor[]
+  supportTickets       SupportTicket[]
+  assignedTickets      SupportTicket[]        @relation("TicketAssignee")
+  ticketMessages       SupportTicketMessage[] @relation("TicketMessageAuthor")
+  activityLogs         ActivityLog[]
+  fraudChecks          FraudCheck[]
+  stockAdjustments     StockAdjustment[]
+  searchLogs           SearchLog[]
+  pieceStatusEvents    PieceStatusEvent[]
   reservationsReserved OrderLineReservation[] @relation("ReservationReservedBy")
   reservationsPicked   OrderLineReservation[] @relation("ReservationPickedBy")
   generationBatches    GenerationBatch[]
@@ -174,6 +174,7 @@ model Category {
   seriesId Int
 
   subCategories SubCategory[]
+  coupons       CouponCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -261,12 +262,12 @@ model Product {
   colors        ProductColor[]
   // reviews       Review[]
 
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  productViews     ProductView[]
-  productTags      ProductTag[]
-  inventoryItems   InventoryItem[]
-  stockAdjustments StockAdjustment[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  productViews      ProductView[]
+  productTags       ProductTag[]
+  inventoryItems    InventoryItem[]
+  stockAdjustments  StockAdjustment[]
   flashSaleProducts FlashSaleProduct[]
 }
 
@@ -346,8 +347,8 @@ model Supplier {
 // ProductSize.quantity — the number checkout actually reads — never
 // diverges from piece reality.
 model Piece {
-  id           Int         @id @default(autoincrement())
-  barcodeValue String      @unique
+  id           Int    @id @default(autoincrement())
+  barcodeValue String @unique
 
   productSizeId Int
   productSize   ProductSize @relation(fields: [productSizeId], references: [id])
@@ -384,7 +385,7 @@ model Piece {
 // run, so receiving/void/stale-alert flows can reconcile against it instead
 // of only seeing loose CREATED pieces with no notion of "which batch."
 model GenerationBatch {
-  id            String @id @default(uuid())
+  id            String      @id @default(uuid())
   productSizeId Int
   productSize   ProductSize @relation(fields: [productSizeId], references: [id])
 
@@ -665,13 +666,13 @@ model ProductSize {
   sizeId Int
   size   Size @relation(fields: [sizeId], references: [id])
 
-  colorId          Int
-  color            ProductColor      @relation(fields: [colorId], references: [id], onDelete: Cascade)
-  cartItems        CartItem[]
-  inventoryItems   InventoryItem[]
-  orderItems       OrderItem[]
-  stockAdjustments StockAdjustment[]
-  pieces           Piece[]
+  colorId           Int
+  color             ProductColor      @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  cartItems         CartItem[]
+  inventoryItems    InventoryItem[]
+  orderItems        OrderItem[]
+  stockAdjustments  StockAdjustment[]
+  pieces            Piece[]
   generationBatches GenerationBatch[]
 }
 
@@ -791,7 +792,9 @@ model Order {
   deliveryCharge Float?
 
   // ── Pricing
-  couponCode String?
+  couponCode String? // snapshot of the code at purchase time, for display
+  couponId   Int? // authoritative link, used for usage-limit enforcement
+  coupon     Coupon? @relation(fields: [couponId], references: [id])
   discount   Float?
   total      Float
 
@@ -821,6 +824,8 @@ model Order {
   courierShipments     CourierShipment[]
   returnRequests       ReturnRequest[]
   shipmentGroup        ShipmentGroup?
+
+  @@index([couponId, userId])
 }
 
 model OrderItem {
@@ -848,7 +853,7 @@ model OrderItem {
   review Review?
 
   returnRequestItems ReturnRequestItem[]
-  reservations        OrderLineReservation[]
+  reservations       OrderLineReservation[]
 }
 
 enum OrderStatus {
@@ -1008,11 +1013,42 @@ model Coupon {
   expiryDate    DateTime
   startDate     DateTime           @default(now())
 
+  // Total uses allowed across all customers; null = unlimited. usedCount is
+  // only ever incremented at order creation via an atomic guarded update
+  // (see OrderService.createOrder) so concurrent checkouts can't oversell
+  // the last slot. Cancelling/failing an order does NOT free the slot back
+  // up — a coupon is considered "spent" the moment the order is placed.
+  usageLimit Int?
+  usedCount  Int  @default(0)
+
+  // Uses allowed per customer; null = unlimited. Enforced against
+  // Order.couponId, counting every order regardless of status (see note
+  // above on cancellations not releasing usage).
+  perUserLimit Int?
+
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   carts     Cart[]
+  orders    Order[]
+
+  // Empty = applies to every category (existing/back-compat behaviour).
+  // Non-empty = only items in these categories are discounted; other cart
+  // items are left at full price.
+  categories CouponCategory[]
+}
+
+model CouponCategory {
+  id Int @id @default(autoincrement())
+
+  couponId Int
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, categoryId])
 }
 
 enum CouponDiscountType {
@@ -1103,10 +1139,10 @@ model CourierWebhookLog {
 model AdminNotification {
   id Int @id @default(autoincrement())
 
-  type    String
-  title   String
-  message String
-  link    String?
+  type     String
+  title    String
+  message  String
+  link     String?
   metadata Json?
 
   readAt DateTime?
@@ -1490,7 +1526,7 @@ model SupportTicket {
   user   User @relation(fields: [userId], references: [id])
   userId Int
 
-  assignedTo   User? @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  assignedTo   User?                  @relation("TicketAssignee", fields: [assignedToId], references: [id])
   assignedToId Int?
   resolvedAt   DateTime?
   closedAt     DateTime?
@@ -1507,7 +1543,7 @@ model SupportTicketMessage {
   id       Int           @id @default(autoincrement())
   ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   ticketId Int
-  author   User? @relation("TicketMessageAuthor", fields: [authorId], references: [id])
+  author   User?         @relation("TicketMessageAuthor", fields: [authorId], references: [id])
   authorId Int?
 
   body           String
