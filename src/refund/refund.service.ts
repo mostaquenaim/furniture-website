@@ -24,6 +24,7 @@ import {
   StockEventsGateway,
   StockUpdatedPayload,
 } from '../realtime/stock-events.gateway';
+import { CustomerOrderEventsGateway } from '../realtime/customer-order-events.gateway';
 import { PaymentService } from '../payment/payment.service';
 import { CreateReturnRequestDto } from './dto/create-return-request.dto';
 import {
@@ -60,6 +61,7 @@ export class RefundService {
     private notificationService: NotificationsService,
     private stockLedgerService: StockLedgerService,
     private stockEventsGateway: StockEventsGateway,
+    private customerOrderEventsGateway: CustomerOrderEventsGateway,
     private paymentService: PaymentService,
     private reservationService: ReservationService,
   ) {}
@@ -450,6 +452,7 @@ export class RefundService {
     }
 
     const stockEvents: StockUpdatedPayload[] = [];
+    let orderFullyReturned = false;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       for (const item of returnRequest.items) {
@@ -538,6 +541,8 @@ export class RefundService {
         (oi) => (returnedQtyByItem.get(oi.id) ?? 0) >= oi.quantity,
       );
 
+      orderFullyReturned = isFullyReturned;
+
       if (isFullyReturned) {
         // An admin can mark items received here without every piece-tracked
         // unit having gone through PieceService.returnReceive's physical
@@ -577,6 +582,25 @@ export class RefundService {
 
     for (const event of stockEvents) {
       this.stockEventsGateway.emitStockUpdated(event);
+    }
+
+    if (orderFullyReturned && returnRequest.order.status !== OrderStatus.RETURNED) {
+      try {
+        this.customerOrderEventsGateway.emitOrderStatusUpdated(
+          returnRequest.order.orderId,
+          {
+            orderId: returnRequest.order.orderId,
+            status: OrderStatus.RETURNED,
+            previousStatus: returnRequest.order.status,
+            updatedAt: new Date(),
+          },
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to emit realtime status update for order ${returnRequest.order.orderId}`,
+          err,
+        );
+      }
     }
 
     this.activityLogService.log({

@@ -47,7 +47,7 @@ export class ActivityLogService {
           newValue: data.newValue,
           targetId: data.targetId ? String(data.targetId) : null,
           targetLabel: data.targetLabel,
-          metadata: data.metadata ? Prisma.JsonNull : data.metadata,
+          metadata: data.metadata ?? Prisma.JsonNull,
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
           statement,

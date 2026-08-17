@@ -9,10 +9,14 @@ import { SuspendUserDto } from './dto/suspend-user.dto';
 import { UserRole } from '@prisma/client';
 import { deleteUserSafely } from './user-deletion.util';
 import { SAFE_USER_SELECT } from './safe-user.select';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   // List all users
   findAll() {
@@ -30,8 +34,12 @@ export class UserService {
   }
 
   // Delete user
-  async remove(id: number) {
-    return deleteUserSafely(this.prisma, id);
+  async remove(id: number, adminId: number) {
+    return deleteUserSafely(this.prisma, id, {
+      service: this.activityLogService,
+      adminId,
+      action: 'DELETE_CUSTOMER',
+    });
   }
 
   // Get user orders
@@ -53,15 +61,28 @@ export class UserService {
   // Suspend user (fraud) — reuses the same `isActive` flag toggleStatus()
   // (admin-user.service.ts) already uses, so suspend/reactivate is one
   // consistent mechanism instead of two.
-  async suspendUser(dto: SuspendUserDto) {
+  async suspendUser(dto: SuspendUserDto, adminId: number) {
     const user = await this.findOne(dto.userId);
     if (user.role === UserRole.SUPERADMIN) {
       throw new ForbiddenException('Cannot suspend a SUPERADMIN account.');
     }
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: dto.userId },
       data: { isActive: false },
       select: SAFE_USER_SELECT,
     });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'SUSPEND_CUSTOMER',
+      module: 'USER',
+      targetId: dto.userId,
+      targetLabel: user.name ?? user.email ?? user.phone ?? String(dto.userId),
+      severity: 'WARNING',
+      oldValue: { isActive: user.isActive },
+      newValue: { isActive: updated.isActive },
+    });
+
+    return updated;
   }
 }

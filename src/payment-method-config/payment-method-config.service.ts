@@ -10,6 +10,14 @@ import { Prisma, PaymentMethod } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentMethodConfigDto } from './dto/create-payment-method-config.dto';
 import { UpdatePaymentMethodConfigDto } from './dto/update-payment-method-config.dto';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
+
+// `config` can hold gateway API keys/secrets — never write it into the
+// activity log's oldValue/newValue, even though those routes are admin-only.
+function redactConfig(row: Record<string, any>) {
+  const { config, ...rest } = row;
+  return rest;
+}
 
 // Fields safe to expose on the public "active methods" endpoint — `config`
 // can hold gateway API keys/secrets and must never leave the admin-guarded
@@ -31,7 +39,10 @@ const PUBLIC_SELECT = {
 export class PaymentMethodConfigService implements OnApplicationBootstrap {
   private readonly logger = new Logger(PaymentMethodConfigService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   // Ensures the two payment methods this app can actually initiate (COD and
   // the SSLCommerz online gateway) always have a config row, so admins have
@@ -92,7 +103,7 @@ export class PaymentMethodConfigService implements OnApplicationBootstrap {
     return config;
   }
 
-  async create(dto: CreatePaymentMethodConfigDto) {
+  async create(dto: CreatePaymentMethodConfigDto, adminId: number) {
     const existing = await this.prisma.paymentMethodConfig.findUnique({
       where: { method_gateway: { method: dto.method, gateway: dto.gateway } },
     });
@@ -102,20 +113,56 @@ export class PaymentMethodConfigService implements OnApplicationBootstrap {
       );
     }
 
-    return this.prisma.paymentMethodConfig.create({ data: dto });
+    const created = await this.prisma.paymentMethodConfig.create({
+      data: dto,
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_PAYMENT_METHOD',
+      module: 'SYSTEM',
+      targetId: created.id,
+      targetLabel: created.displayName,
+      newValue: redactConfig(created),
+    });
+
+    return created;
   }
 
-  async update(id: number, dto: UpdatePaymentMethodConfigDto) {
-    await this.findOne(id);
-    return this.prisma.paymentMethodConfig.update({
+  async update(id: number, dto: UpdatePaymentMethodConfigDto, adminId: number) {
+    const before = await this.findOne(id);
+    const updated = await this.prisma.paymentMethodConfig.update({
       where: { id },
       data: dto,
     });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_PAYMENT_METHOD',
+      module: 'SYSTEM',
+      targetId: id,
+      targetLabel: updated.displayName,
+      oldValue: redactConfig(before),
+      newValue: redactConfig(updated),
+    });
+
+    return updated;
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, adminId: number) {
+    const existing = await this.findOne(id);
     await this.prisma.paymentMethodConfig.delete({ where: { id } });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'DELETE_PAYMENT_METHOD',
+      module: 'SYSTEM',
+      targetId: id,
+      targetLabel: existing.displayName,
+      severity: 'WARNING',
+      oldValue: redactConfig(existing),
+    });
+
     return { success: true };
   }
 

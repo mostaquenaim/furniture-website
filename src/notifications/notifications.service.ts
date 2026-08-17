@@ -9,7 +9,9 @@ import type { Queue } from 'bull';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import * as Handlebars from 'handlebars';
 import { otpEmailTemplate } from './templates/otp.template';
+import { PrismaService } from 'src/prisma/prisma.service';
 import axios from 'axios';
 
 export interface LowStockAlertItem {
@@ -38,6 +40,7 @@ export class NotificationsService {
   constructor(
     private mailerService: MailerService,
     private config: ConfigService,
+    private prisma: PrismaService,
     @InjectQueue('notification') private notificationQueue: Queue,
   ) {}
 
@@ -180,6 +183,10 @@ export class NotificationsService {
     };
 
     const { subject, line } = copy[data.event];
+    // Each event has its own DB-editable template (return-request-submitted,
+    // -approved, -rejected, -item-received); "template" stays the shared
+    // on-disk .hbs filename used only if a DB row is ever missing.
+    const templateKey = `return-request-${data.event.toLowerCase().replace(/_/g, '-')}`;
     const jobs: Promise<unknown>[] = [];
 
     if (contact.email) {
@@ -188,6 +195,7 @@ export class NotificationsService {
           email: contact.email,
           subject,
           template: 'return-request-update',
+          templateKey,
           context: {
             customerName: data.customerName,
             orderId: data.orderId,
@@ -379,21 +387,58 @@ export class NotificationsService {
     }
 
     // Every other templated email (order-confirmation, order-status-update,
-    // low-stock-alert, ...) renders through the Handlebars templates already
-    // wired up on MailerModule instead of needing pre-built HTML.
+    // low-stock-alert, ...) is admin-editable: look up the EmailTemplate row
+    // (keyed by job.data.templateKey, falling back to job.data.template for
+    // the templates that don't split by sub-event) and render it with
+    // Handlebars. "offer" keeps its caller-supplied subject — it's a one-off
+    // campaign, not a fixed template. If the row is missing for any reason,
+    // fall back to the on-disk .hbs file + hardcoded subject so sending never
+    // breaks.
+    const templateKey: string = job.data.templateKey ?? template;
+    let renderedSubject = subject;
+    let renderedHtml: string | undefined;
+
     try {
-      await this.mailerService.sendMail({
-        to: email,
-        subject,
-        template,
-        context,
+      const row = await this.prisma.emailTemplate.findUnique({
+        where: { key: templateKey },
       });
+      if (row) {
+        if (template !== 'offer') {
+          renderedSubject = Handlebars.compile(row.subject)(context);
+        }
+        renderedHtml = Handlebars.compile(row.body)(context);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to load email template "${templateKey}", falling back to on-disk template`,
+        err,
+      );
+    }
+
+    try {
+      if (renderedHtml) {
+        await this.mailerService.sendMail({
+          to: email,
+          subject: renderedSubject,
+          html: renderedHtml,
+        });
+      } else {
+        await this.mailerService.sendMail({
+          to: email,
+          subject: renderedSubject,
+          template,
+          context,
+        });
+      }
       const recipients = Array.isArray(email) ? email.join(', ') : email;
       this.logger.log(
-        `Email sent to ${recipients} using template "${template}"`,
+        `Email sent to ${recipients} using template "${templateKey}"`,
       );
     } catch (err) {
-      this.logger.error(`Failed to send email (template "${template}")`, err);
+      this.logger.error(
+        `Failed to send email (template "${templateKey}")`,
+        err,
+      );
       throw err;
     }
   }

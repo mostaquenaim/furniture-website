@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { FraudStatus } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 interface FraudApiResponse {
   ok: boolean;
@@ -74,7 +75,10 @@ function computeFraudStatus(data: FraudApiResponse): FraudStatus {
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   async checkFraudByPhone(phone: string) {
     const url = process.env.FRAUDURL;
@@ -154,15 +158,32 @@ export class AdminService {
     };
   }
 
-  async updateUserFraudStatus(userId: number, status: FraudStatus) {
+  async updateUserFraudStatus(
+    userId: number,
+    status: FraudStatus,
+    adminId: number,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { fraudStatus: status },
       select: { id: true, name: true, phone: true, fraudStatus: true },
     });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'OVERRIDE_FRAUD_STATUS',
+      module: 'USER',
+      targetId: userId,
+      targetLabel: user.name ?? user.phone ?? String(userId),
+      severity: 'WARNING',
+      oldValue: { fraudStatus: user.fraudStatus },
+      newValue: { fraudStatus: updated.fraudStatus },
+    });
+
+    return updated;
   }
 
   async getUsers(params: {

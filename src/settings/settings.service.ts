@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AppSettingsService } from './app-settings.service';
 import { PaymentMethodConfigService } from 'src/payment-method-config/payment-method-config.service';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class SettingsService {
@@ -10,6 +11,7 @@ export class SettingsService {
     private prisma: PrismaService,
     private appSettingsService: AppSettingsService,
     private paymentMethodConfigService: PaymentMethodConfigService,
+    private activityLogService: ActivityLogService,
   ) {}
 
   // general/email/sms settings have no real backing feature yet (no admin
@@ -75,11 +77,21 @@ export class SettingsService {
     };
   }
 
-  async updateShipping(payload: { defaultCharge?: number }) {
+  async updateShipping(payload: { defaultCharge?: number }, adminId: number) {
     if (payload.defaultCharge !== undefined) {
+      const before = await this.getShipping();
       await this.appSettingsService.updateDefaultDeliveryFee(
         payload.defaultCharge,
       );
+
+      await this.activityLogService.log({
+        adminId,
+        action: 'UPDATE_SHIPPING_SETTINGS',
+        module: 'SYSTEM',
+        targetLabel: 'Shipping settings',
+        oldValue: { defaultCharge: before.defaultCharge },
+        newValue: { defaultCharge: payload.defaultCharge },
+      });
     }
     return this.getShipping();
   }
@@ -90,11 +102,26 @@ export class SettingsService {
     return this.appSettingsService.getPrinting();
   }
 
-  updatePrinting(payload: {
-    courierLabelWidthMm?: number;
-    courierLabelHeightMm?: number;
-  }) {
-    return this.appSettingsService.updatePrinting(payload);
+  async updatePrinting(
+    payload: {
+      courierLabelWidthMm?: number;
+      courierLabelHeightMm?: number;
+    },
+    adminId: number,
+  ) {
+    const before = await this.getPrinting();
+    const updated = await this.appSettingsService.updatePrinting(payload);
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_PRINTING_SETTINGS',
+      module: 'SYSTEM',
+      targetLabel: 'Printing settings',
+      oldValue: before,
+      newValue: updated,
+    });
+
+    return updated;
   }
 
   // Invoice settings — print/PDF paper size.
@@ -102,12 +129,29 @@ export class SettingsService {
     return this.appSettingsService.getInvoiceSettings();
   }
 
-  updateInvoiceSettings(payload: {
-    invoicePaperSize?: string;
-    invoicePaperWidthMm?: number | null;
-    invoicePaperHeightMm?: number | null;
-  }) {
-    return this.appSettingsService.updateInvoiceSettings(payload);
+  async updateInvoiceSettings(
+    payload: {
+      invoicePaperSize?: string;
+      invoicePaperWidthMm?: number | null;
+      invoicePaperHeightMm?: number | null;
+    },
+    adminId: number,
+  ) {
+    const before = await this.getInvoiceSettings();
+    const updated = await this.appSettingsService.updateInvoiceSettings(
+      payload,
+    );
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_INVOICE_SETTINGS',
+      module: 'SYSTEM',
+      targetLabel: 'Invoice settings',
+      oldValue: before,
+      newValue: updated,
+    });
+
+    return updated;
   }
 
   // Email settings

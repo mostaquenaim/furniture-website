@@ -18,6 +18,7 @@ import { PathaoLocationSyncService } from 'src/courier/services/pathao-location-
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 import { StockLedgerService } from 'src/inventory/stock-ledger.service';
 import { StockEventsModule } from 'src/realtime/stock-events.module';
+import { CustomerOrderEventsModule } from 'src/realtime/customer-order-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { RefundModule } from 'src/refund/refund.module';
@@ -33,6 +34,7 @@ import { PieceModule } from 'src/piece/piece.module';
       maxRedirects: 5,
     }),
     StockEventsModule,
+    CustomerOrderEventsModule,
     PaymentMethodConfigModule,
     SettingsModule,
     RefundModule,

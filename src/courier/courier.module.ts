@@ -18,6 +18,7 @@ import { CourierWebhookService } from './services/courier-webhook.service';
 import { CourierService } from './services/courier.service';
 import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusModule } from 'src/order-status/order-status.module';
+import { CustomerOrderEventsModule } from 'src/realtime/customer-order-events.module';
 
 // Providers
 
@@ -31,6 +32,7 @@ import { OrderStatusModule } from 'src/order-status/order-status.module';
     ConfigModule,
     ReservationModule,
     OrderStatusModule,
+    CustomerOrderEventsModule,
   ],
   controllers: [CourierController, CourierWebhookController],
   providers: [

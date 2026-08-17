@@ -9,6 +9,7 @@ import {
   Param,
   ParseIntPipe,
   Delete,
+  Req,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -30,8 +31,8 @@ export class AdminUsersController {
 
   @Post()
   @Roles(UserRole.SUPERADMIN)
-  createAdminUser(@Body() dto: CreateAdminUserDto) {
-    return this.adminUsersService.createAdminUser(dto);
+  createAdminUser(@Body() dto: CreateAdminUserDto, @Req() req: any) {
+    return this.adminUsersService.createAdminUser(dto, req?.user?.userId);
   }
 
   @Patch(':id/role')
@@ -39,8 +40,9 @@ export class AdminUsersController {
   changeRole(
     @Param('id', ParseIntPipe) id: number,
     @Body('role') role: UserRole,
+    @Req() req: any,
   ) {
-    return this.adminUsersService.changeRole(id, role);
+    return this.adminUsersService.changeRole(id, role, req?.user?.userId);
   }
 
   @Patch(':id/status')
@@ -48,19 +50,24 @@ export class AdminUsersController {
   toggleStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('isActive') isActive: boolean,
+    @Req() req: any,
   ) {
-    return this.adminUsersService.toggleStatus(id, isActive);
+    return this.adminUsersService.toggleStatus(
+      id,
+      isActive,
+      req?.user?.userId,
+    );
   }
 
   @Post(':id/reset-password')
   @Roles(UserRole.SUPERADMIN)
-  resetPassword(@Param('id', ParseIntPipe) id: number) {
-    return this.adminUsersService.resetPassword(id);
+  resetPassword(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.adminUsersService.resetPassword(id, req?.user?.userId);
   }
 
   @Delete(':id')
   @Roles(UserRole.SUPERADMIN)
-  deleteUser(@Param('id', ParseIntPipe) id: number) {
-    return this.adminUsersService.deleteUser(id);
+  deleteUser(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.adminUsersService.deleteUser(id, req?.user?.userId);
   }
 }

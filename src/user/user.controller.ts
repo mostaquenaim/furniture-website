@@ -58,8 +58,8 @@ export class UserController {
 
   @Delete(':id')
   @Roles(UserRole.SUPERADMIN)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.userService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.userService.remove(id, req?.user?.userId);
   }
 
   @Get(':id/orders')
@@ -76,7 +76,7 @@ export class UserController {
 
   @Post('suspend')
   @Roles(UserRole.SUPERADMIN)
-  suspendUser(@Body() dto: SuspendUserDto) {
-    return this.userService.suspendUser(dto);
+  suspendUser(@Body() dto: SuspendUserDto, @Req() req: any) {
+    return this.userService.suspendUser(dto, req?.user?.userId);
   }
 }

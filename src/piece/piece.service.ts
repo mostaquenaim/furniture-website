@@ -299,7 +299,7 @@ export class PieceService {
 
   async receive(dto: ReceivePieceDto, adminId: number, actorRole?: UserRole) {
     const piece = await this.findByBarcodeOrThrow(dto.barcodeValue);
-    return this.receiveOne(
+    const result = await this.receiveOne(
       piece,
       dto.outcome,
       dto.supplierId,
@@ -307,6 +307,17 @@ export class PieceService {
       undefined,
       actorRole,
     );
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'RECEIVE_PIECE',
+      module: 'INVENTORY',
+      targetId: piece.id,
+      targetLabel: `${piece.productSize.color.product.title} (${piece.barcodeValue})`,
+      newValue: { outcome: dto.outcome, status: result.status },
+    });
+
+    return result;
   }
 
   // ── Inventory Manager: receive a batch (one scan session) ──────────────────
@@ -337,6 +348,20 @@ export class PieceService {
           error: err instanceof Error ? err.message : 'Unknown error',
         });
       }
+    }
+
+    if (succeeded.length > 0) {
+      await this.activityLogService.log({
+        adminId,
+        action: 'RECEIVE_PIECE_BATCH',
+        module: 'INVENTORY',
+        targetLabel: `Batch ${receiveBatchId}`,
+        newValue: {
+          outcome: dto.outcome,
+          receivedCount: succeeded.length,
+          failedCount: failed.length,
+        },
+      });
     }
 
     return { receiveBatchId, succeeded, failed };
@@ -491,6 +516,21 @@ export class PieceService {
       }
     }
 
+    if (succeeded.length > 0) {
+      await this.activityLogService.log({
+        adminId,
+        action: 'VOID_PIECES',
+        module: 'INVENTORY',
+        targetLabel: `${succeeded.length} piece(s)`,
+        severity: 'WARNING',
+        oldValue: { barcodeValues: dto.barcodeValues, reasonNote: dto.reasonNote },
+        newValue: {
+          voidedCount: succeeded.length,
+          failedCount: failed.length,
+        },
+      });
+    }
+
     return { succeeded, failed };
   }
 
@@ -624,6 +664,15 @@ export class PieceService {
         lowStockAt: result.adjustment.lowStockAt,
       });
     }
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'RETURN_RECEIVE_PIECE',
+      module: 'INVENTORY',
+      targetId: piece.id,
+      targetLabel: `${piece.productSize.color.product.title} (${piece.barcodeValue})`,
+      newValue: { outcome, status: toStatus },
+    });
 
     return this.findByBarcodeOrThrow(barcodeValue);
   }

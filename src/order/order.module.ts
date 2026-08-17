@@ -7,6 +7,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { BullModule } from '@nestjs/bull';
 import { StockLedgerService } from 'src/inventory/stock-ledger.service';
 import { StockEventsModule } from 'src/realtime/stock-events.module';
+import { CustomerOrderEventsModule } from 'src/realtime/customer-order-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { RefundModule } from 'src/refund/refund.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
@@ -18,6 +19,7 @@ import { PermissionService } from 'src/permission/permission.service';
     NotificationModule,
     BullModule.registerQueue({ name: 'notification' }),
     StockEventsModule,
+    CustomerOrderEventsModule,
     PaymentMethodConfigModule,
     RefundModule,
     ReservationModule,

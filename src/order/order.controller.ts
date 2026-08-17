@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
   Get,
@@ -13,14 +14,14 @@ import {
   UseGuards,
   Req,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Permission } from 'src/permission/permission.decorator';
+import { PermissionService } from 'src/permission/permission.service';
 import { Action } from 'src/permission/action.enum';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, UserRole } from '@prisma/client';
 import { RefundService } from '../refund/refund.service';
 import { CreateReturnRequestDto } from '../refund/dto/create-return-request.dto';
 
@@ -30,16 +31,17 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly refundService: RefundService,
+    private readonly permissionService: PermissionService,
   ) {}
 
-  // Admin-only listing (customer routes below stay on plain JwtAuthGuard —
-  // RolesGuard would incorrectly deny CUSTOMER since it has no RolePermission
-  // rows). getAllOrders() returns every customer's orders once the caller
-  // isn't a CUSTOMER, so this must be gated independently of the service.
+  // Shared route: CUSTOMER callers get their own orders (service scopes by
+  // userId), staff/admin callers get every order. RolesGuard can't sit on
+  // this route as a whole — CUSTOMER has no RolePermission rows, so it would
+  // block customers from their own order history. Instead, only check
+  // ORDER_VIEW for non-CUSTOMER callers, mirroring RolesGuard's own
+  // SUPERADMIN-bypass logic for the staff-only half of this endpoint.
   @Get('all')
-  @UseGuards(RolesGuard)
-  @Permission(Action.ORDER_VIEW)
-  getAllOrders(
+  async getAllOrders(
     @Req() req: any,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -51,7 +53,18 @@ export class OrderController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    // console.log(page, 'page');
+    const role: UserRole = req?.user?.role;
+    if (role && role !== UserRole.CUSTOMER && role !== UserRole.SUPERADMIN) {
+      const allowed = await this.permissionService.isAllowed(
+        role,
+        Action.ORDER_VIEW,
+      );
+      if (!allowed) {
+        throw new ForbiddenException(
+          `Role ${role} does not have permission: ${Action.ORDER_VIEW}`,
+        );
+      }
+    }
 
     return this.orderService.getAllOrders(req?.user?.userId, {
       page: Number(page) || 1,

@@ -4,13 +4,22 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 // Shared by AdminUsersService.deleteUser and UserService.remove — both are
 // SUPERADMIN-gated deletes of the same User row and must apply the same
 // safety checks (never delete a SUPERADMIN, refuse deletion when the user
 // has data other tables depend on, and clean up the rows that are safe to
 // cascade before the actual delete).
-export async function deleteUserSafely(prisma: PrismaService, id: number) {
+export async function deleteUserSafely(
+  prisma: PrismaService,
+  id: number,
+  activityLog?: {
+    service: ActivityLogService;
+    adminId: number;
+    action: string;
+  },
+) {
   const user = await prisma.user.findUnique({
     where: { id },
     include: {
@@ -51,6 +60,22 @@ export async function deleteUserSafely(prisma: PrismaService, id: number) {
   });
 
   await prisma.user.delete({ where: { id } });
+
+  if (activityLog) {
+    await activityLog.service.log({
+      adminId: activityLog.adminId,
+      action: activityLog.action,
+      module: 'USER',
+      targetId: id,
+      targetLabel: user.name ?? user.email ?? user.phone ?? String(id),
+      oldValue: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
+  }
 
   return { message: 'User deleted successfully' };
 }

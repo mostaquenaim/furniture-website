@@ -29,6 +29,7 @@ import { UpdateCourierProviderDto } from '../dto/update-courier-provider.dto';
 import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
 import { ReservationService } from 'src/reservation/reservation.service';
 import { OrderStatusService } from 'src/order-status/order-status.service';
+import { CustomerOrderEventsGateway } from 'src/realtime/customer-order-events.gateway';
 
 @Injectable()
 export class CourierService {
@@ -42,6 +43,7 @@ export class CourierService {
     private configService: ConfigService,
     private reservationService: ReservationService,
     private orderStatusService: OrderStatusService,
+    private customerOrderEventsGateway: CustomerOrderEventsGateway,
   ) {
     this.registerProviders();
   }
@@ -287,9 +289,30 @@ export class CourierService {
     // courier-reported CANCELLED/FAILED/RETURNED restores stock and releases
     // piece reservations instead of silently leaking inventory.
     if (!tx) {
-      await this.prisma.$transaction((innerTx) =>
+      const result = await this.prisma.$transaction((innerTx) =>
         this.applyCourierStatusSync(innerTx, shipment, mappedStatus),
       );
+
+      // Push to any customer currently viewing this order's tracking page —
+      // fired only after the transaction above has actually committed.
+      if (result.previousStatus !== result.order.status) {
+        try {
+          this.customerOrderEventsGateway.emitOrderStatusUpdated(
+            result.order.orderId,
+            {
+              orderId: result.order.orderId,
+              status: result.order.status,
+              previousStatus: result.previousStatus,
+              updatedAt: result.order.updatedAt,
+            },
+          );
+        } catch (err) {
+          this.logger.error(
+            `Failed to emit realtime status update for order ${result.order.orderId}`,
+            err,
+          );
+        }
+      }
     } else {
       await this.applyCourierStatusSync(tx, shipment, mappedStatus);
     }
@@ -302,7 +325,7 @@ export class CourierService {
     }>,
     mappedStatus: OrderStatus,
   ) {
-    await this.orderStatusService.applyStatusChange(tx, {
+    return this.orderStatusService.applyStatusChange(tx, {
       orderPk: shipment.orderId,
       newStatus: mappedStatus,
       historyNote: `Auto-updated from courier (${shipment.provider?.name ?? 'unknown'}) — ${shipment.status}`,

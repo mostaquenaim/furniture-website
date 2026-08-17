@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Permission } from 'src/permission/permission.decorator';
@@ -35,8 +35,11 @@ export class SettingsController {
   @Put('shipping')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Permission(Action.SETTINGS_MANAGE)
-  updateShipping(@Body() body: { defaultCharge?: number }) {
-    return this.service.updateShipping(body);
+  updateShipping(
+    @Body() body: { defaultCharge?: number },
+    @Req() req: any,
+  ) {
+    return this.service.updateShipping(body, req?.user?.userId);
   }
 
   // Printing — courier delivery label size. Just dimensions, no secrets,
@@ -48,8 +51,9 @@ export class SettingsController {
   @Permission(Action.SETTINGS_MANAGE)
   updatePrinting(
     @Body() body: { courierLabelWidthMm?: number; courierLabelHeightMm?: number },
+    @Req() req: any,
   ) {
-    return this.service.updatePrinting(body);
+    return this.service.updatePrinting(body, req?.user?.userId);
   }
 
   // Invoice — print/PDF paper size. Public reads (needed by invoice print).
@@ -65,8 +69,9 @@ export class SettingsController {
       invoicePaperWidthMm?: number | null;
       invoicePaperHeightMm?: number | null;
     },
+    @Req() req: any,
   ) {
-    return this.service.updateInvoiceSettings(body);
+    return this.service.updateInvoiceSettings(body, req?.user?.userId);
   }
 
   @Get('email')

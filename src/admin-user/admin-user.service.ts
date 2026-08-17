@@ -14,6 +14,7 @@ import { hashPassword } from 'src/common/utils/password.utils';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { deleteUserSafely } from 'src/user/user-deletion.util';
 import { SAFE_USER_SELECT } from 'src/user/safe-user.select';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 const ADMIN_ROLES: UserRole[] = [
   UserRole.SUPERADMIN,
@@ -30,7 +31,10 @@ const MANAGEABLE_ROLES: UserRole[] = [
 
 @Injectable()
 export class AdminUsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   // ── Get all admin users ────────────────────────────────────────────────────
   async getAdminUsers() {
@@ -42,7 +46,7 @@ export class AdminUsersService {
   }
 
   // ── Create admin user ──────────────────────────────────────────────────────
-  async createAdminUser(dto: CreateAdminUserDto) {
+  async createAdminUser(dto: CreateAdminUserDto, adminId: number) {
     if (!dto.email && !dto.phone) {
       throw new BadRequestException('Either email or phone is required.');
     }
@@ -86,11 +90,20 @@ export class AdminUsersService {
       select: SAFE_USER_SELECT,
     });
 
+    await this.activityLogService.log({
+      adminId,
+      action: 'CREATE_ADMIN_USER',
+      module: 'USER',
+      targetId: user.id,
+      targetLabel: user.name ?? user.email ?? user.phone ?? String(user.id),
+      newValue: { name: user.name, email: user.email, role: user.role },
+    });
+
     return { message: 'Admin user created successfully.', data: user };
   }
 
   // ── Change role ────────────────────────────────────────────────────────────
-  async changeRole(id: number, role: UserRole) {
+  async changeRole(id: number, role: UserRole, adminId: number) {
     if (!MANAGEABLE_ROLES.includes(role)) {
       throw new ForbiddenException(
         'Cannot assign SUPERADMIN or CUSTOMER role.',
@@ -109,11 +122,21 @@ export class AdminUsersService {
       select: SAFE_USER_SELECT,
     });
 
+    await this.activityLogService.log({
+      adminId,
+      action: 'CHANGE_ADMIN_ROLE',
+      module: 'USER',
+      targetId: id,
+      targetLabel: user.name ?? user.email ?? user.phone ?? String(id),
+      oldValue: { role: user.role },
+      newValue: { role: updated.role },
+    });
+
     return { message: 'Role updated successfully.', data: updated };
   }
 
   // ── Toggle active status ───────────────────────────────────────────────────
-  async toggleStatus(id: number, isActive: boolean) {
+  async toggleStatus(id: number, isActive: boolean, adminId: number) {
     const user = await this.findAdminUserOrThrow(id);
 
     if (user.role === UserRole.SUPERADMIN) {
@@ -126,6 +149,16 @@ export class AdminUsersService {
       select: SAFE_USER_SELECT,
     });
 
+    await this.activityLogService.log({
+      adminId,
+      action: isActive ? 'ENABLE_ADMIN_USER' : 'DISABLE_ADMIN_USER',
+      module: 'USER',
+      targetId: id,
+      targetLabel: user.name ?? user.email ?? user.phone ?? String(id),
+      oldValue: { isActive: user.isActive },
+      newValue: { isActive: updated.isActive },
+    });
+
     return {
       message: `User ${isActive ? 'reactivated' : 'deactivated'} successfully.`,
       data: updated,
@@ -133,7 +166,7 @@ export class AdminUsersService {
   }
 
   // ── Reset password ─────────────────────────────────────────────────────────
-  async resetPassword(id: number) {
+  async resetPassword(id: number, adminId: number) {
     const user = await this.findAdminUserOrThrow(id);
 
     if (!user.email) {
@@ -158,6 +191,15 @@ export class AdminUsersService {
     //   `[AdminUsers] Temp password for ${user.email}: ${tempPassword}`,
     // );
 
+    await this.activityLogService.log({
+      adminId,
+      action: 'RESET_ADMIN_PASSWORD',
+      module: 'USER',
+      targetId: id,
+      targetLabel: user.name ?? user.email ?? String(id),
+      severity: 'WARNING',
+    });
+
     return {
       message: `Password reset. Temporary password sent to ${user.email}.`,
       // Remove tempPassword from response in production — use email only
@@ -167,8 +209,12 @@ export class AdminUsersService {
   }
 
   // delete user
-  async deleteUser(id: number) {
-    return deleteUserSafely(this.prisma, id);
+  async deleteUser(id: number, adminId: number) {
+    return deleteUserSafely(this.prisma, id, {
+      service: this.activityLogService,
+      adminId,
+      action: 'DELETE_ADMIN_USER',
+    });
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

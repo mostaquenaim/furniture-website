@@ -7,12 +7,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 import { Action } from './action.enum';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
 @Injectable()
 export class PermissionService {
   private readonly logger = new Logger(PermissionService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   async onApplicationBootstrap() {
     await this.syncMissingPermissions();
@@ -71,6 +75,53 @@ export class PermissionService {
       update: { enabled },
       create: { role, action, enabled },
     });
+  }
+
+  // Superadmin bulk-toggles (role, action) pairs — logs each actual change
+  async bulkSetPermissions(
+    changes: { action: string; role: UserRole; enabled: boolean }[],
+    adminId: number,
+  ) {
+    const existing = await this.prisma.rolePermission.findMany({
+      where: {
+        OR: changes.map(({ role, action }) => ({
+          role,
+          action: action as Action,
+        })),
+      },
+    });
+    const existingMap = new Map(
+      existing.map((p) => [`${p.role}_${p.action}`, p.enabled]),
+    );
+
+    const results = await Promise.all(
+      changes.map(({ action, role, enabled }) =>
+        this.setPermission(role, action as Action, enabled),
+      ),
+    );
+
+    const actualChanges = changes.filter(
+      ({ role, action, enabled }) =>
+        (existingMap.get(`${role}_${action}`) ?? false) !== enabled,
+    );
+
+    if (actualChanges.length > 0) {
+      await this.activityLogService.log({
+        adminId,
+        action: 'UPDATE_ROLE_PERMISSIONS',
+        module: 'AUTH',
+        targetLabel: `${actualChanges.length} permission(s)`,
+        severity: 'WARNING',
+        oldValue: actualChanges.map(({ role, action }) => ({
+          role,
+          action,
+          enabled: existingMap.get(`${role}_${action}`) ?? false,
+        })),
+        newValue: actualChanges,
+      });
+    }
+
+    return results;
   }
 
   // Returns allowed actions for a role — used by Next.js frontend

@@ -33,6 +33,7 @@ import { GetCouponsQueryDto } from './dto/Coupon/get-coupon-query.dto';
 import { UpdateCouponDto } from './dto/Coupon/update-coupon.dto';
 import { CreateBannerDto } from './dto/Banner/create-banner.dto';
 import { UpsertStaticPageDto } from './dto/static-page/upsert-static-page.dto';
+import { UpdateEmailTemplateDto } from './dto/email-template/update-email-template.dto';
 import { CreateTermsAndConditionDto } from './dto/terms-and-condition/create-terms-and-condition.dto';
 import { UpdateTermsAndConditionDto } from './dto/terms-and-condition/update-terms-and-condition.dto';
 import { AppSettingsService } from 'src/settings/app-settings.service';
@@ -1495,6 +1496,54 @@ export class CmsService {
     });
 
     return { message: `Page "${slug}" deleted` };
+  }
+
+  // ── Email Templates ─────────────────────────────────────────────────────────
+
+  getAllEmailTemplates() {
+    return this.prisma.emailTemplate.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async getEmailTemplateByKey(key: string) {
+    const template = await this.prisma.emailTemplate.findUnique({
+      where: { key },
+    });
+    if (!template) throw new NotFoundException(`Template "${key}" not found`);
+    return template;
+  }
+
+  async updateEmailTemplate(
+    key: string,
+    dto: UpdateEmailTemplateDto,
+    adminId: number,
+  ) {
+    const existing = await this.prisma.emailTemplate.findUnique({
+      where: { key },
+    });
+    if (!existing) throw new NotFoundException(`Template "${key}" not found`);
+
+    const template = await this.prisma.emailTemplate.update({
+      where: { key },
+      data: {
+        subject: dto.subject,
+        body: dto.body,
+        updatedBy: adminId,
+      },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_EMAIL_TEMPLATE',
+      module: 'CONTENT',
+      targetId: template.id,
+      targetLabel: template.key,
+      oldValue: { subject: existing.subject, body: existing.body },
+      newValue: { subject: template.subject, body: template.body },
+    });
+
+    return template;
   }
 
   // ── Terms & Conditions ────────────────────────────────────────────────────

@@ -1938,3 +1938,18 @@ model TermsAndCondition {
 
   @@map("terms_and_conditions")
 }
+
+// =====================
+// Email Templates
+// =====================
+model EmailTemplate {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // matches the notification job's "templateKey", e.g. "order-confirmation"
+  name      String // human label shown in admin
+  subject   String   @db.Text // Handlebars template, e.g. "Order #{{orderId}} Confirmed"
+  body      String   @db.Text // HTML Handlebars template
+  updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
+
+  @@map("email_templates")
+}

@@ -37,6 +37,7 @@ import {
   StockEventsGateway,
   StockUpdatedPayload,
 } from '../realtime/stock-events.gateway';
+import { CustomerOrderEventsGateway } from '../realtime/customer-order-events.gateway';
 import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
 import { ReservationService } from 'src/reservation/reservation.service';
 import { OrderStatusService } from 'src/order-status/order-status.service';
@@ -58,6 +59,7 @@ export class OrderService {
     @InjectQueue('notification') private notificationQueue: Queue,
     private stockLedgerService: StockLedgerService,
     private stockEventsGateway: StockEventsGateway,
+    private customerOrderEventsGateway: CustomerOrderEventsGateway,
     private paymentMethodConfigService: PaymentMethodConfigService,
     private reservationService: ReservationService,
     private orderStatusService: OrderStatusService,
@@ -1514,6 +1516,26 @@ export class OrderService {
       } catch (err) {
         this.logger.error(
           `Failed to queue status-update notification for order ${updatedOrder.orderId}`,
+          err,
+        );
+      }
+
+      // Push to any customer currently viewing this order's tracking page —
+      // same "fire after commit, never fail the caller" contract as the
+      // notification above.
+      try {
+        this.customerOrderEventsGateway.emitOrderStatusUpdated(
+          updatedOrder.orderId,
+          {
+            orderId: updatedOrder.orderId,
+            status: updatedOrder.status,
+            previousStatus: previousStatus!,
+            updatedAt: updatedOrder.updatedAt,
+          },
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to emit realtime status update for order ${updatedOrder.orderId}`,
           err,
         );
       }

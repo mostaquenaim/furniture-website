@@ -46,6 +46,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { UpdatePromoBannerDto } from 'src/cms/dto/Banner/update-promo-banner.dto';
 import { CreatePromoBannerDto } from 'src/cms/dto/Banner/create-promo-banner.dto';
 import { UpsertStaticPageDto } from 'src/cms/dto/static-page/upsert-static-page.dto';
+import { UpdateEmailTemplateDto } from 'src/cms/dto/email-template/update-email-template.dto';
 import { CreateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/create-terms-and-condition.dto';
 import { UpdateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/update-terms-and-condition.dto';
 import { OrderService } from 'src/order/order.service';
@@ -835,6 +836,32 @@ export class AdminController {
   }
 
   ///////////////////////
+  //// EMAIL TEMPLATES //
+  ///////////////////////
+
+  @Get('email-templates')
+  @Permission(Action.CMS_EMAIL_TEMPLATE_MANAGE)
+  getAllEmailTemplates() {
+    return this.cmsService.getAllEmailTemplates();
+  }
+
+  @Get('email-templates/:key')
+  @Permission(Action.CMS_EMAIL_TEMPLATE_MANAGE)
+  getEmailTemplateByKey(@Param('key') key: string) {
+    return this.cmsService.getEmailTemplateByKey(key);
+  }
+
+  @Patch('email-templates/:key')
+  @Permission(Action.CMS_EMAIL_TEMPLATE_MANAGE)
+  updateEmailTemplate(
+    @Param('key') key: string,
+    @Body() dto: UpdateEmailTemplateDto,
+    @Req() req: any,
+  ) {
+    return this.cmsService.updateEmailTemplate(key, dto, req?.user?.userId);
+  }
+
+  ///////////////////////
   //// TERMS & CONDITIONS //
   ///////////////////////
 
@@ -949,8 +976,13 @@ export class AdminController {
   updateUserFraudStatus(
     @Param('userId', ParseIntPipe) userId: number,
     @Body('status') status: FraudStatus,
+    @Req() req: any,
   ) {
-    return this.adminService.updateUserFraudStatus(userId, status);
+    return this.adminService.updateUserFraudStatus(
+      userId,
+      status,
+      req?.user?.userId,
+    );
   }
 
   @Get('fraud/users')

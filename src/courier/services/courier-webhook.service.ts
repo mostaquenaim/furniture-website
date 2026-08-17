@@ -20,6 +20,7 @@ import { PathaoProvider } from '../providers/pathao.provider';
 import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
 import { ReservationService } from 'src/reservation/reservation.service';
 import { OrderStatusService } from 'src/order-status/order-status.service';
+import { CustomerOrderEventsGateway } from 'src/realtime/customer-order-events.gateway';
 
 @Injectable()
 export class CourierWebhookService {
@@ -32,6 +33,7 @@ export class CourierWebhookService {
     private configService: ConfigService,
     private reservationService: ReservationService,
     private orderStatusService: OrderStatusService,
+    private customerOrderEventsGateway: CustomerOrderEventsGateway,
   ) {
     this.registerProviders();
   }
@@ -110,7 +112,30 @@ export class CourierWebhookService {
     if (tx) {
       await applyChange(tx);
     } else {
-      await this.prisma.$transaction(applyChange);
+      const result = await this.prisma.$transaction(applyChange);
+
+      // Push to any customer currently viewing this order's tracking page —
+      // fired only after the transaction above has actually committed, and
+      // never allowed to fail webhook processing (matches the notification
+      // contract in OrderService.updateOrderStatus).
+      if (result.previousStatus !== result.order.status) {
+        try {
+          this.customerOrderEventsGateway.emitOrderStatusUpdated(
+            result.order.orderId,
+            {
+              orderId: result.order.orderId,
+              status: result.order.status,
+              previousStatus: result.previousStatus,
+              updatedAt: result.order.updatedAt,
+            },
+          );
+        } catch (err) {
+          this.logger.error(
+            `Failed to emit realtime status update for order ${result.order.orderId}`,
+            err,
+          );
+        }
+      }
     }
   }
 

@@ -14,6 +14,7 @@ import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.se
 import { BroadBannerService } from 'src/banner/banner.service';
 import { StockLedgerService } from 'src/inventory/stock-ledger.service';
 import { StockEventsModule } from 'src/realtime/stock-events.module';
+import { CustomerOrderEventsModule } from 'src/realtime/customer-order-events.module';
 import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-method-config.module';
 import { SettingsModule } from 'src/settings/settings.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
@@ -27,6 +28,7 @@ import { OrderStatusService } from 'src/order-status/order-status.service';
       maxRedirects: 5,
     }),
     StockEventsModule,
+    CustomerOrderEventsModule,
     PaymentMethodConfigModule,
     SettingsModule,
     ReservationModule,

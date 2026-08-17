@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -37,8 +38,8 @@ export class PaymentMethodConfigController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Permission(Action.PAYMENT_METHOD_MANAGE)
-  create(@Body() dto: CreatePaymentMethodConfigDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreatePaymentMethodConfigDto, @Req() req: any) {
+    return this.service.create(dto, req?.user?.userId);
   }
 
   @Patch(':id')
@@ -47,14 +48,15 @@ export class PaymentMethodConfigController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePaymentMethodConfigDto,
+    @Req() req: any,
   ) {
-    return this.service.update(id, dto);
+    return this.service.update(id, dto, req?.user?.userId);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Permission(Action.PAYMENT_METHOD_MANAGE)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.service.remove(id, req?.user?.userId);
   }
 }

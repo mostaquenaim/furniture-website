@@ -4,7 +4,6 @@ import { PermissionService } from './permission.service';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { UserRole } from '@prisma/client';
-import { Action } from './action.enum';
 import { SkipPermission } from './skip-permission.decorator';
 import { Roles } from 'src/auth/roles.decorator';
 
@@ -40,11 +39,11 @@ export class PermissionController {
     body: {
       changes: { action: string; role: UserRole; enabled: boolean }[];
     },
+    @Req() req: any,
   ) {
-    return Promise.all(
-      body.changes.map(({ action, role, enabled }) =>
-        this.permissionService.setPermission(role, action as Action, enabled),
-      ),
+    return this.permissionService.bulkSetPermissions(
+      body.changes,
+      req?.user?.userId,
     );
   }
 }
