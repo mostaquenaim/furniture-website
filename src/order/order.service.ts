@@ -40,6 +40,12 @@ import {
 import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
 import { ReservationService } from 'src/reservation/reservation.service';
 import { OrderStatusService } from 'src/order-status/order-status.service';
+import {
+  computeCouponDiscount,
+  CouponWithCategories,
+  isCouponWithinWindow,
+  validateCouponAgainstCart,
+} from 'src/cms/coupon-pricing.util';
 
 @Injectable()
 export class OrderService {
@@ -220,7 +226,7 @@ export class OrderService {
             },
           },
         },
-        coupon: true,
+        coupon: { include: { categories: true } },
       },
     });
 
@@ -282,9 +288,48 @@ export class OrderService {
     // 3. Calculate totals
     const subtotal = cart.subtotalAtAdd ?? 0;
 
-    const discount = cart.baseSubtotalAtAdd - cart.subtotalAtAdd;
+    // Re-validate the coupon against trusted DB state right now — never
+    // trust whatever discount the cart carried earlier. A coupon can go
+    // stale between "apply" and "place order" (expired, deactivated, no
+    // longer eligible for what's left in the cart), so we recompute from
+    // scratch and reject the order outright if it can no longer be
+    // honoured, rather than silently charging full price.
+    let discount = 0;
+    let freeDelivery = false;
+    let appliedCoupon: CouponWithCategories | null = null;
 
-    // console.log(discount);
+    if (cart.couponId) {
+      const coupon = await this.prisma.coupon.findUnique({
+        where: { id: cart.couponId },
+        include: { categories: true },
+      });
+
+      if (!coupon) {
+        throw new BadRequestException('Applied coupon is no longer available');
+      }
+
+      const window = isCouponWithinWindow(coupon);
+      if (!window.ok) {
+        throw new BadRequestException(window.reason);
+      }
+
+      const eligibilityItems = cart.items.map((item) => ({
+        subtotalAtAdd: item.subtotalAtAdd,
+        categoryIds: (item.productSize?.color?.product?.subCategories ?? []).map(
+          (psc) => psc.subCategory.categoryId,
+        ),
+      }));
+
+      const discountResult = computeCouponDiscount(eligibilityItems, coupon);
+      const cartCheck = validateCouponAgainstCart(coupon, discountResult);
+      if (!cartCheck.ok) {
+        throw new BadRequestException(cartCheck.reason);
+      }
+
+      discount = discountResult.discountAmount;
+      freeDelivery = discountResult.freeDelivery;
+      appliedCoupon = coupon;
+    }
 
     let customerPhone = dto.address.phone;
 
@@ -299,9 +344,10 @@ export class OrderService {
 
     // Delivery fee is always server-computed from the validated district —
     // never trust a client-supplied value here, or a customer could zero out shipping.
-    const deliveryCharge =
-      district.deliveryFee ?? Number(process.env.DEFAULT_DELIVERY_FEE) ?? 120;
-    const total = subtotal + deliveryCharge;
+    const deliveryCharge = freeDelivery
+      ? 0
+      : (district.deliveryFee ?? Number(process.env.DEFAULT_DELIVERY_FEE) ?? 120);
+    const total = subtotal - discount + deliveryCharge;
 
     if (dto.paymentMethod === 'COD') {
       await this.paymentMethodConfigService.assertEnabled(
@@ -357,6 +403,42 @@ export class OrderService {
         });
       }
 
+      // Coupon usage limits, enforced atomically inside the same
+      // transaction as the order — this is the chokepoint that makes "two
+      // customers race for the last available use" safe. perUserLimit is
+      // read-then-write (a narrow TOCTOU window for the *same* customer
+      // double-submitting), but the global usageLimit guard below is a
+      // single conditional UPDATE, so Postgres row-locking serializes
+      // concurrent attempts from *different* customers and only one can
+      // ever claim the last slot.
+      if (appliedCoupon) {
+        if (appliedCoupon.perUserLimit != null) {
+          const usedByUser = await tx.order.count({
+            where: { userId, couponId: appliedCoupon.id },
+          });
+          if (usedByUser >= appliedCoupon.perUserLimit) {
+            throw new BadRequestException(
+              'You have already used this coupon the maximum number of times',
+            );
+          }
+        }
+
+        const guarded = await tx.coupon.updateMany({
+          where: {
+            id: appliedCoupon.id,
+            ...(appliedCoupon.usageLimit != null
+              ? { usedCount: { lt: appliedCoupon.usageLimit } }
+              : {}),
+          },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (guarded.count === 0) {
+          throw new BadRequestException(
+            'This coupon has reached its usage limit',
+          );
+        }
+      }
+
       const orderId = await this.generateOrderId(tx);
       const trackingToken = nanoid(10); // generate 10-char token
 
@@ -379,7 +461,8 @@ export class OrderService {
           districtName: district.name,
           deliveryCharge: deliveryCharge,
           deliveryMethod: dto.paymentMethod === 'COD' ? 'COD' : 'ONLINE',
-          couponCode: cart?.coupon?.code,
+          couponCode: appliedCoupon?.code,
+          couponId: appliedCoupon?.id,
           total,
           advanceRequired,
           advancePercentage,

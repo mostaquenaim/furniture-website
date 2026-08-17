@@ -11,7 +11,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AddCartItemDto } from './dto/addCartItem.dto';
-import { CouponDiscountType } from '@prisma/client';
+import {
+  computeCouponDiscount,
+  CouponWithCategories,
+  isCouponWithinWindow,
+  validateCouponAgainstCart,
+} from 'src/cms/coupon-pricing.util';
 
 interface CartFilter {
   productSlug?: string;
@@ -23,6 +28,56 @@ interface CartFilter {
 @Injectable()
 export class CartService {
   constructor(private prisma: PrismaService) {}
+
+  // Live discount preview for a cart that has a coupon attached. Always
+  // recomputed from current item prices/categories + the coupon's current
+  // state — nothing about the discount is cached on the cart, so this
+  // self-corrects if items change or the coupon is edited/expires, instead
+  // of silently going stale (see coupon-pricing.util.ts).
+  private async computeCartDiscount(
+    cartId: number,
+    coupon: CouponWithCategories | null,
+  ): Promise<{ discountAmount: number; freeDelivery: boolean }> {
+    if (!coupon) return { discountAmount: 0, freeDelivery: false };
+
+    const window = isCouponWithinWindow(coupon);
+    if (!window.ok) return { discountAmount: 0, freeDelivery: false };
+
+    const items = await this.prisma.cartItem.findMany({
+      where: { cartId },
+      select: {
+        subtotalAtAdd: true,
+        productSize: {
+          select: {
+            color: {
+              select: {
+                product: {
+                  select: {
+                    subCategories: {
+                      select: { subCategory: { select: { categoryId: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const eligibilityItems = items.map((item) => ({
+      subtotalAtAdd: item.subtotalAtAdd,
+      categoryIds: item.productSize.color.product.subCategories.map(
+        (psc) => psc.subCategory.categoryId,
+      ),
+    }));
+
+    const discount = computeCouponDiscount(eligibilityItems, coupon);
+    const cartCheck = validateCouponAgainstCart(coupon, discount);
+    if (!cartCheck.ok) return { discountAmount: 0, freeDelivery: false };
+
+    return { discountAmount: discount.discountAmount, freeDelivery: discount.freeDelivery };
+  }
 
   // get all carts
   async getCartItems(
@@ -44,7 +99,7 @@ export class CartService {
         id: true,
         subtotalAtAdd: true,
         baseSubtotalAtAdd: true,
-        coupon: true,
+        coupon: { include: { categories: true } },
         couponId: true,
       },
     });
@@ -57,13 +112,21 @@ export class CartService {
         items: [],
         couponId: null,
         coupon: null,
+        discountAmount: 0,
+        freeDelivery: false,
       };
     }
 
     if (filter.isSummary) {
+      const { discountAmount, freeDelivery } = await this.computeCartDiscount(
+        cart.id,
+        cart.coupon,
+      );
       return {
         ...cart,
         items: [],
+        discountAmount,
+        freeDelivery,
       };
     }
 
@@ -200,11 +263,18 @@ export class CartService {
       }
     }
 
+    const { discountAmount, freeDelivery } = await this.computeCartDiscount(
+      cart.id,
+      cart.coupon,
+    );
+
     return {
       ...cart,
       items,
       codAvailable,
       codMessage,
+      discountAmount,
+      freeDelivery,
     };
   }
 
@@ -223,7 +293,7 @@ export class CartService {
         id: true,
         subtotalAtAdd: true,
         baseSubtotalAtAdd: true,
-        coupon: true,
+        coupon: { include: { categories: true } },
         couponId: true,
       },
     });
@@ -234,13 +304,21 @@ export class CartService {
         items: [],
         subtotalAtAdd: 0,
         baseSubtotalAtAdd: 0,
+        discountAmount: 0,
+        freeDelivery: false,
       };
     }
 
     if (filter.isSummary) {
+      const { discountAmount, freeDelivery } = await this.computeCartDiscount(
+        cart.id,
+        cart.coupon,
+      );
       return {
         ...cart,
         items: [],
+        discountAmount,
+        freeDelivery,
       };
     }
 
@@ -377,11 +455,18 @@ export class CartService {
       }
     }
 
+    const { discountAmount, freeDelivery } = await this.computeCartDiscount(
+      cart.id,
+      cart.coupon,
+    );
+
     return {
       ...cart,
       items,
       codAvailable,
       codMessage,
+      discountAmount,
+      freeDelivery,
     };
   }
 
@@ -778,7 +863,8 @@ export class CartService {
     cartId: number,
     couponCode: string,
   ) {
-    // Fetch cart with items
+    // Fetch cart with items and each item's categories, so eligibility can
+    // be checked without a second round trip.
     const cart = await this.prisma.cart.findFirst({
       where: {
         id: cartId,
@@ -786,66 +872,64 @@ export class CartService {
         ...(userId ? { userId } : {}),
         ...(!userId && visitorId ? { visitorId } : {}),
       },
-      include: { items: true, coupon: true },
+      include: {
+        items: {
+          include: {
+            productSize: {
+              include: {
+                color: {
+                  include: {
+                    product: {
+                      include: { subCategories: { include: { subCategory: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!cart) throw new NotFoundException('Cart not found');
+    if (cart.items.length === 0) {
+      throw new BadRequestException('Cart is empty');
+    }
 
-    // Calculate cart total
-    const cartTotal = cart.items.reduce(
-      (sum, item) => sum + item.subtotalAtAdd,
-      0,
-    );
-
-    // Fetch coupon
-    const coupon = await this.prisma.coupon.findFirst({
-      where: {
-        code: couponCode,
-        isActive: true,
-        startDate: { lte: new Date() },
-        expiryDate: { gte: new Date() },
-      },
+    const coupon = await this.prisma.coupon.findUnique({
+      where: { code: couponCode.toUpperCase().trim() },
+      include: { categories: true },
     });
 
-    if (!coupon) throw new BadRequestException('Invalid or expired coupon');
+    if (!coupon) throw new BadRequestException('Invalid coupon code');
 
-    // Check min order value
-    if (coupon.minOrderValue && cartTotal < coupon.minOrderValue) {
-      throw new BadRequestException(
-        `Minimum order value for this coupon is ${coupon.minOrderValue}`,
-      );
-    }
+    const window = isCouponWithinWindow(coupon);
+    if (!window.ok) throw new BadRequestException(window.reason);
 
-    // Calculate discount
-    let discountAmount = 0;
-    switch (coupon.discountType) {
-      case CouponDiscountType.FIXED_AMOUNT:
-        discountAmount = coupon.discountValue ?? 0;
-        break;
-      case CouponDiscountType.PERCENTAGE:
-        discountAmount = Math.min(
-          ((coupon.discountValue ?? 0) / 100) * cartTotal,
-          coupon.maxDiscount ?? Infinity,
-        );
-        break;
-      case CouponDiscountType.FREE_DELIVERY:
-        discountAmount = 0; // handle free delivery separately in shipping
-        break;
-    }
+    const eligibilityItems = cart.items.map((item) => ({
+      subtotalAtAdd: item.subtotalAtAdd,
+      categoryIds: item.productSize.color.product.subCategories.map(
+        (psc) => psc.subCategory.categoryId,
+      ),
+    }));
 
-    // Update cart with new coupon (replacing any previous)
+    const discount = computeCouponDiscount(eligibilityItems, coupon);
+    const cartCheck = validateCouponAgainstCart(coupon, discount);
+    if (!cartCheck.ok) throw new BadRequestException(cartCheck.reason);
+
+    // Only the coupon link is persisted — never the discount itself, so it
+    // can't go stale if items are added/removed afterwards. Every read
+    // (getCartItems) and order creation recompute it fresh from this link.
     const updatedCart = await this.prisma.cart.update({
       where: { id: cartId },
-      data: {
-        subtotalAtAdd: cartTotal - discountAmount,
-        couponId: coupon.id, // replaces previous coupon
-      },
+      data: { couponId: coupon.id },
       include: { items: true, coupon: true },
     });
 
     return {
       cart: updatedCart,
-      discountAmount,
+      discountAmount: discount.discountAmount,
+      freeDelivery: discount.freeDelivery,
       coupon,
     };
   }

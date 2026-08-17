@@ -809,7 +809,13 @@ export class CmsService {
           startDate: start,
           expiryDate: dto.expiryDate,
           isActive: dto.isActive ?? true,
+          usageLimit: dto.usageLimit ?? null,
+          perUserLimit: dto.perUserLimit ?? null,
+          categories: dto.categoryIds?.length
+            ? { create: dto.categoryIds.map((categoryId) => ({ categoryId })) }
+            : undefined,
         },
+        include: { categories: true },
       });
 
       this.activityLogService.log({
@@ -827,6 +833,9 @@ export class CmsService {
           maxDiscount: coupon.maxDiscount,
           expiryDate: coupon.expiryDate,
           startDate: coupon.startDate,
+          usageLimit: coupon.usageLimit,
+          perUserLimit: coupon.perUserLimit,
+          categoryIds: coupon.categories.map((c) => c.categoryId),
         },
       });
 
@@ -871,12 +880,16 @@ export class CmsService {
     return await this.prisma.coupon.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      include: { categories: { include: { category: true } } },
     });
   }
 
   // ── Get Single ───────
   async getCouponById(id: number) {
-    const coupon = await this.prisma.coupon.findUnique({ where: { id } });
+    const coupon = await this.prisma.coupon.findUnique({
+      where: { id },
+      include: { categories: true },
+    });
 
     if (!coupon) {
       throw new NotFoundException(`Coupon #${id} not found`);
@@ -919,24 +932,45 @@ export class CmsService {
     }
 
     try {
-      const updated = await this.prisma.coupon.update({
-        where: { id },
-        data: {
-          ...(dto.code && { code: dto.code.toUpperCase().trim() }),
-          ...(dto.discountType && { discountType: dto.discountType }),
-          ...(dto.discountValue !== undefined && {
-            discountValue: dto.discountValue,
-          }),
-          ...(dto.minOrderValue !== undefined && {
-            minOrderValue: dto.minOrderValue,
-          }),
-          ...(dto.maxDiscount !== undefined && {
-            maxDiscount: dto.maxDiscount,
-          }),
-          ...(dto.startDate && { startDate: dto.startDate }),
-          ...(dto.expiryDate && { expiryDate: dto.expiryDate }),
-          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-        },
+      const updated = await this.prisma.$transaction(async (tx) => {
+        if (dto.categoryIds !== undefined) {
+          await tx.couponCategory.deleteMany({ where: { couponId: id } });
+          if (dto.categoryIds.length) {
+            await tx.couponCategory.createMany({
+              data: dto.categoryIds.map((categoryId) => ({
+                couponId: id,
+                categoryId,
+              })),
+            });
+          }
+        }
+
+        return tx.coupon.update({
+          where: { id },
+          data: {
+            ...(dto.code && { code: dto.code.toUpperCase().trim() }),
+            ...(dto.discountType && { discountType: dto.discountType }),
+            ...(dto.discountValue !== undefined && {
+              discountValue: dto.discountValue,
+            }),
+            ...(dto.minOrderValue !== undefined && {
+              minOrderValue: dto.minOrderValue,
+            }),
+            ...(dto.maxDiscount !== undefined && {
+              maxDiscount: dto.maxDiscount,
+            }),
+            ...(dto.startDate && { startDate: dto.startDate }),
+            ...(dto.expiryDate && { expiryDate: dto.expiryDate }),
+            ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+            ...(dto.usageLimit !== undefined && {
+              usageLimit: dto.usageLimit,
+            }),
+            ...(dto.perUserLimit !== undefined && {
+              perUserLimit: dto.perUserLimit,
+            }),
+          },
+          include: { categories: true },
+        });
       });
 
       this.activityLogService.log({
@@ -954,6 +988,9 @@ export class CmsService {
           maxDiscount: existing.maxDiscount,
           expiryDate: existing.expiryDate,
           startDate: existing.startDate,
+          usageLimit: existing.usageLimit,
+          perUserLimit: existing.perUserLimit,
+          categoryIds: existing.categories.map((c) => c.categoryId),
         },
         newValue: {
           isActive: updated.isActive,
@@ -964,6 +1001,9 @@ export class CmsService {
           maxDiscount: updated.maxDiscount,
           expiryDate: updated.expiryDate,
           startDate: updated.startDate,
+          usageLimit: updated.usageLimit,
+          perUserLimit: updated.perUserLimit,
+          categoryIds: updated.categories.map((c) => c.categoryId),
         },
       });
 

@@ -1,7 +1,10 @@
 import {
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -52,4 +55,27 @@ export class CreateCouponDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // Total uses allowed across all customers; omit/null = unlimited.
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  usageLimit?: number;
+
+  // Uses allowed per customer; omit/null = unlimited.
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  @Type(() => Number)
+  perUserLimit?: number;
+
+  // Category ids this coupon is restricted to. Omit/empty = applies to
+  // every category (whole cart), matching prior behaviour.
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  categoryIds?: number[];
 }
