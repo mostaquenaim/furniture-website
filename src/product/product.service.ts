@@ -22,6 +22,11 @@ import {
   assertValidDiscountWindow,
   sanitizeDiscount,
 } from 'src/common/utils/discount.utils';
+import {
+  IN_STOCK_PRODUCT_WHERE,
+  IN_STOCK_SIZE_WHERE,
+  filterAvailableColors,
+} from 'src/common/utils/product-availability.utils';
 
 @Injectable()
 export class ProductService {
@@ -394,14 +399,7 @@ export class ProductService {
             color: true,
             images: true,
             sizes: {
-              ...(admin
-                ? {}
-                : {
-                    where: {
-                      quantity: { gt: 0 },
-                      size: { isActive: true },
-                    },
-                  }),
+              ...(admin ? {} : { where: IN_STOCK_SIZE_WHERE }),
               include: {
                 size: {
                   include: { variant: true },
@@ -422,7 +420,7 @@ export class ProductService {
       return { ...product, tags };
     }
 
-    product.colors = product.colors.filter((color) => color.sizes.length > 0);
+    product.colors = filterAvailableColors(product.colors);
 
     return sanitizeDiscount(product);
   }
@@ -510,9 +508,7 @@ export class ProductService {
     // Storefront listings only show in-stock products; admin views pass
     // includeOutOfStock so they can still see/manage products at 0 stock.
     if (!includeOutOfStock) {
-      where.totalProductQuantity = {
-        gt: 0,
-      };
+      Object.assign(where, IN_STOCK_PRODUCT_WHERE);
     }
 
     // --------------------------
@@ -563,12 +559,7 @@ export class ProductService {
                 color: true,
                 images: true,
                 sizes: {
-                  where: {
-                    quantity: { gt: 0 },
-                    size: {
-                      isActive: true,
-                    },
-                  },
+                  ...(includeOutOfStock ? {} : { where: IN_STOCK_SIZE_WHERE }),
                   include: {
                     size: {
                       include: { variant: true },
@@ -591,9 +582,9 @@ export class ProductService {
       filteredData = (data as any[]).map((product) =>
         sanitizeDiscount({
           ...product,
-          colors:
-            product.colors?.filter((color: any) => color.sizes?.length > 0) ??
-            [],
+          colors: includeOutOfStock
+            ? (product.colors ?? [])
+            : filterAvailableColors(product.colors ?? []),
         }),
       );
     } else {
@@ -1229,6 +1220,7 @@ export class ProductService {
     let relatedProducts = await this.prisma.product.findMany({
       where: {
         isActive: true,
+        ...IN_STOCK_PRODUCT_WHERE,
         id: { notIn: excludeIds },
         OR: [
           {
@@ -1270,6 +1262,7 @@ export class ProductService {
       const categoryProducts = await this.prisma.product.findMany({
         where: {
           isActive: true,
+          ...IN_STOCK_PRODUCT_WHERE,
           id: {
             notIn: [...excludeIds, ...existingIds],
           },
@@ -1311,6 +1304,7 @@ export class ProductService {
       const seriesProducts = await this.prisma.product.findMany({
         where: {
           isActive: true,
+          ...IN_STOCK_PRODUCT_WHERE,
           id: {
             notIn: [...excludeIds, ...existingIds],
           },
@@ -1354,6 +1348,7 @@ export class ProductService {
       const popularProducts = await this.prisma.product.findMany({
         where: {
           isActive: true,
+          ...IN_STOCK_PRODUCT_WHERE,
           id: {
             notIn: [...excludeIds, ...existingIds],
           },
@@ -1413,6 +1408,7 @@ export class ProductService {
     const products = await this.prisma.product.findMany({
       where: {
         isActive: true,
+        ...IN_STOCK_PRODUCT_WHERE,
         id: { notIn: excludeIds },
 
         subCategories: {
@@ -1513,6 +1509,7 @@ export class ProductService {
       recommendations = await this.prisma.product.findMany({
         where: {
           isActive: true,
+          ...IN_STOCK_PRODUCT_WHERE,
           id: { notIn: allInteractedIds },
           subCategories: { some: { subCategoryId: { in: subCategoryIds } } },
         },
@@ -1528,6 +1525,7 @@ export class ProductService {
       const categoryMatches = await this.prisma.product.findMany({
         where: {
           isActive: true,
+          ...IN_STOCK_PRODUCT_WHERE,
           id: { notIn: [...allInteractedIds, ...existingIds] },
           subCategories: {
             some: { subCategory: { categoryId: { in: categoryIds } } },
@@ -1546,6 +1544,7 @@ export class ProductService {
       const trending = await this.prisma.product.findMany({
         where: {
           isActive: true,
+          ...IN_STOCK_PRODUCT_WHERE,
           id: { notIn: [...allInteractedIds, ...existingIds] },
         },
         take: limit - recommendations.length + 5, // Take a few extra to shuffle
@@ -1582,6 +1581,7 @@ export class ProductService {
         ],
         product: {
           isActive: true,
+          ...IN_STOCK_PRODUCT_WHERE,
         },
       },
       orderBy: {
@@ -1701,7 +1701,7 @@ export class ProductService {
   // trending products
   async getTrendingProducts(limit: number = 10) {
     const products = await this.prisma.product.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...IN_STOCK_PRODUCT_WHERE },
       orderBy: [{ trendScore: 'desc' }, { soldCount: 'desc' }],
       take: limit,
       select: {
@@ -1715,7 +1715,7 @@ export class ProductService {
 
   async getFeaturedProducts(limit: number = 10) {
     const products = await this.prisma.product.findMany({
-      where: { isActive: true, isFeatured: true },
+      where: { isActive: true, isFeatured: true, ...IN_STOCK_PRODUCT_WHERE },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
       take: limit,
       include: {
@@ -1741,6 +1741,7 @@ export class ProductService {
     const where = {
       isActive: true,
       discount: { gt: 0 },
+      ...IN_STOCK_PRODUCT_WHERE,
       OR: [
         // No window set → discount never expires.
         { discountStart: null, discountEnd: null },

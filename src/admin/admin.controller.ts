@@ -52,9 +52,7 @@ import { OrderService } from 'src/order/order.service';
 import { UpdateOrderStatusDto } from 'src/order/dto/update-order-status.dto';
 import { CollectRemainderDto } from 'src/order/dto/collect-remainder.dto';
 import { ReviewService } from 'src/review/review.service';
-import { CreateCourierProviderDto } from 'src/courier/dto/create-courier-provider.dto';
 import { CourierService } from 'src/courier/services/courier.service';
-import { UpdateCourierProviderDto } from 'src/courier/dto/update-courier-provider.dto';
 import { CreateCourierShipmentDto } from 'src/courier/dto/create-courier-shipment.dto';
 import { Action } from 'src/permission/action.enum';
 import { Permission } from 'src/permission/permission.decorator';
@@ -681,28 +679,8 @@ export class AdminController {
   //////////////////////
   ////// COURIER //////
   ////////////////////
-
-  @Post('providers')
-  @Permission(Action.COURIER_MANAGE)
-  addProvider(@Body() dto: CreateCourierProviderDto, @Req() req: any) {
-    return this.courierService.addProvider(dto, req?.user?.userId);
-  }
-
-  @Patch('providers/:id')
-  @Permission(Action.COURIER_MANAGE)
-  updateProvider(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateCourierProviderDto,
-    @Req() req: any,
-  ) {
-    return this.courierService.updateProvider(id, dto, req?.user?.userId);
-  }
-
-  @Delete('providers/:id')
-  @Permission(Action.COURIER_MANAGE)
-  deleteProvider(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    return this.courierService.deleteProvider(id, req?.user?.userId);
-  }
+  // Provider CRUD lives in CourierController (/courier/providers) so all
+  // provider routes share one prefix instead of splitting reads and writes.
 
   @Post('courier/shipments')
   @Permission(Action.COURIER_MANAGE)

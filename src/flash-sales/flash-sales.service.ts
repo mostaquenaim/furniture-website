@@ -55,7 +55,9 @@ export class FlashSalesService {
     return {
       ...rest,
       products: products
-        .filter((fp) => fp.product.isActive)
+        .filter(
+          (fp) => fp.product.isActive && fp.product.totalProductQuantity > 0,
+        )
         .map((fp) => sanitizeDiscount(fp.product)),
     };
   }

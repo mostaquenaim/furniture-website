@@ -18,6 +18,11 @@ import { CreateSubCategoryDto } from './dto/subCategoryDto.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { LogModule } from '@prisma/client';
 import { sanitizeDiscount } from 'src/common/utils/discount.utils';
+import {
+  IN_STOCK_PRODUCT_WHERE,
+  IN_STOCK_SIZE_WHERE,
+  filterAvailableColors,
+} from 'src/common/utils/product-availability.utils';
 
 @Injectable()
 export class CategoryService {
@@ -175,9 +180,7 @@ export class CategoryService {
     const productWhere: any = {
       isActive,
 
-      totalProductQuantity: {
-        gt: 0,
-      },
+      ...(!admin && IN_STOCK_PRODUCT_WHERE),
 
       ...(search && {
         title: { contains: search, mode: 'insensitive' },
@@ -242,7 +245,7 @@ export class CategoryService {
           colors: {
             include: {
               color: true,
-              ...(!admin && { sizes: { where: { quantity: { gt: 0 } } } }),
+              ...(!admin && { sizes: { where: IN_STOCK_SIZE_WHERE } }),
             },
           },
           subCategories: {
@@ -326,9 +329,7 @@ export class CategoryService {
             ? p
             : {
                 ...p,
-                colors: ((p as any).colors as any[]).filter(
-                  (c: any) => c.sizes.length > 0,
-                ),
+                colors: filterAvailableColors((p as any).colors as any[]),
               },
         ),
       ),
@@ -956,9 +957,7 @@ export class CategoryService {
     const productWhere: any = {
       isActive,
 
-      totalProductQuantity: {
-        gt: 0,
-      },
+      ...(!admin && IN_STOCK_PRODUCT_WHERE),
 
       ...(search && {
         title: { contains: search, mode: 'insensitive' },
@@ -1009,7 +1008,7 @@ export class CategoryService {
           colors: {
             include: {
               color: true,
-              ...(!admin && { sizes: { where: { quantity: { gt: 0 } } } }),
+              ...(!admin && { sizes: { where: IN_STOCK_SIZE_WHERE } }),
             },
           },
           subCategories: {
@@ -1082,9 +1081,7 @@ export class CategoryService {
             ? p
             : {
                 ...p,
-                colors: ((p as any).colors as any[]).filter(
-                  (c: any) => c.sizes.length > 0,
-                ),
+                colors: filterAvailableColors((p as any).colors as any[]),
               },
         ),
       ),

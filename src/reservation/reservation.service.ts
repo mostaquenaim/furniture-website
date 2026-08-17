@@ -494,7 +494,7 @@ export class ReservationService {
       // who wasn't online when Pathao reported the return still sees it
       // later via the notification bell instead of only via the ephemeral
       // toast + dashboard card.
-      const notification = await this.adminNotificationsService.create({
+      const notification = await this.adminNotificationsService.createAdminNotification({
         type: 'RETURN_STARTED',
         title: 'Return started',
         message: `${returnedCount} piece(s) from order ${shipmentGroup.order.orderId} are returning${

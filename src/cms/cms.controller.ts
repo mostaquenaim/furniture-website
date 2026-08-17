@@ -200,15 +200,21 @@ export class CmsController {
   }
 
   //invoice
+  @UseGuards(JwtAuthGuard)
   @Get('invoices/:id')
-  async getInvoice(@Param('id') id: string) {
-    return this.orderService.getInvoice(id);
+  async getInvoice(@Param('id') id: string, @Req() req: any) {
+    return this.orderService.getInvoice(id, req.user);
   }
 
   // invoice pdf generator
+  @UseGuards(JwtAuthGuard)
   @Get('invoices/:id/pdf')
-  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
-    return this.orderService.generateInvoicePdf(id, res);
+  async downloadPdf(
+    @Param('id') id: string,
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    return this.orderService.generateInvoicePdf(id, req.user, res);
   }
 
   // seasonal categories

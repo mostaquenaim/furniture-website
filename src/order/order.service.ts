@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
@@ -11,6 +13,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -571,7 +574,10 @@ export class OrderService {
   }
 
   // get invoice
-  async getInvoice(id: string) {
+  async getInvoice(
+    id: string,
+    requestingUser: { userId: number; role: string },
+  ) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -584,11 +590,19 @@ export class OrderService {
       },
     });
 
+    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    this.assertInvoiceAccess(invoice, requestingUser);
+
     return invoice;
   }
 
   // generate invoice pdf
-  async generateInvoicePdf(invoiceId: string, res: Response) {
+  async generateInvoicePdf(
+    invoiceId: string,
+    requestingUser: { userId: number; role: string },
+    res: Response,
+  ) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: {
@@ -603,6 +617,8 @@ export class OrderService {
 
     if (!invoice) throw new NotFoundException('Invoice not found');
 
+    this.assertInvoiceAccess(invoice, requestingUser);
+
     const html = this.buildHtml(invoice);
     const buffer = await this.renderPdf(html);
 
@@ -615,20 +631,45 @@ export class OrderService {
     res.end(buffer);
   }
 
+  // Customers may only reach their own order's invoice; staff/admin may reach any.
+  private assertInvoiceAccess(
+    invoice: { order: { userId: number | null } },
+    requestingUser: { userId: number; role: string },
+  ) {
+    const isStaff = requestingUser?.role !== 'CUSTOMER';
+    const isOwner =
+      invoice.order.userId !== null &&
+      invoice.order.userId === requestingUser?.userId;
+
+    if (!isStaff && !isOwner) {
+      throw new ForbiddenException('You do not have access to this invoice');
+    }
+  }
+
   private async renderPdf(html: string): Promise<Buffer> {
     const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      protocolTimeout: 20_000,
     });
     try {
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, {
+        waitUntil: 'networkidle0',
+        timeout: 15_000,
+      });
       const pdf = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: { top: '0', right: '0', bottom: '0', left: '0' },
+        timeout: 15_000,
       });
       return Buffer.from(pdf);
+    } catch (err) {
+      this.logger.error('Invoice PDF render failed', err as Error);
+      throw new ServiceUnavailableException(
+        'Could not generate the invoice PDF right now. Please try again shortly.',
+      );
     } finally {
       await browser.close();
     }

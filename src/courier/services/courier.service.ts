@@ -332,6 +332,21 @@ export class CourierService {
         throw new NotFoundException('Order not found');
       }
 
+      // Hard gate: an order that's already reached a terminal state can't
+      // be booked for a new shipment (e.g. re-shipping a cancelled order).
+      const BLOCKED_ORDER_STATUSES: OrderStatus[] = [
+        'CANCELLED',
+        'DELIVERED',
+        'RETURNED',
+        'FAILED',
+        'RETURN_REQUESTED',
+      ];
+      if (BLOCKED_ORDER_STATUSES.includes(order.status)) {
+        throw new BadRequestException(
+          `Cannot create shipment — order is already ${order.status.toLowerCase()}`,
+        );
+      }
+
       // Hard gate: if this order has piece-tracked line items, every
       // reserved piece must be scan-confirmed as Picked before a courier
       // shipment (and its delivery label) can be created. Orders with no

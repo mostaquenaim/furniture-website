@@ -15,7 +15,7 @@ export interface CreateAdminNotificationInput {
 export class AdminNotificationsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(input: CreateAdminNotificationInput) {
+  async createAdminNotification(input: CreateAdminNotificationInput) {
     return this.prisma.adminNotification.create({ data: input });
   }
 
