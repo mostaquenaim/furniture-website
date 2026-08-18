@@ -6,6 +6,8 @@ import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { PartnerInventoryModule } from './partner-inventory/partner-inventory.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -41,6 +43,27 @@ async function bootstrap() {
     type: VersioningType.URI,
     defaultVersion: '1',
   });
+
+  // Partner-only OpenAPI doc — scoped via `include` to PartnerInventoryModule
+  // so no admin route ever appears here, regardless of what gets added to
+  // the rest of the app later.
+  const partnerDocConfig = new DocumentBuilder()
+    .setTitle('Partner Inventory API')
+    .setDescription(
+      'Read-only, key-authenticated inventory feed for 3rd-party integrations. ' +
+        'Authenticate with the `X-Api-Key` header.',
+    )
+    .setVersion('1.0')
+    .addApiKey(
+      { type: 'apiKey', name: 'X-Api-Key', in: 'header' },
+      'ApiKeyAuth',
+    )
+    .build();
+  const partnerDocument = SwaggerModule.createDocument(app, partnerDocConfig, {
+    include: [PartnerInventoryModule],
+  });
+  SwaggerModule.setup('docs/partner', app, partnerDocument);
+
   // Without this, cookies + IPs can behave weird.
   // app.set('trust proxy', 1);
   // Listen AFTER all config

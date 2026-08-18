@@ -112,6 +112,9 @@ export enum Action {
   SUPPLIER_VIEW = 'SUPPLIER_VIEW',
   SUPPLIER_MANAGE = 'SUPPLIER_MANAGE',
 
+  // Partner API keys (3rd-party, read-only integrations)
+  API_CLIENT_MANAGE = 'API_CLIENT_MANAGE',
+
   // Pieces (piece-level barcode tracking)
   PIECE_VIEW = 'PIECE_VIEW',
   PIECE_GENERATE = 'PIECE_GENERATE',

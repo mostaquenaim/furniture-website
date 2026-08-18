@@ -48,6 +48,8 @@ import { PieceModule } from './piece/piece.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { LabelSizeModule } from './label-size/label-size.module';
 import { AdminNotificationsModule } from './admin-notifications/admin-notifications.module';
+import { ApiClientModule } from './api-client/api-client.module';
+import { PartnerInventoryModule } from './partner-inventory/partner-inventory.module';
 
 @Module({
   imports: [
@@ -106,6 +108,8 @@ import { AdminNotificationsModule } from './admin-notifications/admin-notificati
     ReservationModule,
     LabelSizeModule,
     AdminNotificationsModule,
+    ApiClientModule,
+    PartnerInventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

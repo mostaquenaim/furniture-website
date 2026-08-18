@@ -63,6 +63,7 @@ model User {
   reservationsReserved OrderLineReservation[] @relation("ReservationReservedBy")
   reservationsPicked   OrderLineReservation[] @relation("ReservationPickedBy")
   generationBatches    GenerationBatch[]
+  apiClientsCreated    ApiClient[]
 }
 
 enum UserRole {
@@ -97,6 +98,57 @@ model RolePermission {
 
   @@unique([role, action])
   @@map("role_permissions")
+}
+
+// =====================
+// Partner API (3rd-party, key-authenticated access)
+// =====================
+model ApiClient {
+  id       Int    @id @default(autoincrement())
+  name     String // e.g. "Acme ERP Sync" — shown in the admin panel and logs
+
+  // Only the prefix is ever displayed/logged again after creation; the full
+  // secret is shown to the admin exactly once and never stored in plaintext.
+  keyPrefix    String @unique
+  hashedSecret String
+
+  // Flat scope list, e.g. ["inventory:read"]. Deliberately not role-based —
+  // an external system doesn't have a job title the way a staff User does.
+  scopes String[]
+
+  status             ApiClientStatus @default(ACTIVE)
+  rateLimitPerMinute Int             @default(60)
+
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  createdByAdminId Int
+  createdBy        User     @relation(fields: [createdByAdminId], references: [id])
+  createdAt        DateTime @default(now())
+
+  requestLogs ApiKeyRequestLog[]
+}
+
+enum ApiClientStatus {
+  ACTIVE
+  REVOKED
+}
+
+// Lightweight per-request audit trail for partner traffic. Kept separate
+// from ActivityLog, which requires a human adminId and is shaped around a
+// narrated admin action rather than high-volume machine traffic.
+model ApiKeyRequestLog {
+  id          Int      @id @default(autoincrement())
+  apiClientId Int
+  apiClient   ApiClient @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  method      String
+  path        String
+  statusCode  Int
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([apiClientId, createdAt])
 }
 
 // =====================
@@ -674,6 +726,11 @@ model ProductSize {
   stockAdjustments  StockAdjustment[]
   pieces            Piece[]
   generationBatches GenerationBatch[]
+
+  // Required for incremental sync (e.g. the partner API's `updatedSince`
+  // filter) — without this there was no way to ask "what changed since X".
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum ProductTrackingMode {
