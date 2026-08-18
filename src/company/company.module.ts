@@ -1,4 +1,3 @@
-// src/company/company.module.ts
 import { Module } from '@nestjs/common';
 import { CompanyController } from './company.controller';
 import { CompanyService } from './company.service';
@@ -10,7 +9,12 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
 @Module({
   imports: [PrismaModule],
   controllers: [CompanyController],
-  providers: [CompanyService, PrismaService, PermissionService, ActivityLogService],
+  providers: [
+    CompanyService,
+    PrismaService,
+    PermissionService,
+    ActivityLogService,
+  ],
   exports: [CompanyService],
 })
 export class CompanyModule {}

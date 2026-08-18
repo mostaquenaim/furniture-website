@@ -177,7 +177,6 @@ export class CmsController {
   @UseGuards(JwtAuthGuard)
   @Post('delivery/fee')
   async getDeliveryFee(@Body() body: any) {
-  // console.log('here');
     const { cityId, zoneId, weight } = body;
 
     if (!cityId) {
@@ -249,13 +248,9 @@ export class CmsController {
   // ?onlyActive=true/false always overrides the role-based default.
   @Get('static-pages')
   @UseGuards(OptionalJwtAuthGuard)
-  getAllStaticPages(
-    @Req() req: any,
-    @Query('onlyActive') onlyActive?: string,
-  ) {
+  getAllStaticPages(@Req() req: any, @Query('onlyActive') onlyActive?: string) {
     if (onlyActive === 'true') return this.cmsService.getAllStaticPages(true);
-    if (onlyActive === 'false')
-      return this.cmsService.getAllStaticPages(false);
+    if (onlyActive === 'false') return this.cmsService.getAllStaticPages(false);
 
     const isStaff = !!req?.user?.role && req.user.role !== UserRole.CUSTOMER;
     return this.cmsService.getAllStaticPages(!isStaff);
@@ -276,8 +271,6 @@ export class CmsController {
   }
 
   // broad banner
-  /////////////
-
   @Get('broad-banner/active')
   findActive() {
     return this.broadBannerService.findActive();

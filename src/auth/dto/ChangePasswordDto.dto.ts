@@ -5,6 +5,5 @@ export class ChangePasswordDto {
   oldPassword: string;
 
   @IsString()
-  // @MinLength(8)
   newPassword: string;
 }

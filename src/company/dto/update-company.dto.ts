@@ -1,4 +1,3 @@
-// src/company/dto/update-company.dto.ts
 import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 export class UpdateCompanyDto {

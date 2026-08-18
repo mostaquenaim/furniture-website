@@ -1,4 +1,3 @@
-// update-banner.dto.ts
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateBroadBannerDto } from './create-broad-banner.dto';
 

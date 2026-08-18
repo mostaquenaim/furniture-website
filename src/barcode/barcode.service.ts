@@ -1,9 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // src/barcode/barcode.service.ts
 import {
@@ -42,12 +36,6 @@ export class BarcodeService {
       where: { id: dto.productId },
     });
     if (!product) throw new NotFoundException('Product not found');
-
-    // const existing = await this.prisma.inventoryItem.findFirst({
-    //   where: { productId: dto.productId },
-    // });
-    // if (existing)
-    //   throw new ConflictException('Barcode already exists for this product');
 
     if (dto.locationId) {
       const existingLocation = await this.prisma.warehouseLocation.findUnique({
@@ -139,7 +127,6 @@ export class BarcodeService {
 
   // ── Assign / update warehouse location ────────────────────────────────────
   async assignLocation(barcodeId: string, dto: AssignLocationDto) {
-    console.log('Assigning location', dto.locationId, 'to barcode', barcodeId);
     return this.prisma.$transaction(async (tx) => {
       // 1. Verify existence and current state
       const item = await tx.inventoryItem.findUnique({
@@ -154,7 +141,6 @@ export class BarcodeService {
       }
 
       if (dto.locationId === null) {
-        console.log('Unassigning location for barcode', barcodeId);
         // Unassign location
         const updatedItem = await tx.inventoryItem.update({
           where: { id: barcodeId },

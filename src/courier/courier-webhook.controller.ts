@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-// src/courier/courier.controller.ts
+
 import {
   Controller,
   Post,
@@ -39,7 +37,6 @@ export class CourierWebhookController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    // console.log('pathao - data', provider, payload, 'pathaao-data');
     const incomingSecret = req.headers[
       'x-pathao-merchant-webhook-integration-secret'
     ] as string | undefined;

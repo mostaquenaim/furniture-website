@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import {
   BadRequestException,
   ConflictException,
@@ -188,7 +186,6 @@ export class BlogsService {
   }
 
   async createBlog(dto: CreateBlogDto, adminId: number) {
-  // console.log(dto);
     // Check duplicate blog slug
     const existingBlog = await this.prisma.blogPost.findUnique({
       where: { slug: dto.slug },
@@ -304,13 +301,11 @@ export class BlogsService {
   }
 
   async getCategories() {
-  // console.log('here it goes');
     const categories = await this.prisma.blogCategory.findMany({
       where: { isActive: true },
       orderBy: { order: 'asc' },
     });
 
-  // console.log(categories);
     return categories;
   }
 

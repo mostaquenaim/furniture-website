@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 // src/courier/providers/pathao.provider.ts
 import { HttpService } from '@nestjs/axios';
@@ -37,9 +37,7 @@ export class PathaoProvider implements CourierProviderInterface {
     this.password = this.configService.get('PATHAO_PASSWORD');
   }
 
-  refreshToken() {
-  // console.log('Method not implemented.');
-  }
+  refreshToken() {}
 
   private async getPathaoAccessToken(): Promise<string> {
     const now = Date.now();
@@ -79,17 +77,13 @@ export class PathaoProvider implements CourierProviderInterface {
     }
   }
 
-  // provider.ts
   async createShipment(data: any): Promise<any> {
     try {
       const token = await this.getPathaoAccessToken();
 
-      // Validate required fields
       if (!data.store_id) {
         throw new Error('store_id is required for Pathao shipment');
       }
-
-      // console.log('shipment data', data, 'shipment data');
 
       const response = await firstValueFrom(
         this.httpService.post(
@@ -237,7 +231,6 @@ export class PathaoProvider implements CourierProviderInterface {
     return map[status?.toLowerCase()] || CourierStatus.PENDING;
   }
 
-  // get cities
   async getCities() {
     const token = await this.getPathaoAccessToken();
     const response = await firstValueFrom(
@@ -246,11 +239,9 @@ export class PathaoProvider implements CourierProviderInterface {
       }),
     );
 
-    // console.log(response.data.data.data, ' pathao response');
     return response.data.data.data;
   }
 
-  // get zones
   async getZones(cityId: number) {
     const token = await this.getPathaoAccessToken();
     const response = await firstValueFrom(

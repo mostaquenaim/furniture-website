@@ -25,7 +25,6 @@ export class ReviewService {
     return this.reviews;
   }
 
-  // create a review
   async createReview(
     userId: number,
     orderItemId: number,
@@ -92,7 +91,6 @@ export class ReviewService {
     };
   }
 
-  // update review
   async updateReview(
     id: number,
     data: { isHidden?: boolean; isFeatured?: boolean },
@@ -153,7 +151,6 @@ export class ReviewService {
     return updated;
   }
 
-  // get a random featured review
   async getAFeaturedReview() {
     // Fetch all featured reviews
     const reviews = await this.prisma.review.findMany({
@@ -195,7 +192,6 @@ export class ReviewService {
     return reviews[randomIndex];
   }
 
-  // get all featured reviews
   async getAllFeaturedReviews() {
     const reviews = await this.prisma.review.findMany({
       where: {
@@ -234,27 +230,13 @@ export class ReviewService {
     return reviews;
   }
 
-  getProductReviews(productId: string) {
-  // console.log(productId);
-    // return this.reviews.filter(r => r.productId === productId);
-  }
+  getProductReviews(productId: string) {}
 
   getRandomReviews() {
     return this.reviews.sort(() => 0.5 - Math.random()).slice(0, 5);
   }
 
-  update(id: any, dto: any) {
-  // console.log(id, dto);
-    // const index = this.reviews.findIndex(r => r.id == id);
-    // if (index === -1) return null;
+  update(id: any, dto: any) {}
 
-    // this.reviews[index] = { ...this.reviews[index], ...dto };
-    // return this.reviews[index];
-  }
-
-  delete(id: any) {
-  // console.log(id);
-    // this.reviews = this.reviews.filter(r => r?.id != id);
-    // return { message: 'Review deleted' };
-  }
+  delete(id: any) {}
 }

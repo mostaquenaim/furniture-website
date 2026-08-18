@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   ActivityLog,
@@ -14,7 +13,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class ActivityLogService {
   constructor(private prisma: PrismaService) {}
 
-  // create log
   async log(data: {
     adminId: number;
     action: string;
@@ -141,7 +139,6 @@ export class ActivityLogService {
     }
   }
 
-  // get logs
   async getLogs(filter?: {
     module?: LogModule;
     adminId?: number;
@@ -223,7 +220,6 @@ export class ActivityLogService {
     };
   }
 
-  // batch logging
   async logMany(logs: Array<Parameters<ActivityLogService['log']>[0]>) {
     try {
       await this.prisma.activityLog.createMany({
@@ -243,7 +239,6 @@ export class ActivityLogService {
     }
   }
 
-  // cleanup old logs
   async cleanupOldLogs(daysToKeep: number = 90) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
@@ -255,7 +250,6 @@ export class ActivityLogService {
       },
     });
 
-  // console.log(`Cleaned up ${result.count} old activity logs`);
     return result;
   }
 }

@@ -12,8 +12,6 @@ export class LoginDto {
   @IsOptional()
   clientIp?: string;
 
-  // type: string;
-
   @IsOptional()
   password?: string;
 }

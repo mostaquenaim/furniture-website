@@ -41,7 +41,6 @@ export class SupportService {
     });
   }
 
-  // get ticket by id
   async getTicketById(id: number, userId: number) {
     const ticket = await this.prisma.supportTicket.findFirst({
       where: { id, userId },

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unused-expressions */
+
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -54,11 +54,8 @@ export class PathaoLocationSyncService {
     });
 
     if (!provider || !provider.isActive) {
-      // throw new BadRequestException('Courier provider not available');
       return false;
     }
-
-  // console.log(provider.name.toLowerCase(), 'provider-name');
 
     const providerImpl = this.providers.get(provider.name.toLowerCase());
 
@@ -157,7 +154,6 @@ export class PathaoLocationSyncService {
     });
 
     if (!provider || !provider.isActive) {
-      // throw new BadRequestException('Courier provider not available');
       return false;
     }
 

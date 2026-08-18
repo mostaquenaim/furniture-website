@@ -26,17 +26,14 @@ import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  // Add an item to cart
   @Post('items')
   async addItem(
     @Req() req,
     @Body(new ValidationPipe({ transform: true })) dto: AddCartItemDto,
   ) {
-    // console.log('addtocart', req?.user?.userId, dto);
     return this.cartService.addItemToCart(req?.user?.userId, dto);
   }
 
-  // Get cart
   @Get('items')
   async getCartItems(
     @Req() req,
@@ -45,8 +42,6 @@ export class CartController {
     @Query('sizeId') sizeId?: string,
     @Query('summary') isSummary?: boolean,
   ) {
-    // console.log('cart items', req.user.userId);
-
     return await this.cartService.getCartItems(req?.user?.userId, null, {
       productSlug: productSlug ? productSlug : undefined,
       colorId: colorId ? +colorId : undefined,
@@ -55,10 +50,8 @@ export class CartController {
     });
   }
 
-  // Add an item to cart
   @Get('count')
   async countCartItems(@Req() req) {
-  // console.log('found');
     return this.cartService.countCartItems(req?.user?.userId, null);
   }
 

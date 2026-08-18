@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-floating-promises */
+
 import {
   Controller,
   Post,
@@ -27,7 +27,6 @@ export class PaymentController {
   @Post('sslcommerz/initiate/:orderId')
   @UseGuards(JwtAuthGuard)
   async initiateSSL(@Param('orderId') orderId: string) {
-  // console.log('here');
     try {
       const sslcommerzURL = await this.paymentService.initiateSSL(orderId);
       return {

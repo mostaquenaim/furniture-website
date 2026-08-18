@@ -48,7 +48,6 @@ export class CmsService {
     private appSettingsService: AppSettingsService,
   ) {}
 
-  // get all tags
   async getAllTags(search?: string, limit?: number) {
     return await this.prisma.tag.findMany({
       where: {
@@ -66,7 +65,6 @@ export class CmsService {
     });
   }
 
-  // create new tag
   async createNewTag(name: string, adminId: number) {
     const existing = await this.prisma.tag.findUnique({
       where: { name: name.toLowerCase() },
@@ -109,7 +107,6 @@ export class CmsService {
 
   // CREATE
   async createPromoBanner(dto: CreatePromoBannerDto, adminId: number) {
-    // console.log(dto,'dtoservice');
     const promoBanner = await this.prisma.promoBanner.create({
       data: {
         text: dto.text,
@@ -268,7 +265,6 @@ export class CmsService {
     });
   }
 
-  //update homepage banner
   async updateHomepageBanner(id: number, dto: UpdateBannerDto, userId: number) {
     this.logger.log(`User ${userId} updating homepage banner ${id}`);
 
@@ -502,7 +498,6 @@ export class CmsService {
     return updatedMaterial;
   }
 
-  // update districts
   async updateDistrict(id: number, data: UpdateDistrictDto, adminId: number) {
     const existing = await this.prisma.city.findUnique({
       where: { id },
@@ -745,7 +740,6 @@ export class CmsService {
     return deleted;
   }
 
-  // delete city
   async deleteDistrict(userId: number, id: number) {
     const existing = await this.prisma.city.findUnique({
       where: {
@@ -770,7 +764,6 @@ export class CmsService {
     return deleted;
   }
 
-  //create coupons mock
   async createMockCoupons() {
     for (const couponData of couponsData) {
       await this.prisma.coupon.create({
@@ -1236,7 +1229,6 @@ export class CmsService {
     return variant;
   }
 
-  // create initial city data
   async createInitialDistrict(userId: number) {
     for (const district of districtsData) {
       // Remove trailing spaces from names
@@ -1254,14 +1246,10 @@ export class CmsService {
             deliveryFee: Number(process.env.DEFAULT_DELIVERY_FEE) || 120,
           },
         });
-        // console.log(`Created city: ${cleanName}`);
-      } else {
-        // console.log(`District already exists: ${cleanName}`);
       }
     }
   }
 
-  // create city data
   async createDistrict(userId: number, districtDto: CreateDistrictDto) {
     const cleanName = districtDto.name.trim();
 
@@ -1359,7 +1347,6 @@ export class CmsService {
     });
   }
 
-  // get all colors
   getAllColors(isActive?: boolean | null) {
     return this.prisma.color.findMany({
       where: isActive === null ? {} : { isActive: isActive ?? true },
@@ -1367,7 +1354,6 @@ export class CmsService {
     });
   }
 
-  // get all sizes
   getSizes(isActive?: boolean | null) {
     return this.prisma.size.findMany({
       where: isActive === null ? {} : { isActive: isActive ?? true },
@@ -1378,7 +1364,6 @@ export class CmsService {
     });
   }
 
-  // get all materials
   getAllMaterials(isActive?: boolean | null) {
     return this.prisma.material.findMany({
       where: isActive === null ? {} : { isActive: isActive ?? true },

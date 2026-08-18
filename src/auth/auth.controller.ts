@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
@@ -63,7 +61,6 @@ export class AuthController {
       keepSignedIn: boolean;
     },
   ) {
-    // console.log(body);
     return this.authService.verifyOtp(
       body.emailOrPhone,
       body.code,
@@ -89,7 +86,6 @@ export class AuthController {
     return this.authService.updateProfile(req?.user?.userId, dto);
   }
 
-  //logout
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: any) {
@@ -103,11 +99,9 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
-  // merge user
   @UseGuards(JwtAuthGuard)
   @Patch('merge-user')
   async mergeUser(@Req() req: any, @Query('visitorId') visitorId: string) {
-  // console.log(visitorId, 'vistoriffs');
     await this.authService.mergeGuestData(visitorId, req?.user?.userId);
   }
 
@@ -149,24 +143,5 @@ export class AuthController {
     return res.redirect(
       `${frontendUrl}/auth/google/success?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`,
     );
-
-    //     return res.send(`
-    // <!DOCTYPE html>
-    // <html>
-    //   <body>
-    //     <script>
-    //       window.opener.postMessage(
-    //         {
-    //           type: "GOOGLE_AUTH_SUCCESS",
-    //           token: "${token}",
-    //           user: ${JSON.stringify(user)}
-    //         },
-    //         "${frontendUrl}"
-    //       );
-    //       window.close();
-    //     </script>
-    //   </body>
-    // </html>
-    // `);
   }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -24,7 +23,6 @@ export class GuestController {
     private readonly cartService: CartService,
   ) {}
 
-  // create visitor id
   @Post('init')
   async createVisitor(@Body('visitorId') visitorId: string) {
     if (!visitorId) {
@@ -38,7 +36,6 @@ export class GuestController {
     };
   }
 
-  // guest cart get
   @Get('cart/items/:visitorId')
   async getGuestCartItems(
     @Param('visitorId') visitorId: string,
@@ -55,27 +52,16 @@ export class GuestController {
     });
   }
 
-  // guest cart add
   @Post('cart/items')
-  async addGuestItem(
-    // @Query('visitorId') visitorId: string,
-    @Body(new ValidationPipe({ transform: true })) dto,
-  ) {
-    // if (!visitorId) {
-    //   throw new BadRequestException('visitorId missing');
-    // }
-
+  async addGuestItem(@Body(new ValidationPipe({ transform: true })) dto) {
     return this.cartService.addItemToGuestCart(dto.visitorId, dto);
   }
 
-  // count guest cart
   @Get('cart/count/:visitorId')
   async countCartItems(@Param('visitorId') visitorId: string) {
-  // console.log('count/guest');
     return this.cartService.countCartItems(null, visitorId);
   }
 
-  // apply coupon
   @Patch('cart/apply-coupon/:cartId')
   async applyCoupon(
     @Param('cartId', ParseIntPipe) cartId: number,
@@ -85,7 +71,6 @@ export class GuestController {
     return this.cartService.applyCoupon(null, visitorId, cartId, code);
   }
 
-  // update cart item quantity
   @Patch('items/:id')
   async updateCartItemQuantity(
     @Param('id', ParseIntPipe) id: number,
@@ -95,7 +80,6 @@ export class GuestController {
     return this.cartService.updateItemQuantity(null, visitorId, id, quantity);
   }
 
-  // delete cart item
   @Delete('items/:id')
   async removeCartItem(
     @Param('id', ParseIntPipe) id: number,

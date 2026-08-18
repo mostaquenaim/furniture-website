@@ -490,9 +490,7 @@ export class CartService {
     });
   }
 
-  // get or create cart
   async getOrCreateCart(userId: number) {
-    // console.log(userId, 'userId');
     let cart = await this.prisma.cart.findFirst({
       where: {
         userId,
@@ -552,7 +550,6 @@ export class CartService {
     if (!productSize) {
       throw new NotFoundException('Product variant not found');
     }
-    // console.log(productSize, 'productSize');
 
     const quantityToAdd = dto.quantity ?? 1;
 
@@ -758,19 +755,14 @@ export class CartService {
     });
   }
 
-  // count cart items for a user
   async countCartItems(userId: number | null, visitorId: string | null) {
-    // console.log(userId, visitorId, 'userid, visitoid');
     const cart = await this.prisma.cart.findFirst({
-      // where: { userId, status: 'ACTIVE' },
       where: {
         status: 'ACTIVE',
         ...(userId ? { userId } : {}),
         ...(!userId && visitorId ? { visitorId } : {}),
       },
     });
-
-    // console.log('cartfound', cart, 'cartfound');
 
     if (!cart) return 0;
 

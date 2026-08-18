@@ -46,7 +46,6 @@ export class UserController {
   @Put('update')
   @SkipPermission()
   update(@Req() req, @Body() dto: UpdateUserDto) {
-  // console.log(req?.user?.id, 'requserid');
     return this.authService.update(req?.user?.userId, dto);
   }
 

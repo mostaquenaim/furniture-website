@@ -132,7 +132,6 @@ export class AdminController {
     );
   }
 
-  // update series order
   @Patch('series/reorder')
   @Permission(Action.CATEGORY_REORDER)
   async reorderSeries(
@@ -142,7 +141,6 @@ export class AdminController {
     return await this.categoryService.reorderSeries(req?.user?.userId, orders);
   }
 
-  // update category order
   @Patch('categories/reorder')
   @Permission(Action.CATEGORY_REORDER)
   async reorderCategories(
@@ -155,7 +153,6 @@ export class AdminController {
     );
   }
 
-  // update category order
   @Patch('subcategories/reorder')
   @Permission(Action.CATEGORY_REORDER)
   async reorderSubcategories(
@@ -168,7 +165,6 @@ export class AdminController {
     );
   }
 
-  // update categories
   @Patch('series/:slug')
   @Permission(Action.CATEGORY_UPDATE)
   async updateSeries(
@@ -188,14 +184,12 @@ export class AdminController {
     };
   }
 
-  // delete series
   @Delete('series/:slug')
   @Permission(Action.CATEGORY_DELETE)
   async deleteSeries(@Req() req: any, @Param('slug') slug: string) {
     return this.categoryService.deleteSeriesBySlug(req?.user?.userId, slug);
   }
 
-  // update categories
   @Patch('category/:slug')
   @Permission(Action.CATEGORY_UPDATE)
   async updateCategory(
@@ -215,14 +209,12 @@ export class AdminController {
     };
   }
 
-  // delete category
   @Delete('category/:slug')
   @Permission(Action.CATEGORY_DELETE)
   async deleteCategory(@Req() req: any, @Param('slug') slug: string) {
     return this.categoryService.deleteCategoryBySlug(req?.user?.userId, slug);
   }
 
-  // update categories
   @Patch('subcategory/:slug')
   @Permission(Action.CATEGORY_UPDATE)
   async updatesSubcategory(
@@ -242,7 +234,6 @@ export class AdminController {
     };
   }
 
-  // delete subcategory
   @Delete('subcategory/:slug')
   @Permission(Action.CATEGORY_DELETE)
   async deleteSubcategory(@Req() req: any, @Param('slug') slug: string) {
@@ -262,7 +253,6 @@ export class AdminController {
   @Get('cloudinary-signature')
   @Permission(Action.PRODUCT_CREATE)
   getCloudinarySignature() {
-    // console.log('cloudinary-signature');
     const timestamp = Math.round(Date.now() / 1000);
 
     const signature = cloudinary.utils.api_sign_request(
@@ -295,7 +285,6 @@ export class AdminController {
     return this.cmsService.deleteColor(req?.user?.userId, colorId);
   }
 
-  // update color
   @Patch('colors/:colorId')
   @Permission(Action.CMS_COLOR_MANAGE)
   updateColor(
@@ -312,14 +301,12 @@ export class AdminController {
     return this.cmsService.createSize(createSizeDto, req?.user?.userId);
   }
 
-  // delete size
   @Delete('/sizes/:sizeId')
   @Permission(Action.CMS_SIZE_MANAGE)
   deleteSize(@Req() req: any, @Param('sizeId') sizeId: number) {
     return this.cmsService.deleteSize(req?.user?.userId, sizeId);
   }
 
-  // update size
   @Patch('sizes/:sizeId')
   @Permission(Action.CMS_SIZE_MANAGE)
   updateSize(
@@ -336,14 +323,12 @@ export class AdminController {
     return this.cmsService.createVariant(createVariantDto, req?.user?.userId);
   }
 
-  // delete variant
   @Delete('/variants/:variantId')
   @Permission(Action.CMS_VARIANT_MANAGE)
   deleteVariant(@Req() req: any, @Param('variantId') variantId: number) {
     return this.cmsService.deleteVariant(req?.user?.userId, variantId);
   }
 
-  // update variant
   @Patch('variants/:variantId')
   @Permission(Action.CMS_VARIANT_MANAGE)
   updateVariant(
@@ -358,14 +343,12 @@ export class AdminController {
     );
   }
 
-  // create new material
   @Post('materials')
   @Permission(Action.CMS_MATERIAL_MANAGE)
   addMaterial(@Body() createMaterialDto: CreateMaterialDto, @Req() req: any) {
     return this.cmsService.addMaterial(createMaterialDto, req?.user?.userId);
   }
 
-  // update material
   @Patch('materials/:materialId')
   @Permission(Action.CMS_MATERIAL_MANAGE)
   updateMaterial(
@@ -380,7 +363,6 @@ export class AdminController {
     );
   }
 
-  // delete material
   @Delete('/materials/:materialId')
   @Permission(Action.CMS_MATERIAL_MANAGE)
   deleteMaterial(@Req() req: any, @Param('materialId') materialId: number) {
@@ -393,8 +375,6 @@ export class AdminController {
   @Post('products')
   @Permission(Action.PRODUCT_CREATE)
   async createProduct(@Body() dto: CreateProductDto, @Req() req: any) {
-    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
-    // return true
     return this.productService.createProduct(
       dto,
       req?.user?.userId,
@@ -409,7 +389,6 @@ export class AdminController {
     @Body() dto: UpdateProductDto,
     @Req() req: any,
   ) {
-    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.productService.updateProduct(
       productId,
       dto,
@@ -430,7 +409,6 @@ export class AdminController {
     return this.productService.syncProductQuantity(req?.user?.userId);
   }
 
-  // Review update
   @Patch('reviews/:reviewId')
   @Permission(Action.REVIEW_MANAGE)
   updateReview(
@@ -443,19 +421,12 @@ export class AdminController {
     return this.reviewService.updateReview(id, updateData, adminId);
   }
 
-  // @Get('product-sync-prices')
-  // async syncAllProductPrices() {
-  //   console.log('admin');
-  //   return this.productService.syncAllProductPrices();
-  // }
-
   //////////////////////
   ////// BLOG //////
   ////////////////////
   @Post('/blogs')
   @Permission(Action.BLOG_CREATE)
   async createBlog(@Body() dto: CreateBlogDto, @Req() req: any) {
-    // console.log(JSON.stringify(dto, null, 2), 'dtoooo');
     return this.blogService.createBlog(dto, req?.user?.userId);
   }
 
@@ -465,7 +436,6 @@ export class AdminController {
     @Body() dto: CreateBlogCategoryDto,
     @Req() req: any,
   ) {
-    // console.log('DTO:', dto);
     return this.blogService.createBlogCategory(dto, req?.user?.userId);
   }
 
@@ -538,7 +508,6 @@ export class AdminController {
     return { enabled: process.env.MANUAL_ORDER_STATUS_UPDATE === 'true' };
   }
 
-  // update order status
   @Patch('orders/:orderId/status')
   @Permission(Action.ORDER_UPDATE_STATUS)
   updateOrderStatus(
@@ -725,11 +694,6 @@ export class AdminController {
     return this.courierService.cancelShipment(id, req?.user?.userId);
   }
 
-  // @Post('create-mock-coupons')
-  // async createMockCoupons() {
-  //   return this.cmsService.createMockCoupons();
-  // }
-
   //////////////////////
   ////// OTHERS //////
   ////////////////////
@@ -764,14 +728,12 @@ export class AdminController {
     return syncZones;
   }
 
-  // delete district
   @Delete('districts/:id')
   @Permission(Action.DISTRICT_MANAGE)
   async deleteDistrict(@Req() req: any, @Param('id') id: number) {
     return await this.cmsService.deleteDistrict(req?.user?.userId, id);
   }
 
-  // tags
   @Post('tags')
   @Permission(Action.TAG_CREATE)
   async createTags(@Body('name') name: string, @Req() req: any) {

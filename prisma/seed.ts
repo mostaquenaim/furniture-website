@@ -149,7 +149,7 @@ const EMAIL_TEMPLATES: {
     body: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
 
   <div style="text-align:center; margin-bottom: 20px;">
-    <h1 style="margin:0; color:#222;">Sakigai</h1>
+    <h1 style="margin:0; color:#222;">Ondorkotha</h1>
     <p style="margin:0; font-size:14px; color:#777;">Order Update</p>
   </div>
 
@@ -186,7 +186,7 @@ const EMAIL_TEMPLATES: {
   <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
 
   <p style="font-size:12px; color:#999;">
-    Thank you for shopping with Sakigai.
+    Thank you for shopping with Ondorkotha.
   </p>
 
 </div>`,
@@ -198,7 +198,7 @@ const EMAIL_TEMPLATES: {
     body: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
 
   <div style="text-align:center; margin-bottom: 20px;">
-    <h1 style="margin:0; color:#222;">Sakigai</h1>
+    <h1 style="margin:0; color:#222;">Ondorkotha</h1>
     <p style="margin:0; font-size:14px; color:#777;">Refund Processed</p>
   </div>
 
@@ -226,7 +226,7 @@ const EMAIL_TEMPLATES: {
   <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
 
   <p style="font-size:12px; color:#999;">
-    Thank you for shopping with Sakigai.
+    Thank you for shopping with Ondorkotha.
   </p>
 
 </div>`,
@@ -264,7 +264,7 @@ const EMAIL_TEMPLATES: {
     body: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
 
   <div style="text-align:center; margin-bottom: 20px;">
-    <h1 style="margin:0; color:#222;">Sakigai</h1>
+    <h1 style="margin:0; color:#222;">Ondorkotha</h1>
     <p style="margin:0; font-size:14px; color:#777;">Return Request Update</p>
   </div>
 
@@ -288,7 +288,7 @@ const EMAIL_TEMPLATES: {
   <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
 
   <p style="font-size:12px; color:#999;">
-    Thank you for shopping with Sakigai.
+    Thank you for shopping with Ondorkotha.
   </p>
 
 </div>`,
@@ -300,7 +300,7 @@ const EMAIL_TEMPLATES: {
     body: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
 
   <div style="text-align:center; margin-bottom: 20px;">
-    <h1 style="margin:0; color:#222;">Sakigai</h1>
+    <h1 style="margin:0; color:#222;">Ondorkotha</h1>
     <p style="margin:0; font-size:14px; color:#777;">Support Ticket Reply</p>
   </div>
 
@@ -338,7 +338,7 @@ const EMAIL_TEMPLATES: {
   <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
 
   <p style="font-size:12px; color:#999;">
-    Thank you for shopping with Sakigai.
+    Thank you for shopping with Ondorkotha.
   </p>
 
 </div>`,
@@ -381,7 +381,7 @@ const EMAIL_TEMPLATES: {
     body: `<div style="font-family: Arial, sans-serif; max-width: 640px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
 
   <div style="text-align:center; margin-bottom: 20px;">
-    <h1 style="margin:0; color:#222;">Sakigai</h1>
+    <h1 style="margin:0; color:#222;">Ondorkotha</h1>
     <p style="margin:0; font-size:14px; color:#777;">Inventory Alert</p>
   </div>
 
@@ -460,7 +460,7 @@ const EMAIL_TEMPLATES: {
   <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
 
   <p style="font-size:12px; color:#999;">
-    You're receiving this because your role has inventory access on the Sakigai admin panel.
+    You're receiving this because your role has inventory access on the Ondorkotha admin panel.
   </p>
 
 </div>`,
@@ -473,7 +473,7 @@ const EMAIL_TEMPLATES: {
     body: `<div style="font-family: Arial, sans-serif; max-width: 640px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
 
   <div style="text-align:center; margin-bottom: 20px;">
-    <h1 style="margin:0; color:#222;">Sakigai</h1>
+    <h1 style="margin:0; color:#222;">Ondorkotha</h1>
     <p style="margin:0; font-size:14px; color:#777;">Barcode Inventory Alert</p>
   </div>
 
@@ -527,7 +527,7 @@ const EMAIL_TEMPLATES: {
   <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
 
   <p style="font-size:12px; color:#999;">
-    You're receiving this because your role has barcode inventory access on the Sakigai admin panel.
+    You're receiving this because your role has barcode inventory access on the Ondorkotha admin panel.
   </p>
 
 </div>`,
@@ -671,7 +671,7 @@ async function main() {
     update: {},
     create: {
       id: 1,
-      name: 'Sakigai',
+      name: 'Ondorkotha',
       email: 'hello@sakigai.com',
       country: 'Bangladesh',
     },

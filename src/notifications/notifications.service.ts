@@ -343,7 +343,11 @@ export class NotificationsService {
   /** Queues a single digest email listing barcode batches stuck in CREATED past the stale threshold. */
   async sendStalePiecesAlert(
     adminEmails: string[],
-    data: { items: StalePieceAlertItem[]; thresholdDays: number; generatedAt: Date },
+    data: {
+      items: StalePieceAlertItem[];
+      thresholdDays: number;
+      generatedAt: Date;
+    },
   ) {
     if (adminEmails.length === 0) return;
 
@@ -474,8 +478,6 @@ export class NotificationsService {
           CampaignId: 'null',
         },
       );
-
-      // console.log(smsReturn, 'smsReturn');
 
       this.logger.log(`SMS sent to ${phone}`);
     } catch (err) {

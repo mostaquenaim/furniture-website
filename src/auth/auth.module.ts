@@ -19,15 +19,6 @@ import { NotificationsService } from 'src/notifications/notifications.service';
       secret: process.env.JWT_SECRET || 'secretkey',
       signOptions: { expiresIn: '7d' },
     }),
-
-    // JwtModule.registerAsync({
-    //   imports: [ConfigModule],
-    //   inject: [ConfigService],
-    //   useFactor: (config: ConfigService) => ({
-    //     secret: config.get<string>('JWT_SECRET'),
-    //     signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') },
-    //   }),
-    // }),
   ],
   controllers: [AuthController],
   providers: [

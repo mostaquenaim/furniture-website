@@ -105,8 +105,8 @@ describe('LowStockAlertService', () => {
       { role: UserRole.PRODUCTMANAGER },
     ]);
     prisma.user.findMany.mockResolvedValue([
-      { email: 'super@sakigai.com' },
-      { email: 'pm@sakigai.com' },
+      { email: 'super@ondorkotha.com' },
+      { email: 'pm@ondorkotha.com' },
     ]);
 
     await service.run();
@@ -122,7 +122,7 @@ describe('LowStockAlertService', () => {
     const call = notificationsService.sendLowStockAlert.mock
       .calls[0] as SendLowStockAlertArgs;
     const [recipients, payload] = call;
-    expect(recipients).toEqual(['super@sakigai.com', 'pm@sakigai.com']);
+    expect(recipients).toEqual(['super@ondorkotha.com', 'pm@ondorkotha.com']);
     expect(payload.outOfStock).toEqual([
       {
         productTitle: 'Chair',

@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
@@ -37,7 +36,6 @@ export class AuthService {
     @InjectQueue('notification') private notificationQueue: Queue,
   ) {}
 
-  // send otp
   async sendOtp(
     userId: number,
     type: 'email' | 'phone' | '',
@@ -56,7 +54,6 @@ export class AuthService {
       where: {
         userId,
         type,
-        // purpose,
         verified: false,
       },
       data: { expiresAt: new Date() },
@@ -68,15 +65,6 @@ export class AuthService {
     await this.prisma.oTP.create({
       data: { userId, code, type, expiresAt, email, phone },
     });
-
-    // console.log('the type is', type);
-
-    // TODO: send OTP via email or SMS
-    if (type === 'email') {
-      // console.log(`Send email OTP to user: ${code}`);
-    } else {
-      // console.log(`Send SMS OTP to user: ${code}`);
-    }
 
     if (type === 'email' && email) {
       await this.notificationQueue.add('sendEmail', {
@@ -107,10 +95,7 @@ export class AuthService {
     return { message: `OTP sent to your ${type}` };
   }
 
-  // login
   async login(dto: LoginDto) {
-    // console.log(dto, 'logindto');
-    // Use clientIp from DTO, fallback to empty string
     const identifier = dto?.email || dto?.phone;
 
     if (!identifier) {
@@ -129,11 +114,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    // console.log(user.password, dto.password, 'passwords');
-
     if (user.password && dto.password) {
-      // console.log('im in');
-      // throw new UnauthorizedException('Please login with Google');
       const valid = await comparePassword(dto.password, user.password);
 
       if (!valid) {
@@ -142,23 +123,13 @@ export class AuthService {
       }
     }
 
-    // console.log('before reset');
-    // Reset attempts on successful login
     await this.resetAttempts(identifier);
 
-    // console.log('after reset');
-
     if (user.role === 'CUSTOMER') {
-      // console.log('customer yes');
-
       if (!user.isVerified) {
         throw new UnauthorizedException('Account not verified');
       }
-
-      // return this.issueToken(user, '1d');
     }
-
-    // console.log('not customer');
 
     const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
 
@@ -178,7 +149,6 @@ export class AuthService {
     };
   }
 
-  // issue token
   async issueToken(user: any, expiresIn: JwtSignOptions['expiresIn']) {
     const jti = crypto.randomUUID();
 
@@ -196,23 +166,17 @@ export class AuthService {
     return { user: safeUser, token };
   }
 
-  // verify otp
   async verifyOtp(
     emailOrPhone: string,
     code: string,
     type: 'email' | 'phone',
     keepSignedIn: boolean,
   ) {
-    // console.log(emailOrPhone, code, type);
-
-    // Find the user first
     const user = await this.prisma.user.findFirst({
       where:
         type === 'email' ? { email: emailOrPhone } : { phone: emailOrPhone },
     });
     if (!user) throw new UnauthorizedException('User not found');
-
-    // console.log(emailOrPhone, code, type, user);
 
     const otpData = await this.prisma.oTP.findFirst({
       where: {
@@ -223,8 +187,6 @@ export class AuthService {
         expiresAt: { gte: new Date() },
       },
     });
-
-    // console.log('otpData', otpData);
 
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
@@ -242,12 +204,7 @@ export class AuthService {
     return this.issueToken(user, keepSignedIn ? '1d' : '30d');
   }
 
-  // verify update otp
   async verifyUpdateOtp(userId: number, code: string, type: 'email' | 'phone') {
-    // console.log(userId, code, type);
-    // console.log(userId, code, type);
-
-    // Find the user first
     const user = await this.prisma.user.findFirst({
       where: { id: userId },
       select: {
@@ -258,11 +215,7 @@ export class AuthService {
       },
     });
 
-    // console.log(user);
-
     if (!user) throw new UnauthorizedException('User is not found');
-
-    // console.log(emailOrPhone, code, type, user);
 
     const otpData = await this.prisma.oTP.findFirst({
       where: {
@@ -274,11 +227,8 @@ export class AuthService {
       },
     });
 
-    // console.log('otpData', otpData);
-
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
-    // const otpUpdate =
     await this.prisma.oTP.update({
       where: { id: otpData.id },
       data: { verified: true },
@@ -287,10 +237,7 @@ export class AuthService {
     return user;
   }
 
-  // verify email or phone
   async verifyEmailOrPhone(emailOrPhone: string, type: 'email' | 'phone') {
-    // console.log(emailOrPhone);
-
     if (!emailOrPhone) throw new NotFoundException('not found');
 
     const user = await this.prisma.user.findFirst({
@@ -299,9 +246,6 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('User not found');
 
-    // console.log(user, 'userrr');
-
-    // Send OTP
     return await this.sendOtp(
       user.id,
       type,
@@ -311,7 +255,6 @@ export class AuthService {
     );
   }
 
-  // register
   async register(dto: RegisterDto) {
     // Check if email or phone already exists
     const existingUser = await this.prisma.user.findFirst({
@@ -337,17 +280,15 @@ export class AuthService {
       });
 
       await this.prisma.user.delete({
-        where: { id: existingUser.id }, // delete unverified user to allow new registration
+        where: { id: existingUser.id },
       });
     }
 
-    // Hash password
     let hashedPassword = '';
     if (dto.password) {
       hashedPassword = await hashPassword(dto.password);
     }
 
-    // Create new user
     const user = await this.prisma.user.create({
       data: {
         name: dto.name,
@@ -359,7 +300,6 @@ export class AuthService {
       },
     });
 
-    // Send OTP
     const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
 
     const otpDetails = await this.sendOtp(
@@ -378,7 +318,6 @@ export class AuthService {
     }; // frontend switches to OTP view
   }
 
-  // get profile
   async profile(userId: number) {
     return this.prisma.user.findUnique({
       where: { id: userId },
@@ -386,7 +325,6 @@ export class AuthService {
     });
   }
 
-  // update profile
   // Explicitly whitelisted here (not just at the DTO layer) so a future
   // caller passing a raw object can never smuggle role/isActive/password
   // into a Prisma update — see PUT /auth/profile mass-assignment fix.
@@ -419,7 +357,6 @@ export class AuthService {
     }
   }
 
-  // Store blacklisted token in the database
   async addToBlacklist(jti: string, exp: number) {
     const expiryDate = exp * 1000; // convert seconds to ms
     await this.prisma.blackListToken.create({
@@ -430,7 +367,6 @@ export class AuthService {
     });
   }
 
-  // Update checkBruteForce to properly calculate time
   async checkBruteForce(identifier: string) {
     const record = await this.prisma.loginAttempt.findUnique({
       where: { identifier },
@@ -460,7 +396,6 @@ export class AuthService {
     }
   }
 
-  // Update recordFailedAttempt
   async recordFailedAttempt(identifier: string) {
     const record = await this.prisma.loginAttempt.findUnique({
       where: { identifier },
@@ -496,7 +431,6 @@ export class AuthService {
     }
   }
 
-  // Keep resetAttempts as is
   async resetAttempts(identifier: string) {
     await this.prisma.loginAttempt
       .delete({
@@ -505,7 +439,6 @@ export class AuthService {
       .catch(() => {});
   }
 
-  // merge visitor/user data
   async mergeGuestData(visitorId: string, userId: number) {
     return this.prisma.$transaction(async (tx) => {
       // Link visitor to user (always do this first)
@@ -515,7 +448,6 @@ export class AuthService {
         create: { id: visitorId, userId },
       });
 
-      // Check if user already has an active cart
       const userCart = await tx.cart.findFirst({
         where: {
           userId,
@@ -528,7 +460,6 @@ export class AuthService {
         return { merged: false, reason: 'USER_CART_EXISTS' };
       }
 
-      // Find guest active cart
       const guestCart = await tx.cart.findFirst({
         where: {
           visitorId,
@@ -540,7 +471,6 @@ export class AuthService {
         return { merged: false, reason: 'NO_GUEST_CART' };
       }
 
-      // Move cart ownership
       await tx.cart.update({
         where: { id: guestCart.id },
         data: {
@@ -553,14 +483,10 @@ export class AuthService {
     });
   }
 
-  // update profile
   async update(userId: number, dto: UpdateUserDto) {
-    // console.log(userId, dto, 'dtoooo');
-
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // Determine if email or phone is being updated
     const emailChanging = dto.email && dto.email !== user.email;
     const phoneChanging = dto.phone && dto.phone !== user.phone;
 
@@ -571,12 +497,10 @@ export class AuthService {
     }
 
     if (emailChanging || phoneChanging) {
-      // Type of OTP needed
       const type: 'email' | 'phone' = emailChanging ? 'email' : 'phone';
       const newValue = type === 'email' ? dto.email : dto.phone;
 
       if (!dto.otp) {
-        // Send OTP if not provided
         return {
           status: 'OTP_REQUIRED',
           otp: await this.sendOtp(
@@ -587,16 +511,10 @@ export class AuthService {
             emailChanging ? 'UPDATE_EMAIL' : 'UPDATE_PHONE',
           ),
         };
-        // throw new BadRequestException(`OTP required for ${type} change`);
       } else {
-        // Verify OTP
         if (newValue) {
-          const user = await this.verifyUpdateOtp(userId, dto.otp, type);
-
-          // console.log(user, 'founduser');
+          await this.verifyUpdateOtp(userId, dto.otp, type);
         }
-
-        // console.log('new value nai');
       }
     }
 
@@ -617,7 +535,6 @@ export class AuthService {
     };
   }
 
-  // change password
   async changePassword(userId: number, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -648,7 +565,6 @@ export class AuthService {
     };
   }
 
-  // find or create google user
   async findOrCreateGoogleUser(googleUser: GoogleUserDto) {
     const { email, name, avatar, googleId } = googleUser;
 

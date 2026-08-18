@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 // src/courier/providers/redx.provider.ts
 import { HttpService } from '@nestjs/axios';
@@ -86,17 +85,13 @@ export class RedxProvider implements CourierProviderInterface {
     }
   }
 
-  // provider.ts
   async createShipment(data: any): Promise<any> {
     try {
       const token = await this.getRedxAccessToken();
 
-      // Validate required fields
       if (!data.store_id) {
         throw new Error('store_id is required for Redx shipment');
       }
-
-      // console.log('shipment data', data, 'shipment data');
 
       const response = await firstValueFrom(
         this.httpService.post(
@@ -216,7 +211,5 @@ export class RedxProvider implements CourierProviderInterface {
     return map[status?.toLowerCase()] || CourierStatus.PENDING;
   }
 
-  getCities() {
-  // console.log('to be implemented');
-  }
+  getCities() {}
 }

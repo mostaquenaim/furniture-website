@@ -30,7 +30,7 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
           },
         },
         defaults: {
-          from: `"Sakigai" <${config.getOrThrow<string>('MAIL_FROM')}>`,
+          from: `"Ondorkotha" <${config.getOrThrow<string>('MAIL_FROM')}>`,
         },
         preview: process.env.NODE_ENV === 'development',
         template: {

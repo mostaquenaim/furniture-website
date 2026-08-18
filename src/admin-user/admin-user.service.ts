@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // src/admin-users/admin-users.service.ts
 import {
   Injectable,
@@ -187,10 +184,6 @@ export class AdminUsersService {
     // TODO: plug in your mail service here
     // await this.mailService.sendPasswordReset(user.email, tempPassword);
 
-    // console.log(
-    //   `[AdminUsers] Temp password for ${user.email}: ${tempPassword}`,
-    // );
-
     await this.activityLogService.log({
       adminId,
       action: 'RESET_ADMIN_PASSWORD',
@@ -208,7 +201,6 @@ export class AdminUsersService {
     };
   }
 
-  // delete user
   async deleteUser(id: number, adminId: number) {
     return deleteUserSafely(this.prisma, id, {
       service: this.activityLogService,

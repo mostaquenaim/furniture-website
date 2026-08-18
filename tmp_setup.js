@@ -13,6 +13,6 @@ const prisma = new PrismaClient();
   });
   console.log('UPDATED_SUBCATEGORY', JSON.stringify(sub));
 
-  console.log('PASSWORDS SET for user 1 (test@gmail.com) and user 2 (admin@sakigai.com) -> Verify@1234');
+  console.log('PASSWORDS SET for user 1 (test@gmail.com) and user 2 (admin@ondorkotha.com) -> Verify@1234');
   await prisma.$disconnect();
 })();

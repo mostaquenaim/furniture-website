@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -128,9 +125,7 @@ export class WishlistService {
     };
   }
 
-  // delete a wish
   async removeItem(productId: number, userId: number) {
-    // console.log(productId, userId);
     // Check if item exists and belongs to user
     const item = await this.prisma.wishlist.findFirst({
       where: { productId, userId },

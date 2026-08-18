@@ -128,9 +128,7 @@ export class OrderService {
     );
   }
 
-  // create a order
   async createOrder(userId: number, dto: CreateOrderDto) {
-    console.log('CreateOrderDto', dto, 'CreateOrderDto');
     // 1. Validate district (especially for COD)
     const district = await this.prisma.city.findUnique({
       where: { id: dto.address.districtId },
@@ -172,7 +170,7 @@ export class OrderService {
 
         await this.notificationQueue.add('sendSMS', {
           phone: normalizedOrderPhone,
-          message: `Your Sakigai verification OTP is ${code}. It will expire in 10 minutes.`,
+          message: `Your Ondorkotha verification OTP is ${code}. It will expire in 10 minutes.`,
         });
 
         return {
@@ -704,8 +702,6 @@ export class OrderService {
 
     if (!invoice) throw new NotFoundException('Invoice not found');
 
-    // console.log('invoice received:', invoice.id);
-
     this.assertInvoiceAccess(invoice, requestingUser);
 
     const html = this.buildHtml(invoice);
@@ -821,7 +817,7 @@ export class OrderService {
 <head>
   <meta charset="UTF-8" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Mono:wght@400;500&family=Noto+Sans+Bengali:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -832,7 +828,7 @@ export class OrderService {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    .mono { font-family: 'DM Mono', 'Courier New', monospace; }
+    .mono { font-family: 'DM Mono', 'Noto Sans Bengali', 'Courier New', monospace; }
 
     .header {
       background: #0f172a;
@@ -860,13 +856,13 @@ export class OrderService {
       color: #cbd5e1;
       text-align: right;
     }
-    .inv-number { font-family: 'DM Mono', monospace; font-size: 12px; color: #e2c97e; text-align: right; margin-top: 6px; }
+    .inv-number { font-family: 'DM Mono', 'Noto Sans Bengali', monospace; font-size: 12px; color: #e2c97e; text-align: right; margin-top: 6px; }
     .status-badge {
       display: inline-block;
       margin-top: 12px;
       padding: 4px 14px;
       border-radius: 20px;
-      font-family: 'DM Mono', monospace;
+      font-family: 'DM Mono', 'Noto Sans Bengali', monospace;
       font-size: 10px;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -879,22 +875,22 @@ export class OrderService {
     .meta-row { display: flex; border-bottom: 1px solid #f1f5f9; }
     .meta-block { flex: 1; padding: 24px 32px; border-right: 1px solid #f1f5f9; }
     .meta-block:last-child { border-right: none; }
-    .meta-label { font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.18em; color: #94a3b8; margin-bottom: 8px; }
+    .meta-label { font-family: 'DM Mono', 'Noto Sans Bengali', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.18em; color: #94a3b8; margin-bottom: 8px; }
     .meta-value { font-size: 14px; color: #0f172a; font-weight: 600; line-height: 1.5; }
     .meta-sub   { font-size: 11px; color: #64748b; margin-top: 2px; line-height: 1.6; }
-    .meta-mono  { font-family: 'DM Mono', monospace; font-size: 11px; color: #475569; word-break: break-all; }
+    .meta-mono  { font-family: 'DM Mono', 'Noto Sans Bengali', monospace; font-size: 11px; color: #475569; word-break: break-all; }
 
     .table-wrap { padding: 32px 48px 24px; }
     table { width: 100%; border-collapse: collapse; }
     thead tr { border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
-    thead th { padding: 11px 8px; font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: #94a3b8; }
+    thead th { padding: 11px 8px; font-family: 'DM Mono', 'Noto Sans Bengali', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: #94a3b8; }
     thead th:first-child { text-align: left; padding-left: 0; width: 44%; }
     tbody tr { border-bottom: 1px solid #f8fafc; }
     tbody tr:last-child { border-bottom: 2px solid #0f172a; }
     tbody td { padding: 14px 8px; vertical-align: top; }
     tbody td:first-child { padding-left: 0; }
     .item-name { display: block; font-size: 14px; font-weight: 600; color: #0f172a; }
-    .sku { display: block; font-family: 'DM Mono', monospace; font-size: 10px; color: #94a3b8; margin-top: 2px; }
+    .sku { display: block; font-family: 'DM Mono', 'Noto Sans Bengali', monospace; font-size: 10px; color: #94a3b8; margin-top: 2px; }
     .center { text-align: center; }
     .right  { text-align: right; }
     .bold   { font-weight: 500; color: #0f172a; }
@@ -902,24 +898,24 @@ export class OrderService {
     .totals-wrap { display: flex; justify-content: flex-end; padding: 0 48px 36px; }
     .totals-inner { width: 220px; }
     .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; color: #64748b; border-bottom: 1px solid #f8fafc; }
-    .totals-row .val { font-family: 'DM Mono', monospace; }
+    .totals-row .val { font-family: 'DM Mono', 'Noto Sans Bengali', monospace; }
     .totals-row.green .val { color: #15803d; }
     .totals-grand { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 2px solid #0f172a; margin-top: 4px; }
     .totals-grand .label { font-size: 17px; font-weight: 600; color: #0f172a; }
-    .totals-grand .val   { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500; color: #0f172a; }
+    .totals-grand .val   { font-family: 'DM Mono', 'Noto Sans Bengali', monospace; font-size: 15px; font-weight: 500; color: #0f172a; }
 
     .thankyou { text-align: center; padding: 20px 48px 28px; font-size: 13px; color: #94a3b8; font-style: italic; }
 
     .footer { background: #faf9f7; border-top: 1px solid #f1f5f9; padding: 20px 48px; display: flex; justify-content: space-between; align-items: center; }
     .footer-note { font-size: 10px; color: #94a3b8; line-height: 1.7; }
-    .footer-brand { font-family: 'DM Mono', monospace; font-size: 10px; color: #cbd5e1; letter-spacing: 0.25em; text-transform: uppercase; }
+    .footer-brand { font-family: 'DM Mono', 'Noto Sans Bengali', monospace; font-size: 10px; color: #cbd5e1; letter-spacing: 0.25em; text-transform: uppercase; }
   </style>
 </head>
 <body>
 
   <div class="header">
     <div>
-      <div class="brand-name">Sakigai</div>
+      <div class="brand-name">Ondorkotha</div>
       <div class="brand-tagline">Furniture · Crafted for your home</div>
       <div class="brand-contact">
         Dhaka, Bangladesh<br/>
@@ -1016,14 +1012,14 @@ export class OrderService {
     </div>
   </div>
 
-  <div class="thankyou">Thank you for choosing Sakigai. We hope you love your furniture.</div>
+  <div class="thankyou">Thank you for choosing Ondorkotha. We hope you love your furniture.</div>
 
   <div class="footer">
     <div class="footer-note">
       Questions? Email support@ondorkotha.com.bd<br/>
       Computer-generated invoice — no signature required.
     </div>
-    <div class="footer-brand">Sakigai · ${new Date().getFullYear()}</div>
+    <div class="footer-brand">Ondorkotha · ${new Date().getFullYear()}</div>
   </div>
 
 </body>

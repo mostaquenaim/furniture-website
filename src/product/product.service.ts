@@ -370,7 +370,10 @@ export class ProductService {
         },
       });
 
-      return { ...updatedProduct, pieceGeneration: { generated: piecesGenerated } };
+      return {
+        ...updatedProduct,
+        pieceGeneration: { generated: piecesGenerated },
+      };
     });
   }
 
@@ -1043,7 +1046,10 @@ export class ProductService {
         },
       });
 
-      return { ...updatedProduct, pieceGeneration: { generated: piecesGenerated } };
+      return {
+        ...updatedProduct,
+        pieceGeneration: { generated: piecesGenerated },
+      };
     });
   }
 
@@ -1391,15 +1397,6 @@ export class ProductService {
     subCategoryIds?: number[],
     productIds?: number[],
   ) {
-    // console.log(
-    //  subCategoryIds,
-    // subCategoryIds,
-    //productIds,
-    // 'subCategoryIds and other ids in getSubCategoryBasedRecommendations',
-    //);
-
-    // const ids: number[] = subCategoryIds || [];
-
     if (subCategorySlug) {
       const sub = await this.prisma.subCategory.findUnique({
         where: { slug: subCategorySlug },
@@ -1878,8 +1875,6 @@ export class ProductService {
       productId = product.id;
     }
 
-    // console.log(isHidden, 'isHidden');
-
     // Build Prisma filters
     const filters: any = {
       ...(isHidden === false || isHidden === true ? { isHidden } : {}),
@@ -2018,7 +2013,7 @@ export class ProductService {
         image: product.images.map((i) => i.image),
         brand: {
           '@type': 'Brand',
-          name: product.brand ?? process.env.BRAND_NAME ?? 'Sakigai Furniture',
+          name: product.brand ?? process.env.BRAND_NAME ?? 'Ondorkotha Furniture',
         },
         ...(firstSub && { category: firstSub.name }),
         offers: {

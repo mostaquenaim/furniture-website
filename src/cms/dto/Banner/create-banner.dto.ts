@@ -1,4 +1,3 @@
-// create-banner.dto.ts
 import {
   IsBoolean,
   IsIn,

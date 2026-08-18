@@ -1,4 +1,3 @@
-// create-blog-category.dto.ts
 import {
   IsBoolean,
   IsNotEmpty,

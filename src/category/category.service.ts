@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -35,8 +35,6 @@ export class CategoryService {
   // SERIES
   // =====================
   async getAllSeries(withRelations = false, isActive?: boolean | null) {
-  // console.log('check if active', isActive);
-
     const results = await this.prisma.series.findMany({
       where: {
         ...(isActive !== undefined && isActive !== null && { isActive }),
@@ -84,7 +82,9 @@ export class CategoryService {
 
     // NEW is always pinned first, SALE always pinned last; NORMAL sorted by sortOrder (DB already handles NORMAL order).
     const typeRank = (t: string) => (t === 'NEW' ? -1 : t === 'SALE' ? 1 : 0);
-    return results.sort((a, b) => typeRank(a.seriesType) - typeRank(b.seriesType));
+    return results.sort(
+      (a, b) => typeRank(a.seriesType) - typeRank(b.seriesType),
+    );
   }
 
   getSeriesBySlug(slug: string) {
@@ -160,7 +160,6 @@ export class CategoryService {
     orderBy?: Record<string, 'asc' | 'desc'> | undefined;
   }) {
     // find series
-    // console.log(orderBy);
     const selectedSeries = await this.prisma.series.findFirst({
       where: { slug },
       select: { id: true, name: true },
@@ -294,7 +293,6 @@ export class CategoryService {
       }),
     ]);
 
-    // console.log(total,'totaaal');
     // ---------------------------
     // NORMALIZATION
     // ---------------------------
@@ -586,10 +584,6 @@ export class CategoryService {
         // Only when full relation needed
         ...(withRelations && {
           series: true,
-          // subCategories: {
-          //   where: { isActive: true },
-          //   orderBy: { sortOrder: 'asc' },
-          // },
         }),
       },
     });

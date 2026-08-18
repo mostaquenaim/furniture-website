@@ -18,12 +18,10 @@ export class UserService {
     private activityLogService: ActivityLogService,
   ) {}
 
-  // List all users
   findAll() {
     return this.prisma.user.findMany({ select: SAFE_USER_SELECT });
   }
 
-  // Get single user
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -33,7 +31,6 @@ export class UserService {
     return user;
   }
 
-  // Delete user
   async remove(id: number, adminId: number) {
     return deleteUserSafely(this.prisma, id, {
       service: this.activityLogService,
@@ -42,7 +39,6 @@ export class UserService {
     });
   }
 
-  // Get user orders
   getOrders(userId: number) {
     return this.prisma.order.findMany({
       where: { userId },
@@ -50,7 +46,6 @@ export class UserService {
     });
   }
 
-  // Get user wishlist
   getWishlist(userId: number) {
     return this.prisma.wishlist.findMany({
       where: { userId },

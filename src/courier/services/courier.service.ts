@@ -1,5 +1,3 @@
-/* eslint-disable no-case-declarations */
-/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -415,15 +413,12 @@ export class CourierService {
         );
       }
 
-      // Prepare shipment data for provider
       const shipmentData = this.prepareShipmentData(
         order,
         provider,
         dto.special_instruction,
       );
 
-      // console.log('shipmentData', shipmentData.store_id);
-      // Create shipment with provider
       let providerResponse;
       try {
         providerResponse = await providerImpl.createShipment(shipmentData);
@@ -737,7 +732,10 @@ export class CourierService {
       action: 'CANCEL_COURIER-SHIPMENT',
       module: 'SYSTEM',
       targetId: shipment.id,
-      targetLabel: shipment.trackingNumber || shipment.consignmentId || String(shipment.id),
+      targetLabel:
+        shipment.trackingNumber ||
+        shipment.consignmentId ||
+        String(shipment.id),
     });
 
     return updated;
