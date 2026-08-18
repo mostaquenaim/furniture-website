@@ -68,7 +68,6 @@ export class BlogsController {
 
   @Get('categories')
   getCategories() {
-    // console.log('here');
     return this.service.getCategories();
   }
 

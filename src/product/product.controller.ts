@@ -50,7 +50,6 @@ export class ProductController {
     @Query('thumb') thumb?: boolean,
     @Query('includeOutOfStock') includeOutOfStock?: string,
   ) {
-    // console.log(sortBy, order, 'sortBy', 'order');
     return this.productService.getAllProducts({
       page: Number(page) || 1,
       // No limit passed => return every matching product (no pagination).
@@ -102,8 +101,6 @@ export class ProductController {
           .filter((n) => !isNaN(n))
       : [];
 
-    // console.log(ids, cleanProductSlug, cleanCategorySlug, catIds, 'cleaned');
-
     if (catIds.length > 0) {
       return this.productService.getSubCategoryBasedRecommendations(
         cleanCategorySlug,
@@ -129,8 +126,6 @@ export class ProductController {
   ) {
     const userId = req?.user?.userId ?? null;
 
-    // console.log(userId, id, visitorId);
-
     return this.productService.addProductView(id, userId, visitorId ?? null);
   }
 
@@ -144,7 +139,6 @@ export class ProductController {
     // Parse limit, default to 10 if missing or invalid
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
 
-    // console.log(userId, parsedLimit);
     // Call the service with safe values
     return this.productService.recommendedProducts(userId, parsedLimit);
   }
@@ -181,8 +175,6 @@ export class ProductController {
     @Query('customerId') customerId?: string,
     @Req() req?: any,
   ) {
-    // console.log(isHidden, 'isHidden');
-
     return this.productService.getProductReviews({
       productSlug: productSlug !== undefined ? productSlug : undefined,
       minRating: minRating !== undefined ? Number(minRating) : undefined,
@@ -247,7 +239,6 @@ export class ProductController {
     return this.productService.generateProductSchema(slug);
   }
 
-  // }
   @Get(':slug')
   getProductById(@Param('slug') slug: string, @Query('admin') admin?: string) {
     return this.productService.getProductBySlug(slug, admin === 'true');
@@ -259,11 +250,6 @@ export class ProductController {
   toggleProductStatusBySlug(@Param('productId') productId: string) {
     return this.productService.toggleProductStatusBySlug(productId);
   }
-
-  // @Patch(':productId/toggle-status')
-  // toggleProductStatusBySlug(@Param('productId') productId: string) {
-  //   return this.productService.toggleProductStatusBySlug(productId);
-  // }
 
   @Get(':id/barcodeimage')
   streamImage(@Param('id') id: string, @Res() res: Response) {
