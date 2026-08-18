@@ -8,10 +8,7 @@ import { ApiClient, ApiClientStatus, Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
-import {
-  comparePassword,
-  hashPassword,
-} from 'src/common/utils/password.utils';
+import { comparePassword, hashPassword } from 'src/common/utils/password.utils';
 import { CreateApiClientDto } from './dto/create-api-client.dto';
 
 const KEY_PREFIX_TAG = 'sk_live_';

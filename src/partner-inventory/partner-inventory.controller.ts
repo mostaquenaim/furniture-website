@@ -8,12 +8,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiSecurity,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { ApiKeyGuard } from 'src/api-client/guards/api-key.guard';
 import { ApiScopeGuard } from 'src/api-client/guards/api-scope.guard';
 import { ApiRateLimitGuard } from 'src/api-client/guards/api-rate-limit.guard';

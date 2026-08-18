@@ -67,7 +67,10 @@ export class PartnerExceptionFilter implements ExceptionFilter {
       }
     }
 
-    return { code, message: typeof body === 'string' ? body : 'Request failed' };
+    return {
+      code,
+      message: typeof body === 'string' ? body : 'Request failed',
+    };
   }
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {

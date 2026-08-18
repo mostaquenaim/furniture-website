@@ -1,5 +1,14 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -34,7 +43,9 @@ describe('Partner Inventory API (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     app.setGlobalPrefix('api');
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
     await app.init();
@@ -71,7 +82,9 @@ describe('Partner Inventory API (e2e)', () => {
       data: { productId: product.id, colorId: color.id },
     });
     cleanupIds.productColorId = productColor.id;
-    const variant = await prisma.variant.create({ data: { name: 'E2E Variant' } });
+    const variant = await prisma.variant.create({
+      data: { name: 'E2E Variant' },
+    });
     cleanupIds.variantId = variant.id;
     const size = await prisma.size.create({
       data: { name: 'E2E Size', variantId: variant.id },
@@ -79,10 +92,22 @@ describe('Partner Inventory API (e2e)', () => {
     cleanupIds.sizeId = size.id;
 
     const rowA = await prisma.productSize.create({
-      data: { sku: 'E2E-A', quantity: 20, lowStockAt: 5, colorId: productColor.id, sizeId: size.id },
+      data: {
+        sku: 'E2E-A',
+        quantity: 20,
+        lowStockAt: 5,
+        colorId: productColor.id,
+        sizeId: size.id,
+      },
     });
     const rowB = await prisma.productSize.create({
-      data: { sku: 'E2E-B', quantity: 1, lowStockAt: 5, colorId: productColor.id, sizeId: size.id },
+      data: {
+        sku: 'E2E-B',
+        quantity: 1,
+        lowStockAt: 5,
+        colorId: productColor.id,
+        sizeId: size.id,
+      },
     });
     productSizeIds = [rowA.id, rowB.id];
   });
@@ -91,10 +116,16 @@ describe('Partner Inventory API (e2e)', () => {
     await prisma.apiKeyRequestLog.deleteMany({
       where: { apiClientId: { in: cleanupIds.apiClientIds } },
     });
-    await prisma.apiClient.deleteMany({ where: { id: { in: cleanupIds.apiClientIds } } });
-    await prisma.productSize.deleteMany({ where: { id: { in: productSizeIds } } });
+    await prisma.apiClient.deleteMany({
+      where: { id: { in: cleanupIds.apiClientIds } },
+    });
+    await prisma.productSize.deleteMany({
+      where: { id: { in: productSizeIds } },
+    });
     if (cleanupIds.productColorId) {
-      await prisma.productColor.delete({ where: { id: cleanupIds.productColorId } });
+      await prisma.productColor.delete({
+        where: { id: cleanupIds.productColorId },
+      });
     }
     if (cleanupIds.colorId) {
       await prisma.color.delete({ where: { id: cleanupIds.colorId } });
@@ -109,6 +140,12 @@ describe('Partner Inventory API (e2e)', () => {
       await prisma.product.delete({ where: { id: cleanupIds.productId } });
     }
     if (cleanupIds.userId) {
+      // The admin actions above (create/revoke) wrote ActivityLog rows
+      // that FK-reference this user — clear those first or the delete
+      // below violates ActivityLog_adminId_fkey.
+      await prisma.activityLog.deleteMany({
+        where: { adminId: cleanupIds.userId },
+      });
       await prisma.user.delete({ where: { id: cleanupIds.userId } });
     }
     await app.close();
@@ -166,7 +203,10 @@ describe('Partner Inventory API (e2e)', () => {
         .set('X-Api-Key', apiKey)
         .expect(200);
 
-      expect(res.body.data).toMatchObject({ id: productSizeIds[0], quantity: 20 });
+      expect(res.body.data).toMatchObject({
+        id: productSizeIds[0],
+        quantity: 20,
+      });
     });
 
     it('filters low-stock items correctly', async () => {

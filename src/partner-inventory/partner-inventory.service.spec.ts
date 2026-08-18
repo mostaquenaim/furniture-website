@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { NotFoundException } from '@nestjs/common';
 import { PartnerInventoryService } from './partner-inventory.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -39,10 +41,7 @@ describe('PartnerInventoryService', () => {
 
   describe('list — cursor pagination', () => {
     it('reports no next page when results fit within the limit', async () => {
-      prisma.productSize.findMany.mockResolvedValue([
-        makeRow(1),
-        makeRow(2),
-      ]);
+      prisma.productSize.findMany.mockResolvedValue([makeRow(1), makeRow(2)]);
 
       const result = await service.list({ limit: 5 });
 
@@ -70,7 +69,10 @@ describe('PartnerInventoryService', () => {
     it('returns an empty page past the end, not an error', async () => {
       prisma.productSize.findMany.mockResolvedValue([]);
       const result = await service.list({ cursor: 999, limit: 50 });
-      expect(result).toEqual({ data: [], meta: { nextCursor: null, count: 0 } });
+      expect(result).toEqual({
+        data: [],
+        meta: { nextCursor: null, count: 0 },
+      });
     });
 
     it('passes cursor + skip:1 only when a cursor is given', async () => {
@@ -99,10 +101,15 @@ describe('PartnerInventoryService', () => {
 
     it('filters by updatedSince and sku', async () => {
       prisma.productSize.findMany.mockResolvedValue([]);
-      await service.list({ updatedSince: '2026-01-01T00:00:00.000Z', sku: 'ABC' });
+      await service.list({
+        updatedSince: '2026-01-01T00:00:00.000Z',
+        sku: 'ABC',
+      });
       const call = prisma.productSize.findMany.mock.calls[0][0];
       expect(call.where.sku).toBe('ABC');
-      expect(call.where.updatedAt.gte).toEqual(new Date('2026-01-01T00:00:00.000Z'));
+      expect(call.where.updatedAt.gte).toEqual(
+        new Date('2026-01-01T00:00:00.000Z'),
+      );
     });
   });
 
@@ -111,7 +118,9 @@ describe('PartnerInventoryService', () => {
       prisma.productSize.findMany.mockResolvedValue([]);
       await service.listLowStock({ limit: 10 });
       const call = prisma.productSize.findMany.mock.calls[0][0];
-      expect(call.where.quantity).toEqual({ lte: prisma.productSize.fields.lowStockAt });
+      expect(call.where.quantity).toEqual({
+        lte: prisma.productSize.fields.lowStockAt,
+      });
     });
   });
 
@@ -122,9 +131,15 @@ describe('PartnerInventoryService', () => {
     });
 
     it('returns the mapped row wrapped in { data }', async () => {
-      prisma.productSize.findUnique.mockResolvedValue(makeRow(1, { quantity: 3, lowStockAt: 5 }));
+      prisma.productSize.findUnique.mockResolvedValue(
+        makeRow(1, { quantity: 3, lowStockAt: 5 }),
+      );
       const result = await service.getById(1);
-      expect(result.data).toMatchObject({ id: 1, quantity: 3, isLowStock: true });
+      expect(result.data).toMatchObject({
+        id: 1,
+        quantity: 3,
+        isLowStock: true,
+      });
     });
   });
 });

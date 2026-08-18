@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Prisma } from '@prisma/client';
 import { ApiClientService } from './api-client.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -66,7 +68,11 @@ describe('ApiClientService', () => {
     it('retries with a new key on a keyPrefix collision, and eventually succeeds', async () => {
       const conflict = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint failed',
-        { code: 'P2002', clientVersion: '6.19.0', meta: { target: ['keyPrefix'] } },
+        {
+          code: 'P2002',
+          clientVersion: '6.19.0',
+          meta: { target: ['keyPrefix'] },
+        },
       );
       prisma.apiClient.create
         .mockRejectedValueOnce(conflict)

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ExecutionContext, HttpException } from '@nestjs/common';
 import { ApiRateLimitGuard } from './api-rate-limit.guard';
 
