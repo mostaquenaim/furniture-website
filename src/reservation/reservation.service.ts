@@ -162,7 +162,62 @@ export class ReservationService {
       targetLabel: `${piece.barcodeValue} → order ${orderId}`,
     });
 
+    await this.maybeAutoSendPickSlip(order.id, orderId);
+
     return reservation;
+  }
+
+  // ── Auto-notify Inventory Managers the moment every piece-tracked unit on
+  // the order has a barcode reserved — mirrors the spec's "hand the pick
+  // slip to the Inventory Manager, by mail" step without waiting on the
+  // Order Manager to click the manual Email button. Guarded by
+  // ShipmentGroup.pickSlipSentAt so it only ever fires once per order, even
+  // if reserve() runs again later (e.g. after a partial release + re-reserve).
+  private async maybeAutoSendPickSlip(orderPk: number, orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderPk },
+      include: { items: { include: { productSize: true } } },
+    });
+    if (!order) return;
+
+    const requiredCount = order.items
+      .filter((i) => i.productSize?.trackingMode === 'PIECE_BARCODE')
+      .reduce((sum, i) => sum + i.quantity, 0);
+    if (requiredCount === 0) return;
+
+    const shipmentGroup = await this.prisma.shipmentGroup.findUnique({
+      where: { orderId: orderPk },
+      include: { reservations: true },
+    });
+    if (!shipmentGroup || shipmentGroup.pickSlipSentAt) return;
+    if (shipmentGroup.reservations.length < requiredCount) return;
+
+    const recipients = await this.getInventoryManagerEmails();
+    if (recipients.length === 0) return;
+
+    const slip = await this.getPickSlip(orderId);
+    await this.notificationsService.sendPickSlip(
+      recipients,
+      slip.orderId,
+      slip.lines,
+    );
+
+    await this.prisma.shipmentGroup.update({
+      where: { id: shipmentGroup.id },
+      data: { pickSlipSentAt: new Date() },
+    });
+  }
+
+  private async getInventoryManagerEmails(): Promise<string[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        role: { in: [UserRole.SUPERADMIN, UserRole.INVENTORYMANAGER] },
+        isActive: true,
+        email: { not: null },
+      },
+      select: { email: true },
+    });
+    return users.map((u) => u.email).filter((e): e is string => !!e);
   }
 
   // ── Order Manager: undo a reservation before it's picked ───────────────────

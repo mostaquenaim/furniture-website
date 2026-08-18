@@ -503,6 +503,11 @@ model ShipmentGroup {
   courierShipmentId Int?             @unique
   courierShipment   CourierShipment? @relation(fields: [courierShipmentId], references: [id])
 
+  // Set once the pick slip has been auto-emailed to Inventory Managers
+  // (fires the moment every piece-tracked unit on the order is reserved) —
+  // guards against re-sending on a later partial release + re-reserve.
+  pickSlipSentAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1961,6 +1966,9 @@ model CompanyInfo {
   metaTitle       String?
   metaDescription String?
   ogImage         String? // Open Graph image URL
+
+  // Marketing / tracking
+  metaPixelId String? // Meta (Facebook) Pixel ID, injected site-wide when set
 
   updatedAt DateTime @updatedAt
   updatedBy Int? // last admin user id

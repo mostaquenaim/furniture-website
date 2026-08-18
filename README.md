@@ -1,98 +1,141 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sakigai Furniture — Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + Prisma (PostgreSQL) API powering the Sakigai / Ondorkotha furniture e-commerce platform: storefront catalog, cart and checkout, order management, courier integrations, payments, and the admin dashboard.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Project Overview
 
-## Description
+- **Framework:** NestJS 11 (Express platform), TypeScript
+- **Database:** PostgreSQL via Prisma ORM
+- **Realtime:** Socket.IO gateway for order status and stock events
+- **Queues:** Bull + Redis (background jobs, e.g. email, scheduled tasks)
+- **Auth:** JWT (Passport) with role/permission-based access control, plus Google OAuth
+- **Payments:** SSLCOMMERZ
+- **Courier:** Pathao, RedX, Paperfly integrations (webhook-driven order status updates)
+- **File storage:** Cloudinary
+- **Email/SMS:** Resend, SMTP (nodemailer), MIM SMS
+- **API docs:** Swagger, scoped to the partner-facing inventory API at `/docs/partner`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+All routes are served under `/api` with URI versioning, so the base path is `/api/v1/...`.
 
-## Project setup
+## Running Locally
 
-```bash
-$ npm install
-```
+### Prerequisites
 
-## Compile and run the project
+- Node.js 20+
+- PostgreSQL (local instance or hosted)
+- Redis (required for Bull queues)
+
+### Setup
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
+cp .env.example .env   # then fill in the values, see below
+npx prisma generate
+npx prisma migrate dev
+npm run start:dev
 ```
 
-## Run tests
+The API starts on `http://localhost:3000` (or the `PORT` you set) with hot reload.
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and configure. Key variables:
+
+| Variable | Purpose |
+|---|---|
+| `NODE_ENV` | `development` / `production` |
+| `DATABASE_URL` | Postgres connection string used by Prisma |
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME` | Individual DB connection parts (kept in sync with `DATABASE_URL`) |
+| `PORT` | Port the API listens on |
+| `BASE_URL` | Public URL of this API (used in emails, callbacks) |
+| `FRONTEND_URL` | Public URL of the storefront, used for CORS and redirects |
+| `ENABLE_NEW_PAYMENT`, `PAYMENT_PROVIDER` | Payment gateway toggle/selection |
+| `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD`, `SSLCOMMERZ_IS_LIVE` | SSLCOMMERZ credentials |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Image upload/storage |
+| `DEFAULT_DELIVERY_FEE` | Fallback delivery fee used when a courier rate isn't available |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Transactional email via SMTP |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Transactional email via Resend |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` | Google OAuth login |
+| `PATHAO_CLIENT_ID`, `PATHAO_CLIENT_SECRET`, `PATHAO_USERNAME`, `PATHAO_PASSWORD`, `PATHAO_BASE_URL`, `PATHAO_MERCHANT_STORE_ID` | Pathao courier integration |
+| `PATHAO_WEBHOOK_SECRET`, `REDX_WEBHOOK_SECRET`, `PAPERFLY_WEBHOOK_SECRET` | Shared secrets used to authenticate courier status webhooks (sent as `x-webhook-secret` header or `?secret=` query param) |
+| `MANUAL_ORDER_STATUS_UPDATE` | When `true`, allows admins to override order status manually instead of relying solely on courier webhooks |
+| `MIMSMS_API_KEY`, `MIMSMS_USERNAME`, `MIMSMS_SENDER_NAME` | SMS notifications |
+| `REDIS_HOST`, `REDIS_PORT` | Redis connection for Bull queues |
+| `FRAUD_SPY_BD_API_KEY`, `FRAUDURL` | Fraud-check integration |
+| `ADMIN_PASSWORD` | Seed password for the initial admin account |
+| `COMPANY_NAME` | Company name used in generated documents/emails |
+
+## Database: Migrations & Seeding
+
+Prisma manages the schema (`prisma/schema.prisma`) and migrations (`prisma/migrations/`).
 
 ```bash
-# unit tests
-$ npm run test
+# create and apply a new migration during development
+npx prisma migrate dev --name <migration_name>
 
-# e2e tests
-$ npm run test:e2e
+# apply pending migrations without generating a new one (used in deploys)
+npx prisma migrate deploy
 
-# test coverage
-$ npm run test:cov
+# regenerate the Prisma client after a schema change
+npx prisma generate
+
+# open Prisma Studio to browse/edit data
+npx prisma studio
+
+# seed the database (creates default roles/permissions, admin user, etc.)
+npm run seed:prod
 ```
 
-## Deployment
+`npm run build` runs `prisma generate` automatically before compiling.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Production / Deployment
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# install dependencies
+npm ci
+
+# build (generates Prisma client + compiles TypeScript)
+npm run build
+
+# apply pending migrations, then start the compiled app
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+`start:prod` runs `prisma migrate deploy` before starting `dist/src/main.js`, so it's safe to use directly as the deploy command.
 
-## Resources
+Notes:
+- The app applies `helmet` and CORS (`FRONTEND_URL`-driven origin) on boot — see `src/main.ts`.
+- Socket.IO is mounted on the same HTTP server via `IoAdapter` for the realtime order/stock gateway.
+- Swagger docs for the partner inventory API are exposed at `/docs/partner` (key-authenticated via `X-Api-Key`; no admin routes are included in this document — see `PARTNER_API.md`).
 
-Check out a few resources that may come in handy when working with NestJS:
+## Important Folders & Features
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Path | Purpose |
+|---|---|
+| `src/auth`, `src/admin-user`, `src/roles`, `src/permission` | Authentication (JWT + Google OAuth) and role/permission-based access control |
+| `src/product`, `src/category`, `src/subcategory`, `src/series`, `src/piece` | Product catalog structure |
+| `src/inventory`, `src/partner-inventory` | Stock management; partner-inventory exposes a read-only, API-key-authenticated feed for third-party integrations (see `PARTNER_API.md`) |
+| `src/cart`, `src/order`, `src/order-status` | Cart, checkout, and order lifecycle |
+| `src/payment`, `src/payment-method-config` | SSLCOMMERZ payment processing and gateway configuration |
+| `src/courier` | Pathao/RedX/Paperfly booking and webhook-driven status updates |
+| `src/realtime` | Socket.IO gateway for live order status and stock events |
+| `src/refund`, `src/reservation` | Refund handling and stock reservations |
+| `src/supplier`, `src/purchase` (via `piece`/`inventory`) | Supplier and purchasing data |
+| `src/blog`, `src/cms`, `src/faq`, `src/seo`, `src/homepage-gallery`, `src/banner`, `src/urgency-banner`, `src/seasonal-category`, `src/featured-category` | Content management for the storefront |
+| `src/notifications`, `src/admin-notifications` | Customer and admin notification delivery |
+| `src/support` | Support ticket system |
+| `src/review`, `src/wishlist`, `src/recommendations` | Customer engagement features |
+| `src/company`, `src/settings` | Site-wide company/settings configuration |
+| `src/activity-log` | Audit log of admin actions |
+| `src/dashboard` | Admin dashboard aggregate data/stats |
+| `src/api-client` | Management of partner API keys |
+| `src/common` | Shared guards, interceptors, decorators, and utilities |
+| `prisma/` | Prisma schema, migrations, and seed script |
 
-## Support
+## Tests
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+npm run test        # unit tests
+npm run test:e2e     # end-to-end tests
+npm run test:cov     # coverage report
+```

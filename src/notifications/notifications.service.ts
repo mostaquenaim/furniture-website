@@ -86,7 +86,7 @@ export class NotificationsService {
   }
 
   async sendPickSlip(
-    email: string,
+    email: string | string[],
     orderId: string,
     lines: {
       barcodeValue: string;

@@ -96,4 +96,9 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   ogImage?: string;
+
+  // Marketing / tracking
+  @IsOptional()
+  @IsString()
+  metaPixelId?: string;
 }
