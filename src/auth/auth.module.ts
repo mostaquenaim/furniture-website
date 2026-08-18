@@ -1,0 +1,33 @@
+import { Module } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { PrismaService } from '../prisma/prisma.service';
+import { JwtModule } from '@nestjs/jwt';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { PrismaModule } from 'src/prisma/prisma.module';
+import { PassportModule } from '@nestjs/passport';
+import { BullModule } from '@nestjs/bull';
+import { NotificationsService } from 'src/notifications/notifications.service';
+
+@Module({
+  imports: [
+    BullModule.registerQueue({ name: 'notification' }),
+    PassportModule,
+    PrismaModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'secretkey',
+      signOptions: { expiresIn: '7d' },
+    }),
+  ],
+  controllers: [AuthController],
+  providers: [
+    AuthService,
+    PrismaService,
+    JwtStrategy,
+    GoogleStrategy,
+    NotificationsService,
+  ],
+  exports: [AuthService],
+})
+export class AuthModule {}

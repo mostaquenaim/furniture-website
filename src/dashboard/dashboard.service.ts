@@ -1,0 +1,504 @@
+// src/dashboard/dashboard.service.ts
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { OrderStatus, UserRole } from '@prisma/client';
+
+interface DateRange {
+  start: Date;
+  end: Date;
+}
+
+@Injectable()
+export class DashboardService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  // Shared by every public entry point so "start"/"end" query strings are
+  // interpreted the same way everywhere (end-of-day inclusive on `end`).
+  private buildRange(startStr: string, endStr: string): DateRange {
+    return {
+      start: new Date(startStr),
+      end: new Date(new Date(endStr).setHours(23, 59, 59, 999)),
+    };
+  }
+
+  // ── Main entry point ─────────
+  async getDashboardData(
+    startStr: string,
+    endStr: string,
+    period?: 'day' | 'week' | 'month',
+  ) {
+    const range = this.buildRange(startStr, endStr);
+
+    const [
+      stats,
+      salesTrend,
+      topProducts,
+      recentOrders,
+      topViewedProducts,
+      topSearchKeywords,
+      userRetention,
+    ] = await Promise.all([
+      this.getStats(range),
+      this.getSalesTrend(range, period),
+      this.getTopProducts(range),
+      this.getRecentOrders(),
+      this.getTopViewedProducts(range),
+      this.getTopSearchKeywords(range),
+      this.getUserRetention(range),
+    ]);
+
+    return {
+      stats,
+      salesTrend,
+      topProducts,
+      recentOrders,
+      topViewedProducts,
+      topSearchKeywords,
+      userRetention,
+    };
+  }
+
+  // ── Stats Cards ──────────
+  private async getStats(range: DateRange) {
+    const revenueStatuses: OrderStatus[] = [
+      OrderStatus.CONFIRMED,
+      OrderStatus.PROCESSING,
+      OrderStatus.PACKED,
+      OrderStatus.SHIPPED,
+      OrderStatus.DELIVERED,
+    ];
+
+    const [
+      revenueAgg,
+      totalOrders,
+      activeUserRows,
+      inventoryAlerts,
+      newUsersInRange,
+    ] = await Promise.all([
+      // Revenue: sum `total` on Order (the actual field name)
+      this.prisma.order.aggregate({
+        _sum: { total: true },
+        where: {
+          createdAt: { gte: range.start, lte: range.end },
+          status: { in: revenueStatuses },
+        },
+      }),
+
+      // All orders in range regardless of status
+      this.prisma.order.count({
+        where: { createdAt: { gte: range.start, lte: range.end } },
+      }),
+
+      // Distinct users who placed orders in range
+      this.prisma.order.findMany({
+        where: {
+          createdAt: { gte: range.start, lte: range.end },
+          userId: { not: null },
+        },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+
+      // Inventory alerts: ProductSize rows at or below their own low-stock
+      // threshold — mirrors inventory.service.ts's getLowStockSummary() so
+      // this tile and the Inventory page always agree. Includes fully
+      // out-of-stock rows (quantity <= 0), not just low-stock ones.
+      this.prisma.productSize.count({
+        where: { quantity: { lte: this.prisma.productSize.fields.lowStockAt } },
+      }),
+
+      // New customers registered in range (denominator for conversion rate)
+      this.prisma.user.count({
+        where: {
+          createdAt: { gte: range.start, lte: range.end },
+          role: UserRole.CUSTOMER,
+        },
+      }),
+    ]);
+
+    const totalRevenue = revenueAgg._sum.total ?? 0;
+    const uniqueActiveUsers = activeUserRows.length;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Conversion rate: customers who ordered / new customers registered
+    const conversionRate =
+      totalOrders > 0
+        ? parseFloat(((uniqueActiveUsers / totalOrders) * 100).toFixed(1))
+        : 0;
+
+    return {
+      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+      totalOrders,
+      avgOrderValue: parseFloat(avgOrderValue.toFixed(2)),
+      activeUsers: uniqueActiveUsers,
+      newUsers: newUsersInRange,
+      inventoryAlerts,
+      conversionRate,
+    };
+  }
+
+  // ── Sales Trend ──────────────
+  private async getSalesTrend(
+    range: DateRange,
+    period?: 'day' | 'week' | 'month',
+  ) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        createdAt: { gte: range.start, lte: range.end },
+        status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED] },
+      },
+      select: { createdAt: true, total: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    type Bucket = { revenue: number; orders: number };
+
+    if (period === 'day') {
+      // Group by hour (0–23)
+      const byHour = new Map<number, Bucket>();
+      for (const order of orders) {
+        const h = order.createdAt.getUTCHours();
+        const b = byHour.get(h) ?? { revenue: 0, orders: 0 };
+        byHour.set(h, {
+          revenue: b.revenue + (order.total ?? 0),
+          orders: b.orders + 1,
+        });
+      }
+      return Array.from({ length: 24 }, (_, h) => {
+        const b = byHour.get(h) ?? { revenue: 0, orders: 0 };
+        return {
+          date: `${h.toString().padStart(2, '0')}:00`,
+          revenue: parseFloat(b.revenue.toFixed(2)),
+          orders: b.orders,
+        };
+      });
+    }
+
+    if (period === 'week') {
+      const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      // Group by "YYYY-MM-DD" then map to weekday label
+      const byDay = new Map<string, Bucket>();
+      for (const order of orders) {
+        const key = order.createdAt.toISOString().split('T')[0];
+        const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
+        byDay.set(key, {
+          revenue: b.revenue + (order.total ?? 0),
+          orders: b.orders + 1,
+        });
+      }
+      const result: { date: string; revenue: number; orders: number }[] = [];
+      const cursor = new Date(range.start);
+      while (cursor <= range.end) {
+        const key = cursor.toISOString().split('T')[0];
+        const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
+        result.push({
+          date: DAY_NAMES[cursor.getUTCDay()],
+          revenue: parseFloat(b.revenue.toFixed(2)),
+          orders: b.orders,
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return result;
+    }
+
+    // Default (month / custom range): group by calendar date
+    const byDay = new Map<string, Bucket>();
+    for (const order of orders) {
+      const key = order.createdAt.toISOString().split('T')[0];
+      const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
+      byDay.set(key, {
+        revenue: b.revenue + (order.total ?? 0),
+        orders: b.orders + 1,
+      });
+    }
+
+    const result: { date: string; revenue: number; orders: number }[] = [];
+    const cursor = new Date(range.start);
+    while (cursor <= range.end) {
+      const key = cursor.toISOString().split('T')[0];
+      const b = byDay.get(key) ?? { revenue: 0, orders: 0 };
+      result.push({
+        date: key.slice(5), // "MM-DD"
+        revenue: parseFloat(b.revenue.toFixed(2)),
+        orders: b.orders,
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return result;
+  }
+
+  // ── Top Products ─────────────
+  private async getTopProducts(range: DateRange) {
+    const items = await this.prisma.orderItem.findMany({
+      where: {
+        order: {
+          createdAt: { gte: range.start, lte: range.end },
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED] },
+        },
+      },
+      select: {
+        quantity: true,
+        totalPriceAtPurchase: true,
+        product: {
+          select: {
+            id: true,
+            title: true,
+            subCategories: {
+              take: 1,
+              select: {
+                subCategory: { select: { name: true } },
+              },
+            },
+            // Stock: Product → ProductColor → ProductSize
+            colors: {
+              select: {
+                sizes: { select: { quantity: true, lowStockAt: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const productMap = new Map<
+      number,
+      {
+        id: number;
+        name: string;
+        category: string;
+        sales: number;
+        revenue: number;
+        stock: number;
+        lowStockAt: number;
+      }
+    >();
+
+    for (const item of items) {
+      const p = item.product;
+      if (!p) continue;
+
+      // Sum all size quantities — and each variant's own lowStockAt
+      // threshold (admin-editable, defaults to 5) — across all colors for
+      // this product. Both are computed once on the first encounter, then
+      // reused, so a product's "low stock" line scales with however many
+      // variants it has and honors per-variant threshold overrides.
+      const existing = productMap.get(p.id);
+      const sizes = p.colors.flatMap((c) => c.sizes);
+
+      const totalStock =
+        existing?.stock ?? sizes.reduce((sum, s) => sum + (s.quantity ?? 0), 0);
+      const totalLowStockAt =
+        existing?.lowStockAt ??
+        sizes.reduce((sum, s) => sum + s.lowStockAt, 0);
+
+      productMap.set(p.id, {
+        id: p.id,
+        name: p.title,
+        category: p.subCategories[0]?.subCategory?.name ?? 'Uncategorized',
+        sales: (existing?.sales ?? 0) + (item.quantity ?? 1),
+        revenue: (existing?.revenue ?? 0) + (item.totalPriceAtPurchase ?? 0),
+        stock: totalStock,
+        lowStockAt: totalLowStockAt,
+      });
+    }
+
+    return Array.from(productMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10)
+      .map(({ lowStockAt, ...p }) => ({
+        ...p,
+        revenue: parseFloat(p.revenue.toFixed(2)),
+        status:
+          p.stock === 0
+            ? ('out_of_stock' as const)
+            : p.stock <= lowStockAt
+              ? ('low_stock' as const)
+              : ('in_stock' as const),
+      }));
+  }
+
+  // ── Recent Orders ────────────
+  private async getRecentOrders() {
+    const orders = await this.prisma.order.findMany({
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        orderId: true, // human-readable "ORD-xxx" string
+        total: true,
+        status: true,
+        customerName: true, // stored directly on Order
+        createdAt: true,
+        // Payment method lives on the Payment relation, not on Order directly
+        payments: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: { method: true },
+        },
+      },
+    });
+
+    return orders.map((o) => ({
+      id: o.orderId,
+      customer: o.customerName,
+      date: o.createdAt.toISOString().split('T')[0],
+      amount: parseFloat((o.total ?? 0).toFixed(2)),
+      status: o.status.toLowerCase(),
+      // FIX: o.payments[0]?.method is a PaymentMethod enum value (e.g. "COD",
+      // "BKASH"). Falls back to "cod" if no payment record exists yet.
+      payment: (o.payments[0]?.method ?? 'COD').toLowerCase(),
+    }));
+  }
+
+  // ── Top Viewed Products ──────
+  private async getTopViewedProducts(range: DateRange) {
+    const views = await this.prisma.productView.groupBy({
+      by: ['productId'],
+      where: {
+        createdAt: { gte: range.start, lte: range.end },
+      },
+      _sum: { viewCount: true },
+      orderBy: { _sum: { viewCount: 'desc' } },
+      take: 10,
+    });
+
+    if (!views.length) return [];
+
+    const productIds = views.map((v) => v.productId);
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        title: true,
+        subCategories: {
+          take: 1,
+          select: { subCategory: { select: { name: true } } },
+        },
+      },
+    });
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
+    return views.map((v) => {
+      const product = productMap.get(v.productId);
+      return {
+        productId: v.productId,
+        title: product?.title ?? 'Unknown',
+        category:
+          product?.subCategories[0]?.subCategory?.name ?? 'Uncategorized',
+        views: v._sum.viewCount ?? 0,
+      };
+    });
+  }
+
+  // ── Top Search Keywords ──────
+  private async getTopSearchKeywords(range: DateRange, limit = 10) {
+    const keywords = await this.prisma.searchLog.groupBy({
+      by: ['keyword'],
+      where: {
+        createdAt: { gte: range.start, lte: range.end },
+      },
+      _count: { keyword: true },
+      orderBy: { _count: { keyword: 'desc' } },
+      take: limit,
+    });
+
+    return keywords.map((k) => ({
+      keyword: k.keyword,
+      count: k._count.keyword,
+    }));
+  }
+
+  // ── User Retention ───────────
+  private async getUserRetention(range: DateRange) {
+    // Full order history up to range.end is needed (not just orders inside
+    // the range) to know whether a customer active in a given month is
+    // "new" (first order ever) or "returning" (ordered before that month).
+    const orders = await this.prisma.order.findMany({
+      where: {
+        userId: { not: null },
+        status: { notIn: [OrderStatus.CANCELLED, OrderStatus.FAILED] },
+        createdAt: { lte: range.end },
+      },
+      select: { userId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const firstOrderMonth = new Map<number, string>();
+    const monthlyActiveUsers = new Map<string, Set<number>>();
+
+    for (const order of orders) {
+      const userId = order.userId as number;
+      const monthKey = order.createdAt.toISOString().slice(0, 7); // "YYYY-MM"
+
+      if (!firstOrderMonth.has(userId)) {
+        firstOrderMonth.set(userId, monthKey);
+      }
+
+      if (!monthlyActiveUsers.has(monthKey)) {
+        monthlyActiveUsers.set(monthKey, new Set());
+      }
+      monthlyActiveUsers.get(monthKey)!.add(userId);
+    }
+
+    // Walk every calendar month between range.start and range.end in UTC
+    // (matching the toISOString() bucketing above) so the graph has no gaps.
+    const months: string[] = [];
+    const cursor = new Date(
+      Date.UTC(range.start.getUTCFullYear(), range.start.getUTCMonth(), 1),
+    );
+    const lastMonth = new Date(
+      Date.UTC(range.end.getUTCFullYear(), range.end.getUTCMonth(), 1),
+    );
+
+    while (cursor <= lastMonth) {
+      months.push(cursor.toISOString().slice(0, 7));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+
+    return months.map((monthKey) => {
+      const activeUsers = monthlyActiveUsers.get(monthKey) ?? new Set<number>();
+
+      let newCustomers = 0;
+      let returningCustomers = 0;
+
+      for (const userId of activeUsers) {
+        if (firstOrderMonth.get(userId) === monthKey) newCustomers++;
+        else returningCustomers++;
+      }
+
+      const totalActive = newCustomers + returningCustomers;
+      const retentionRate =
+        totalActive > 0
+          ? parseFloat(((returningCustomers / totalActive) * 100).toFixed(1))
+          : 0;
+
+      const [year, month] = monthKey.split('-').map(Number);
+      const label = new Date(Date.UTC(year, month - 1, 1)).toLocaleString(
+        'en-US',
+        { month: 'short', year: 'numeric', timeZone: 'UTC' },
+      );
+
+      return {
+        month: label,
+        newCustomers,
+        returningCustomers,
+        retentionRate,
+      };
+    });
+  }
+
+  // Public range-based entry points so other modules (e.g. AnalyticsService)
+  // can reuse this exact aggregation logic instead of re-implementing it.
+  async getTopSearchKeywordsForRange(
+    startStr: string,
+    endStr: string,
+    limit = 10,
+  ) {
+    return this.getTopSearchKeywords(this.buildRange(startStr, endStr), limit);
+  }
+
+  async getUserRetentionForRange(startStr: string, endStr: string) {
+    return this.getUserRetention(this.buildRange(startStr, endStr));
+  }
+}

@@ -1,0 +1,2023 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// output   = "../generated/prisma"
+
+// generator client {
+//   provider     = "prisma-client"
+//   output       = "../src/generated/prisma"
+//   moduleFormat = "cjs"
+// }
+
+// generator client {
+//   provider      = "prisma-client"
+//   output        = "../src/generated/prisma"
+//   moduleFormat  = "cjs"
+//   binaryTargets = ["native", "debian-openssl-3.0.x"]
+// }
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================
+// User
+// =====================
+model User {
+  id          Int         @id @default(autoincrement())
+  name        String?
+  phone       String?     @unique
+  email       String?     @unique
+  isVerified  Boolean     @default(false)
+  password    String?
+  googleId    String?     @unique
+  avatar      String? // URL to profile picture
+  role        UserRole    @default(CUSTOMER)
+  fraudStatus FraudStatus @default(SAFE)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  wishlist             Wishlist[]
+  orders               Order[]
+  otps                 OTP[]
+  cart                 Cart[]
+  productViews         ProductView[]
+  visitors             Visitor[]
+  supportTickets       SupportTicket[]
+  assignedTickets      SupportTicket[]        @relation("TicketAssignee")
+  ticketMessages       SupportTicketMessage[] @relation("TicketMessageAuthor")
+  activityLogs         ActivityLog[]
+  fraudChecks          FraudCheck[]
+  stockAdjustments     StockAdjustment[]
+  searchLogs           SearchLog[]
+  pieceStatusEvents    PieceStatusEvent[]
+  reservationsReserved OrderLineReservation[] @relation("ReservationReservedBy")
+  reservationsPicked   OrderLineReservation[] @relation("ReservationPickedBy")
+  generationBatches    GenerationBatch[]
+  apiClientsCreated    ApiClient[]
+}
+
+enum UserRole {
+  SUPERADMIN
+  PRODUCTMANAGER
+  ORDERMANAGER
+  INVENTORYMANAGER
+  SUPPORT
+  CUSTOMER
+}
+
+model Visitor {
+  id     String @id @default(cuid())
+  user   User?  @relation(fields: [userId], references: [id])
+  userId Int?
+
+  carts     Cart[]
+  views     ProductView[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// =====================
+// Permission
+// =====================
+model RolePermission {
+  id        Int      @id @default(autoincrement())
+  role      UserRole
+  action    String
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@unique([role, action])
+  @@map("role_permissions")
+}
+
+// =====================
+// Partner API (3rd-party, key-authenticated access)
+// =====================
+model ApiClient {
+  id       Int    @id @default(autoincrement())
+  name     String // e.g. "Acme ERP Sync" — shown in the admin panel and logs
+
+  // Only the prefix is ever displayed/logged again after creation; the full
+  // secret is shown to the admin exactly once and never stored in plaintext.
+  keyPrefix    String @unique
+  hashedSecret String
+
+  // Flat scope list, e.g. ["inventory:read"]. Deliberately not role-based —
+  // an external system doesn't have a job title the way a staff User does.
+  scopes String[]
+
+  status             ApiClientStatus @default(ACTIVE)
+  rateLimitPerMinute Int             @default(60)
+
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  createdByAdminId Int
+  createdBy        User     @relation(fields: [createdByAdminId], references: [id])
+  createdAt        DateTime @default(now())
+
+  requestLogs ApiKeyRequestLog[]
+}
+
+enum ApiClientStatus {
+  ACTIVE
+  REVOKED
+}
+
+// Lightweight per-request audit trail for partner traffic. Kept separate
+// from ActivityLog, which requires a human adminId and is shaped around a
+// narrated admin action rather than high-volume machine traffic.
+model ApiKeyRequestLog {
+  id          Int      @id @default(autoincrement())
+  apiClientId Int
+  apiClient   ApiClient @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  method      String
+  path        String
+  statusCode  Int
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([apiClientId, createdAt])
+}
+
+// =====================
+// Auth / login
+// =====================
+model OTP {
+  id        Int      @id @default(autoincrement())
+  code      String
+  email     String?
+  type      String // email | phone
+  // purpose   String // REGISTER | ADMIN_LOGIN | UPDATE_EMAIL | UPDATE_PHONE
+  phone     String?
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+}
+
+model BlackListToken {
+  id     Int    @id @default(autoincrement())
+  jti    String
+  expiry BigInt
+
+  @@index([jti])
+}
+
+model LoginAttempt {
+  id           String    @id @default(cuid())
+  identifier   String // email or IP
+  attempts     Int       @default(0)
+  blockedUntil DateTime?
+  lastAttempt  DateTime  @default(now())
+
+  @@unique([identifier])
+}
+
+// =====================
+// Category & Subcategory & Room
+// =====================
+enum SeriesType {
+  NORMAL
+  SALE
+  NEW
+}
+
+model Series {
+  id     Int     @id @default(autoincrement())
+  name   String
+  slug   String  @unique
+  image  String? // image URL
+  notice String?
+
+  isActive   Boolean    @default(true)
+  sortOrder  Int        @default(0)
+  seriesType SeriesType @default(NORMAL)
+
+  categories Category[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id    Int     @id @default(autoincrement())
+  name  String?
+  slug  String  @unique
+  image String? // image URL
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  seriesId Int
+
+  subCategories SubCategory[]
+  coupons       CouponCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([seriesId, slug])
+}
+
+model SubCategory {
+  id    Int     @id @default(autoincrement())
+  name  String
+  slug  String  @unique
+  image String? // image URL
+
+  sortOrder         Int     @default(0)
+  isActive          Boolean @default(true)
+  isAdvancePayment  Boolean @default(false)
+  advancePercentage Int     @default(0)
+  isCODAvailable    Boolean @default(true)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  products           ProductSubCategory[]
+  blogs              SubCategoryBlogs[]
+  featuredCategories FeaturedCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, slug])
+}
+
+model ProductSubCategory {
+  productId     Int
+  subCategoryId Int
+
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subCategory SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, subCategoryId])
+}
+
+// =====================
+// Product & Variants
+// =====================
+model Product {
+  id               Int     @id @default(autoincrement())
+  title            String
+  slug             String  @unique
+  sku              String?
+  description      String?
+  basePrice        Int
+  price            Int?
+  brand            String?
+  weight           Decimal @default(0.50) @db.Decimal(5, 2)
+  hasColorVariants Boolean @default(true)
+  showColor        Boolean @default(true)
+
+  discountType  String?
+  discount      Int       @default(0)
+  discountEnd   DateTime?
+  discountStart DateTime?
+
+  note             String?
+  deliveryEstimate String?
+  productDetails   String?
+  dimension        String?
+  shippingReturn   String?
+
+  totalProductQuantity Int     @default(0)
+  isActive             Boolean @default(true)
+  isFeatured           Boolean @default(false)
+  viewCount            Int     @default(0)
+  soldCount            Int     @default(0)
+  rating               Decimal @default(0.0) @db.Decimal(3, 2)
+  trendScore           Decimal @default(0.0) @db.Decimal(3, 2)
+  sortOrder            Int     @default(0)
+
+  material      Material?            @relation(fields: [materialId], references: [id])
+  materialId    Int?
+  orderItems    OrderItem[]
+  wishlists     Wishlist[]
+  images        ProductImage[]
+  subCategories ProductSubCategory[]
+  colors        ProductColor[]
+  // reviews       Review[]
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  productViews      ProductView[]
+  productTags       ProductTag[]
+  inventoryItems    InventoryItem[]
+  stockAdjustments  StockAdjustment[]
+  flashSaleProducts FlashSaleProduct[]
+}
+
+model InventoryItem {
+  id String @id @default(uuid())
+
+  // Link to product AND optionally to a specific color/size variant
+  productId     Int
+  product       Product      @relation(fields: [productId], references: [id])
+  productSizeId Int? // ← ADD THIS — null means "any variant"
+  productSize   ProductSize? @relation(fields: [productSizeId], references: [id])
+
+  barcode String @unique // move to product level ideally, but ok here
+
+  // Replace free-text with a relation
+  locationId  String?
+  location    WarehouseLocation? @relation(fields: [locationId], references: [id])
+  barcodeType BarcodeType        @default(CODE128)
+
+  quantity   Int @default(0)
+  lowStockAt Int @default(5) // ← ADD THIS
+
+  // Label print info
+  lotNumber   String?
+  packingDate DateTime?
+
+  // Audit
+  lastCountedAt DateTime? // ← ADD THIS — last physical stock count
+  printCount    Int       @default(0)
+  printedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // ← ADD THIS — was missing
+}
+
+enum BarcodeType {
+  CODE128
+  QR
+  EAN13
+}
+
+model WarehouseLocation {
+  id    String  @id @default(cuid())
+  code  String  @unique // e.g. "A-03-B-02" (zone-aisle-shelf-bin)
+  zone  String
+  aisle String
+  shelf String
+  bin   String
+  label String? // "Dining Tables North"
+
+  items  InventoryItem[]
+  pieces Piece[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pieces Piece[]
+}
+
+// One row per physical unit — the piece-level counterpart to InventoryItem
+// (which remains a per-lot/SKU record for ProductSize rows still on
+// LEGACY_QUANTITY tracking). Every status transition is written by
+// PieceService and logged to PieceStatusEvent; transitions that affect
+// sellable count go through the existing StockLedgerService so
+// ProductSize.quantity — the number checkout actually reads — never
+// diverges from piece reality.
+model Piece {
+  id           Int    @id @default(autoincrement())
+  barcodeValue String @unique
+
+  productSizeId Int
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+
+  supplierId Int?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
+  status PieceStatus @default(CREATED)
+
+  locationId String?
+  location   WarehouseLocation? @relation(fields: [locationId], references: [id])
+
+  // Groups pieces received together in one scan session; nullable since a
+  // piece isn't received yet at CREATED.
+  receiveBatchId String?
+
+  // The print run this piece was generated in — lets receiving reconcile
+  // "how many did we print vs. how many actually showed up" per run.
+  generateBatchId String?
+  generateBatch   GenerationBatch? @relation(fields: [generateBatchId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusEvents PieceStatusEvent[]
+  reservations OrderLineReservation[]
+
+  @@index([productSizeId, status])
+  @@index([locationId])
+  @@index([generateBatchId])
+}
+
+// One row per `generatePieces()` call — the expected quantity for that print
+// run, so receiving/void/stale-alert flows can reconcile against it instead
+// of only seeing loose CREATED pieces with no notion of "which batch."
+model GenerationBatch {
+  id            String      @id @default(uuid())
+  productSizeId Int
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+
+  quantity Int
+
+  createdByUserId Int?
+  createdBy       User? @relation(fields: [createdByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  pieces Piece[]
+
+  @@index([productSizeId])
+}
+
+model PieceStatusEvent {
+  id      Int   @id @default(autoincrement())
+  pieceId Int
+  piece   Piece @relation(fields: [pieceId], references: [id])
+
+  fromStatus PieceStatus?
+  toStatus   PieceStatus
+
+  actorUserId Int?
+  actor       User?     @relation(fields: [actorUserId], references: [id])
+  actorRole   UserRole?
+
+  source     String // "SCAN" | "WEBHOOK" | "SYSTEM"
+  reasonCode String?
+  note       String?
+
+  createdAt DateTime @default(now())
+
+  @@index([pieceId])
+}
+
+enum PieceStatus {
+  CREATED
+  DAMAGED_INCOMING
+  IN_STOCK
+  RESERVED
+  PICKED
+  SHIPPED
+  DELIVERED
+  RETURNING
+  RETURNED_IN_STOCK
+  DAMAGED_RETURN
+  VOID
+}
+
+// One per order — groups every reserved Piece for that order so "has
+// everything been physically picked" is a single query instead of tracking
+// N independent reservations. `isFullyPicked` is deliberately NOT a stored
+// field on this model — it's computed live by ReservationService against
+// the order's piece-tracked line items, so it can never drift out of sync
+// with the underlying reservations the way a cached flag could.
+model ShipmentGroup {
+  id      Int                 @id @default(autoincrement())
+  orderId Int                 @unique
+  order   Order               @relation(fields: [orderId], references: [id])
+  status  ShipmentGroupStatus @default(OPEN)
+
+  courierShipmentId Int?             @unique
+  courierShipment   CourierShipment? @relation(fields: [courierShipmentId], references: [id])
+
+  // Set once the pick slip has been auto-emailed to Inventory Managers
+  // (fires the moment every piece-tracked unit on the order is reserved) —
+  // guards against re-sending on a later partial release + re-reserve.
+  pickSlipSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reservations OrderLineReservation[]
+}
+
+enum ShipmentGroupStatus {
+  OPEN
+  SHIPPED
+}
+
+// One row per physical unit fulfilling one order line — an OrderItem with
+// quantity 3 gets 3 rows, each bound to a distinct Piece (pieceId is
+// unique: a piece can never fulfill more than one order line at once).
+model OrderLineReservation {
+  id          Int       @id @default(autoincrement())
+  orderItemId Int
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+
+  // NOT unique: a physical piece is sold, delivered, and (sometimes) returned
+  // many times over its life, and each cycle gets its own reservation row for
+  // history. At most one row per piece has pickedAt: null at any given time —
+  // that's "the active reservation" — enforced by Piece.status (RESERVED),
+  // not by a DB constraint on this table.
+  pieceId Int
+  piece   Piece @relation(fields: [pieceId], references: [id])
+
+  shipmentGroupId Int
+  shipmentGroup   ShipmentGroup @relation(fields: [shipmentGroupId], references: [id])
+
+  reservedAt       DateTime @default(now())
+  reservedByUserId Int?
+  reservedBy       User?    @relation("ReservationReservedBy", fields: [reservedByUserId], references: [id])
+
+  pickedAt       DateTime?
+  pickedByUserId Int?
+  pickedBy       User?     @relation("ReservationPickedBy", fields: [pickedByUserId], references: [id])
+
+  @@index([shipmentGroupId])
+  @@index([orderItemId])
+  @@index([pieceId])
+}
+
+model StockAdjustment {
+  id Int @id @default(autoincrement())
+
+  productSizeId Int
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+
+  delta         Int // negative = decrement, positive = increment
+  quantityAfter Int // ProductSize.quantity immediately after this adjustment
+  reason        StockAdjustReason
+  note          String?
+
+  adminId Int? // null for system-driven adjustments (order placed/cancelled)
+  admin   User? @relation(fields: [adminId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([productSizeId])
+  @@index([productId])
+  @@index([createdAt])
+}
+
+enum StockAdjustReason {
+  RESTOCK
+  CORRECTION
+  DAMAGE
+  ORDER_PLACED
+  ORDER_CANCELLED
+  ORDER_RETURNED
+  OTHER
+}
+
+model Tag {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  // slug     String  @unique
+  isActive Boolean @default(true)
+
+  products ProductTag[]
+  blogs    BlogPostTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductTag {
+  productId Int
+  tagId     Int
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+model ProductView {
+  id        Int     @id @default(autoincrement())
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
+
+  visitor   Visitor? @relation(fields: [visitorId], references: [id])
+  visitorId String?
+
+  viewCount Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, userId, visitorId])
+}
+
+model SearchLog {
+  id Int @id @default(autoincrement())
+
+  keyword      String
+  resultsCount Int    @default(0)
+
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([keyword])
+  @@index([createdAt])
+}
+
+model Material {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  slug     String  @unique
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model ProductImage {
+  id       Int     @id @default(autoincrement())
+  image    String
+  serialNo Int     @default(0)
+  alt      String?
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductColor {
+  id               Int     @id @default(autoincrement())
+  useDefaultImages Boolean @default(true)
+
+  color   Color @relation(fields: [colorId], references: [id])
+  colorId Int
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  images ProductColorImage[]
+  sizes  ProductSize[]
+}
+
+model ProductColorImage {
+  id       Int    @id @default(autoincrement())
+  image    String
+  serialNo Int    @default(0)
+
+  productColorId Int
+  productColor   ProductColor @relation(fields: [productColorId], references: [id], onDelete: Cascade)
+}
+
+model Color {
+  id        Int     @id @default(autoincrement())
+  name      String
+  hexCode   String?
+  image     String?
+  sortOrder Int     @default(0)
+
+  productColor ProductColor[]
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model ProductSize {
+  id Int @id @default(autoincrement())
+
+  sku String?
+
+  discountType String?
+  discount     Int     @default(0)
+  basePrice    Int?
+  price        Int?
+  quantity     Int     @default(0)
+  lowStockAt   Int     @default(5)
+
+  soldCount Int @default(0)
+
+  // Piece-level barcode tracking (see Piece model): LEGACY_QUANTITY keeps
+  // using this row's `quantity` column directly (today's behavior, unchanged
+  // for existing variants); PIECE_BARCODE means `quantity` is derived from
+  // counting related Piece rows with status IN_STOCK and mutated only via
+  // PieceService going through StockLedgerService, never adjusted directly.
+  trackingMode ProductTrackingMode @default(LEGACY_QUANTITY)
+
+  sizeId Int
+  size   Size @relation(fields: [sizeId], references: [id])
+
+  colorId           Int
+  color             ProductColor      @relation(fields: [colorId], references: [id], onDelete: Cascade)
+  cartItems         CartItem[]
+  inventoryItems    InventoryItem[]
+  orderItems        OrderItem[]
+  stockAdjustments  StockAdjustment[]
+  pieces            Piece[]
+  generationBatches GenerationBatch[]
+
+  // Required for incremental sync (e.g. the partner API's `updatedSince`
+  // filter) — without this there was no way to ask "what changed since X".
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ProductTrackingMode {
+  LEGACY_QUANTITY
+  PIECE_BARCODE
+}
+
+model Variant {
+  id    Int    @id @default(autoincrement())
+  name  String
+  sizes Size[] // one-to-many relation
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Size {
+  id        Int     @id @default(autoincrement())
+  name      String
+  variantId Int
+  variant   Variant @relation(fields: [variantId], references: [id])
+
+  productSize ProductSize[]
+
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// =====================
+// Cart
+// =====================
+model Cart {
+  id        Int     @id @default(autoincrement())
+  user      User?   @relation(fields: [userId], references: [id])
+  userId    Int?
+  userEmail String?
+
+  baseSubtotalAtAdd Int @default(0)
+  subtotalAtAdd     Int @default(0)
+
+  coupon   Coupon? @relation(fields: [couponId], references: [id])
+  couponId Int?
+
+  items     CartItem[]
+  status    CartStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  visitor   Visitor?   @relation(fields: [visitorId], references: [id])
+  visitorId String?
+
+  @@index([userId, visitorId, status])
+}
+
+model CartItem {
+  id     Int  @id @default(autoincrement())
+  cart   Cart @relation(fields: [cartId], references: [id])
+  cartId Int
+
+  quantity Int @default(1)
+
+  basePriceAtAdd    Int
+  baseSubtotalAtAdd Int
+
+  priceAtAdd    Int
+  subtotalAtAdd Int
+
+  color String?
+  size  String?
+
+  productSize   ProductSize @relation(fields: [productSizeId], references: [id])
+  productSizeId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productSizeId])
+}
+
+enum CartStatus {
+  ACTIVE
+  CHECKED_OUT
+  ABANDONED
+}
+
+// =====================
+// Orders
+// =====================
+model Order {
+  id Int @id @default(autoincrement())
+
+  userId        Int?
+  orderId       String @unique
+  trackingToken String @unique
+
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  shippingAddress String
+
+  districtId   Int?
+  district     City?   @relation(fields: [districtId], references: [id])
+  districtName String?
+
+  zoneId   Int?
+  zoneName String?
+
+  areaId   Int?
+  areaName String?
+
+  postCode String?
+
+  // ── Delivery
+  deliveryMethod String?
+  deliveryCharge Float?
+
+  // ── Pricing
+  couponCode String? // snapshot of the code at purchase time, for display
+  couponId   Int? // authoritative link, used for usage-limit enforcement
+  coupon     Coupon? @relation(fields: [couponId], references: [id])
+  discount   Float?
+  total      Float
+
+  // ── Status
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+
+  // ── Advance payment (COD only — see SubCategory.isAdvancePayment)
+  advanceRequired   Boolean @default(false)
+  advancePercentage Int     @default(0)
+  advanceAmount     Float   @default(0)
+  remainingAmount   Float   @default(0)
+
+  // ── Courier
+  awbNumber String? // courier AWB
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockRestored Boolean @default(false)
+
+  user                 User?                @relation(fields: [userId], references: [id])
+  items                OrderItem[]
+  payments             Payment[]
+  orderStatusHistories OrderStatusHistory[]
+  invoice              Invoice?
+  courierShipments     CourierShipment[]
+  returnRequests       ReturnRequest[]
+  shipmentGroup        ShipmentGroup?
+
+  @@index([couponId, userId])
+}
+
+model OrderItem {
+  id      Int @id @default(autoincrement())
+  orderId Int
+
+  product      Product @relation(fields: [productId], references: [id])
+  productId    Int
+  productTitle String // snapshot
+  sku          String?
+
+  color      String?
+  size       String?
+  isReviewed Boolean @default(false)
+
+  productSizeId Int?
+  productSize   ProductSize? @relation(fields: [productSizeId], references: [id])
+
+  quantity             Int
+  priceAtPurchase      Int
+  basePriceAtPurchase  Int
+  totalPriceAtPurchase Int
+
+  order  Order   @relation(fields: [orderId], references: [id])
+  review Review?
+
+  returnRequestItems ReturnRequestItem[]
+  reservations       OrderLineReservation[]
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  FAILED
+  RETURNED
+  ON_HOLD
+  PARTIALLY_DELIVERED
+  RETURN_REQUESTED
+}
+
+model OrderStatusHistory {
+  id        Int         @id @default(autoincrement())
+  orderId   Int
+  status    OrderStatus
+  note      String? // optional admin note
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+// =====================
+// Returns & Refunds
+// =====================
+// A customer-initiated request to return one or more items from a delivered
+// order. Approval/receipt and the eventual refund are tracked as separate
+// steps so an admin never refunds money before the goods are actually back
+// in the warehouse.
+model ReturnRequest {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  requestedBy Int? // customer User id who filed the request
+  reason      String
+  note        String? // customer-provided detail
+
+  // Order.status captured at the moment this request was filed (always
+  // DELIVERED or PARTIALLY_DELIVERED) — restored verbatim if the request is
+  // later rejected or cancelled, instead of guessing what it used to be.
+  previousOrderStatus OrderStatus
+
+  status ReturnRequestStatus @default(PENDING)
+
+  items   ReturnRequestItem[]
+  refunds PaymentRefund[]
+
+  adminNote  String? // internal note set on approve/reject/receive
+  reviewedBy Int? // admin User id who approved/rejected
+  reviewedAt DateTime?
+  receivedBy Int? // admin User id who confirmed physical receipt
+  receivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model ReturnRequestItem {
+  id Int @id @default(autoincrement())
+
+  returnRequestId Int
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  orderItemId Int
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+
+  quantity Int
+
+  @@unique([returnRequestId, orderItemId])
+}
+
+enum ReturnRequestStatus {
+  PENDING // awaiting admin review
+  APPROVED // admin accepted the return — awaiting the physical item(s)
+  REJECTED // admin declined the return — terminal
+  ITEM_RECEIVED // warehouse confirmed receipt — ready to refund
+  REFUNDED // refund issued for this request — terminal
+  CANCELLED // customer withdrew the request while it was still PENDING — terminal
+}
+
+model Invoice {
+  id        String @id @default(uuid())
+  invoiceNo String @unique
+  orderId   Int    @unique
+  order     Order  @relation(fields: [orderId], references: [id])
+
+  subtotal     Float
+  discount     Float
+  shippingCost Float
+  tax          Float
+  total        Float
+
+  dueDate   DateTime?
+  paidAt    DateTime?
+  issuedAt  DateTime  @default(now())
+  createdAt DateTime  @default(now())
+}
+
+enum DeliveryMethod {
+  HOME
+  PICKUP
+  COURIER
+}
+
+model City {
+  id             Int           @id @default(autoincrement())
+  name           String        @unique
+  isActive       Boolean       @default(true)
+  deliveryFee    Int           @default(120)
+  isCODAvailable Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  orders         Order[]
+  courierRates   CourierRate[]
+  zones          Zone[]
+
+  @@map("District")
+}
+
+model Zone {
+  id           Int    @id @default(autoincrement())
+  name         String
+  pathaoZoneId Int    @unique
+  cityId       Int
+  city         City   @relation(fields: [cityId], references: [id])
+  areas        Area[]
+}
+
+model Area {
+  id           Int    @id @default(autoincrement())
+  name         String
+  pathaoAreaId Int    @unique
+  zoneId       Int
+  zone         Zone   @relation(fields: [zoneId], references: [id])
+}
+
+model Coupon {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+
+  discountType  CouponDiscountType
+  discountValue Float? // percentage or fixed amount or null for free delivery
+  minOrderValue Float? // minimum order value to apply coupon
+  maxDiscount   Float? // maximum discount amount for percentage type
+  expiryDate    DateTime
+  startDate     DateTime           @default(now())
+
+  // Total uses allowed across all customers; null = unlimited. usedCount is
+  // only ever incremented at order creation via an atomic guarded update
+  // (see OrderService.createOrder) so concurrent checkouts can't oversell
+  // the last slot. Cancelling/failing an order does NOT free the slot back
+  // up — a coupon is considered "spent" the moment the order is placed.
+  usageLimit Int?
+  usedCount  Int  @default(0)
+
+  // Uses allowed per customer; null = unlimited. Enforced against
+  // Order.couponId, counting every order regardless of status (see note
+  // above on cancellations not releasing usage).
+  perUserLimit Int?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  carts     Cart[]
+  orders    Order[]
+
+  // Empty = applies to every category (existing/back-compat behaviour).
+  // Non-empty = only items in these categories are discounted; other cart
+  // items are left at full price.
+  categories CouponCategory[]
+}
+
+model CouponCategory {
+  id Int @id @default(autoincrement())
+
+  couponId Int
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, categoryId])
+}
+
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_DELIVERY
+}
+
+model CourierProvider {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  displayName String
+  logo        String?
+  isActive    Boolean @default(true)
+  priority    Int     @default(0)
+
+  config Json
+
+  shipments CourierShipment[]
+  rates     CourierRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CourierShipment {
+  id Int @id @default(autoincrement())
+
+  orderId    Int
+  order      Order           @relation(fields: [orderId], references: [id])
+  providerId Int
+  provider   CourierProvider @relation(fields: [providerId], references: [id])
+
+  consignmentId  String?
+  trackingNumber String?
+  trackingUrl    String?
+
+  labelUrl    String?
+  manifestUrl String?
+
+  status         CourierStatus @default(PENDING)
+  providerStatus String?
+
+  lastSyncAt  DateTime?
+  deliveredAt DateTime?
+
+  deliveryCharge Float?
+  codAmount      Float?
+
+  errorMessage String?
+  metadata     Json?
+
+  weight              Float?
+  itemDescription     String?
+  special_instruction String?
+  recipientName       String?
+  recipientPhone      String?
+  recipientAddress    String?
+  deliveryType        Int?
+  itemType            Int?
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  courierWebhookLogs CourierWebhookLog[]
+  shipmentGroup      ShipmentGroup?
+
+  @@unique([orderId, providerId])
+  @@index([trackingNumber])
+}
+
+model CourierWebhookLog {
+  id Int @id @default(autoincrement())
+
+  provider  String
+  eventType String
+  payload   Json
+
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  error       String?
+
+  shipmentId Int?
+  shipment   CourierShipment? @relation(fields: [shipmentId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model AdminNotification {
+  id Int @id @default(autoincrement())
+
+  type     String
+  title    String
+  message  String
+  link     String?
+  metadata Json?
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([readAt])
+  @@index([createdAt])
+}
+
+model CourierRate {
+  id Int @id @default(autoincrement())
+
+  providerId Int
+  provider   CourierProvider @relation(fields: [providerId], references: [id])
+
+  districtId Int?
+  district   City? @relation(fields: [districtId], references: [id])
+
+  weightMin Float
+  weightMax Float
+  price     Float
+
+  codFee       Float?
+  deliveryTime String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CourierStatus {
+  PENDING
+  BOOKED
+  PICKUP_ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  PARTIALLY_DELIVERED
+  RETURNED
+  CANCELLED
+  ON_HOLD
+  FAILED
+}
+
+// =====================
+// Enhanced Payment System
+// =====================
+model Payment {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
+  // Payment method details
+  method        PaymentMethod
+  methodDetails Json? // Store method-specific details like mobile number, bank account etc.
+
+  // Which leg of the order's payment this transaction covers
+  phase PaymentPhase @default(FULL)
+
+  // Amount tracking
+  amount         Float
+  currency       String @default("BDT")
+  paidAmount     Float  @default(0) // Track partial payments
+  dueAmount      Float  @default(0) // Calculated field or set manually
+  convenienceFee Float? @default(0) // Payment gateway fees charged to customer
+
+  // Transaction tracking
+  transactionId  String  @unique // Our internal unique transaction ID
+  gatewayTranId  String? // Gateway transaction ID (before redirect)
+  gatewayRefId   String? // Gateway reference ID (after validation)
+  gatewayBatchId String? // For bulk payouts/refunds
+
+  // Status tracking
+  status             PaymentStatus      @default(PENDING)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  riskLevel          RiskLevel?         @default(LOW)
+
+  // Gateway information
+  gateway         String? // "SSLCOMMERZ", "BKASH", "NAGAD", "COD"
+  gatewayResponse Json? // Store full gateway request/response
+  rawResponse     Json? // Store full validation response
+
+  // Timing
+  initiatedAt DateTime  @default(now())
+  verifiedAt  DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  refundedAt  DateTime?
+
+  // Retry tracking
+  retryCount  Int       @default(0)
+  lastRetryAt DateTime?
+
+  // Refund tracking
+  refunds PaymentRefund[]
+
+  // For COD payments
+  collectedBy String? // delivery person, office staff
+  collectedAt DateTime?
+
+  // Audit
+  notes    String? // Admin notes about payment issues
+  metadata Json? // Additional flexible data
+
+  // Relations
+  paymentLogs PaymentLog[]
+
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  paymentSettlement   PaymentSettlement? @relation(fields: [paymentSettlementId], references: [id])
+  paymentSettlementId Int?
+
+  @@index([orderId])
+  @@index([gatewayTranId])
+  @@index([transactionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PaymentRefund {
+  id Int @id @default(autoincrement())
+
+  paymentId Int
+  payment   Payment @relation(fields: [paymentId], references: [id])
+
+  returnRequestId Int?
+  returnRequest   ReturnRequest? @relation(fields: [returnRequestId], references: [id])
+
+  amount Float
+  reason String? // "CUSTOMER_REQUEST", "ORDER_CANCELLED", "DUPLICATE", etc.
+  status RefundStatus @default(PENDING)
+
+  // How the money actually goes back — gateway API call (SSL) vs a manual
+  // bank/mobile-banking transfer an admin confirms by hand (COD, or gateways
+  // we don't have a refund API integration for yet).
+  refundMethod RefundMethod @default(MANUAL)
+
+  gatewayRefundId String? // Gateway refund transaction ID (SSLCommerz refund_ref_id)
+  gatewayResponse Json? // Full initiateRefund/refundQuery response, for audit
+
+  requestedBy Int? // User ID (admin/customer)
+  processedBy Int? // Admin ID who processed
+  processedAt DateTime?
+
+  notes    String?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([paymentId])
+  @@index([returnRequestId])
+  @@index([status])
+}
+
+enum RefundMethod {
+  GATEWAY // refunded automatically via the payment gateway's refund API
+  MANUAL // refunded by hand (bank transfer, bKash send-money, cash, etc.)
+}
+
+model PaymentLog {
+  id Int @id @default(autoincrement())
+
+  paymentId Int
+  payment   Payment @relation(fields: [paymentId], references: [id])
+
+  action          String // "INITIATED", "VERIFIED", "FAILED", "REFUNDED", etc.
+  status          String
+  message         String?
+  gatewayResponse Json?
+
+  ipAddress String?
+  userAgent String?
+  createdBy Int? // User/Admin ID
+
+  createdAt DateTime @default(now())
+}
+
+model PaymentMethodConfig {
+  id Int @id @default(autoincrement())
+
+  method  PaymentMethod
+  gateway String // "SSLCOMMERZ", "BKASH", etc.
+
+  isEnabled Boolean @default(true)
+  isSandbox Boolean @default(false)
+
+  displayName  String
+  displayOrder Int    @default(0)
+
+  minAmount Float? // Minimum transaction amount
+  maxAmount Float? // Maximum transaction amount
+
+  convenienceFeeType  FeeType? // "FIXED" or "PERCENTAGE"
+  convenienceFeeValue Float?   @default(0)
+
+  config Json? // Store gateway-specific config (API keys, endpoints, etc.)
+
+  availableForCODOnly Boolean @default(false) // For COD payments
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([method, gateway])
+}
+
+model PaymentSettlement {
+  id Int @id @default(autoincrement())
+
+  gateway        String
+  settlementDate DateTime
+  settlementId   String?  @unique // Gateway settlement ID
+
+  totalAmount Float
+  totalFees   Float
+  netAmount   Float
+
+  transactionCount Int
+
+  status       SettlementStatus @default(PENDING)
+  reconciledAt DateTime?
+
+  payments Payment[]
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =====================
+// Enums
+// =====================
+enum PaymentMethod {
+  COD
+  SSL
+  BKASH
+  NAGAD
+  ROCKET
+  BANK_TRANSFER
+  CARD
+  MOBILE_BANKING
+}
+
+enum PaymentStatus {
+  PENDING // Initial state
+  PROCESSING // Payment in progress
+  PAID // Successfully paid
+  PARTIALLY_PAID // Advance paid, remainder still due (Order.paymentStatus only)
+  FAILED // Payment failed
+  REFUNDED // Fully refunded
+  PARTIALLY_REFUNDED // Partially refunded
+  CANCELLED // Payment cancelled by user
+  EXPIRED // Payment link expired
+  ON_HOLD // Payment under review
+}
+
+enum PaymentPhase {
+  FULL // Single payment covering the full order total
+  ADVANCE // Deposit paid at checkout for a COD order requiring advance payment
+  REMAINDER // Balance collected later (e.g. cash on delivery)
+}
+
+enum VerificationStatus {
+  UNVERIFIED // Not yet verified
+  VERIFIED // Successfully verified
+  VERIFICATION_FAILED // Failed verification
+  PENDING_REVIEW // Needs manual review
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  BLOCKED
+}
+
+enum FraudStatus {
+  SAFE
+  SUSPICIOUS
+  DOUBTFUL
+  BLOCKED
+}
+
+model FraudCheck {
+  id    Int    @id @default(autoincrement())
+  phone String
+
+  totalOrders      Int         @default(0)
+  delivered        Int         @default(0)
+  returned         Int         @default(0)
+  successRatio     Float       @default(0)
+  fraudReportCount Int         @default(0)
+  riskLevel        String      @default("Low")
+  riskScore        Float       @default(0)
+  computedStatus   FraudStatus @default(SAFE)
+
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id])
+
+  checkedAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum FeeType {
+  FIXED
+  PERCENTAGE
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RECONCILED
+}
+
+// =====================
+// Reviews
+// =====================
+model Review {
+  id          Int       @id @default(autoincrement())
+  rating      Int
+  comment     String?
+  orderItemId Int       @unique
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  // product   Product @relation(fields: [productId], references: [id])
+  // productId Int
+  // user        User      @relation(fields: [userId], references: [id])
+  // userId      Int
+
+  isHidden   Boolean @default(false)
+  isFeatured Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// =====================
+// Wishlist
+// =====================
+model Wishlist {
+  id Int @id @default(autoincrement())
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+}
+
+// =====================
+// HELP / SUPPORT
+// =====================
+model SupportTicket {
+  id      Int    @id @default(autoincrement())
+  subject String
+  message String
+
+  status   SupportStatus   @default(OPEN)
+  priority SupportPriority @default(NORMAL)
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  assignedTo   User?                  @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  assignedToId Int?
+  resolvedAt   DateTime?
+  closedAt     DateTime?
+  messages     SupportTicketMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model SupportTicketMessage {
+  id       Int           @id @default(autoincrement())
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId Int
+  author   User?         @relation("TicketMessageAuthor", fields: [authorId], references: [id])
+  authorId Int?
+
+  body           String
+  isInternalNote Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+// =====================
+// Blog / CMS
+// =====================
+model BlogCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts BlogPost[]
+}
+
+model SubCategoryBlogs {
+  subCategoryId Int
+  blogPostId    Int
+
+  subCategory SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: Cascade)
+  blogPost    BlogPost    @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([subCategoryId, blogPostId])
+}
+
+model BlogPost {
+  id        Int      @id @default(autoincrement())
+  title     String
+  slug      String   @unique
+  content   String
+  image     String?
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categoryId Int
+  category   BlogCategory @relation(fields: [categoryId], references: [id])
+
+  tags          BlogPostTag[]
+  subCategories SubCategoryBlogs[]
+}
+
+model BlogPostTag {
+  blogPostId Int
+  tagId      Int
+
+  blogPost BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogPostId, tagId])
+}
+
+model Banner {
+  id     Int     @id @default(autoincrement())
+  title  String
+  image  String
+  link   String?
+  device String? // "DESKTOP", "MOBILE", or null for both
+  active Boolean @default(true)
+}
+
+model BroadBanner {
+  id        String   @id @default(cuid())
+  title     String
+  image     String
+  link      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UrgencyBanner {
+  id        Int      @id @default(autoincrement())
+  message   String
+  eventType String?
+  link      String?
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PromoBanner {
+  id        Int      @id @default(autoincrement())
+  title     String
+  text      String
+  bgColor   String // e.g. "#0f172a"
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  links PromoBannerLink[]
+}
+
+model SeasonalCategory {
+  id        Int    @id @default(autoincrement())
+  title     String // e.g., "Winter Collection" or "In Stock Furniture"
+  image     String // URL to the image or icon
+  link      String // The URL/Route where the user goes when clicking
+  sortOrder Int    @default(0) // To control the sequence of the boxes
+
+  // Scheduling & Visibility
+  isActive  Boolean   @default(true)
+  startDate DateTime? // Optional: Auto-show the category on this date
+  endDate   DateTime? // Optional: Auto-hide the category after this date
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// enum GalleryItemType {
+//   HEADING
+//   REGULAR
+// }
+
+model HomepageGallery {
+  id        Int      @id @default(autoincrement())
+  name      String
+  image     String
+  slug      String   @unique
+  isHeading Boolean  @default(false)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PromoBannerLink {
+  id   Int    @id @default(autoincrement())
+  text String
+  url  String
+
+  bannerId Int
+  banner   PromoBanner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+}
+
+model FeaturedCategory {
+  id        Int     @id @default(autoincrement())
+  image     String
+  sortOrder Int
+  isActive  Boolean @default(true)
+
+  subcategory   SubCategory @relation(fields: [subCategoryId], references: [id])
+  subCategoryId Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FlashSale {
+  id         Int      @id @default(autoincrement())
+  title      String
+  subtitle   String?
+  bannerText String?
+  startDate  DateTime
+  endDate    DateTime
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  products FlashSaleProduct[]
+}
+
+model FlashSaleProduct {
+  id          Int       @id @default(autoincrement())
+  flashSaleId Int
+  flashSale   FlashSale @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sortOrder   Int       @default(0)
+
+  @@unique([flashSaleId, productId])
+}
+
+model ActivityLog {
+  id      Int  @id @default(autoincrement())
+  adminId Int
+  admin   User @relation(fields: [adminId], references: [id])
+
+  // What happened
+  action   String // "UPDATE_PRODUCT", "DELETE_ORDER"
+  module   LogModule // PRODUCT, ORDER, etc.
+  severity LogSeverity @default(INFO)
+  status   LogStatus   @default(SUCCESS)
+
+  // What was affected
+  targetId    String? // Database ID of affected record
+  targetLabel String? // Human-readable name at time of action
+
+  // What changed
+  oldValue Json? // Previous state
+  newValue Json? // New state
+  metadata Json? // Extra context
+
+  // Who, where, when
+  ipAddress String?
+  userAgent String?
+  sessionId String? // Group related actions
+
+  statement String?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([module])
+  @@index([createdAt])
+  @@index([targetId])
+}
+
+enum LogModule {
+  CATALOG
+  PRODUCT
+  ORDER
+  USER
+  MARKETING
+  INVENTORY
+  CONTENT
+  SUPPORT
+  AUTH
+  SYSTEM
+}
+
+enum LogSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum LogStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+// =====================
+// SEO
+// =====================
+model SEO {
+  id  Int    @id @default(autoincrement())
+  url String @unique // public page path this entry overrides, e.g. "/", "/products/sofa-set-classic"
+
+  title       String?
+  description String?
+  keywords    String?
+  canonical   String?
+
+  ogTitle       String?
+  ogDescription String?
+  ogImage       String?
+
+  noIndex  Boolean @default(false)
+  noFollow Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
+}
+
+// =====================
+// COMPANY INFO
+// =====================
+// Singleton row (id always 1) holding global, admin-editable defaults that
+// aren't tied to a specific district/subcategory — e.g. the fallback
+// delivery fee used when a new district is created without one.
+model AppSettings {
+  id Int @id @default(autoincrement())
+
+  defaultDeliveryFee Float @default(120)
+
+  // Courier delivery label — single configurable size used for every
+  // shipment label print (see CourierShipment label printing).
+  courierLabelWidthMm  Float @default(100)
+  courierLabelHeightMm Float @default(150)
+
+  // Invoice print/PDF paper size. "A4" | "LETTER" | "CUSTOM" — width/height
+  // are only read when CUSTOM.
+  invoicePaperSize     String @default("A4")
+  invoicePaperWidthMm  Float?
+  invoicePaperHeightMm Float?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Saved, admin-managed product barcode label presets (name + physical
+// size in mm) used by the Print Labels screen. Exactly one row should be
+// isDefault at a time — enforced in LabelSizeService, not at the DB level.
+model LabelSize {
+  id        Int      @id @default(autoincrement())
+  name      String
+  widthMm   Float
+  heightMm  Float
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("label_sizes")
+}
+
+model CompanyInfo {
+  id Int @id @default(autoincrement())
+
+  // Basic
+  name          String  @default("Ondorkotha")
+  logo          String? // Cloudinary URL
+  favicon       String? // Cloudinary URL
+  tagline       String?
+  about         String? @db.Text
+  privacyPolicy String? @db.Text
+
+  // Contact
+  email        String?
+  phone        String?
+  whatsapp     String?
+  address      String?
+  city         String?
+  country      String?
+  googleMapUrl String?
+
+  // Social
+  facebook  String?
+  instagram String?
+  youtube   String?
+  tiktok    String?
+  twitter   String?
+  linkedin  String?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String? // Open Graph image URL
+
+  // Marketing / tracking
+  metaPixelId String? // Meta (Facebook) Pixel ID, injected site-wide when set
+
+  updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
+
+  @@map("company_info")
+}
+
+// =====================
+// Static Pages (CMS)
+// =====================
+model StaticPage {
+  id              Int      @id @default(autoincrement())
+  slug            String   @unique // e.g. "about", "terms-and-conditions", "privacy-policy", "return-policy"
+  title           String
+  content         String   @db.Text
+  metaTitle       String?
+  metaDescription String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  updatedBy       Int? // last admin user id
+
+  @@map("static_pages")
+}
+
+model TermsAndCondition {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String   @db.Text
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
+
+  @@map("terms_and_conditions")
+}
+
+// =====================
+// Email Templates
+// =====================
+model EmailTemplate {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // matches the notification job's "templateKey", e.g. "order-confirmation"
+  name      String // human label shown in admin
+  subject   String   @db.Text // Handlebars template, e.g. "Order #{{orderId}} Confirmed"
+  body      String   @db.Text // HTML Handlebars template
+  updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
+
+  @@map("email_templates")
+}
