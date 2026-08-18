@@ -227,6 +227,7 @@ export class ProductService {
           data: dto.images.map((image) => ({
             image: image.image,
             serialNo: image.serialNo,
+            alt: image.alt ?? null,
             productId: product.id,
           })),
         });
@@ -711,6 +712,7 @@ export class ProductService {
             productId: product.id,
             image: img.image,
             serialNo: img.serialNo ?? index + 1,
+            alt: img.alt ?? null,
           })),
         });
       }
@@ -1250,6 +1252,7 @@ export class ProductService {
             id: true,
             image: true,
             serialNo: true,
+            alt: true,
           },
         },
       },
@@ -1289,6 +1292,7 @@ export class ProductService {
               id: true,
               image: true,
               serialNo: true,
+              alt: true,
             },
           },
         },
@@ -1333,6 +1337,7 @@ export class ProductService {
               id: true,
               image: true,
               serialNo: true,
+              alt: true,
             },
           },
         },
@@ -1368,6 +1373,7 @@ export class ProductService {
               id: true,
               image: true,
               serialNo: true,
+              alt: true,
             },
           },
         },

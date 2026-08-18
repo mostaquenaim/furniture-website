@@ -650,9 +650,10 @@ model Material {
 }
 
 model ProductImage {
-  id       Int    @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
   image    String
-  serialNo Int    @default(0)
+  serialNo Int     @default(0)
+  alt      String?
 
   productId Int
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -1868,7 +1869,8 @@ enum LogStatus {
 // SEO
 // =====================
 model SEO {
-  id Int @id @default(autoincrement())
+  id  Int    @id @default(autoincrement())
+  url String @unique // public page path this entry overrides, e.g. "/", "/products/sofa-set-classic"
 
   title       String?
   description String?
@@ -1884,6 +1886,7 @@ model SEO {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  updatedBy Int? // last admin user id
 }
 
 // =====================

@@ -1,47 +1,73 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable } from '@nestjs/common';
-import { CreateSeoDto } from './dto/create-seo.dto';
-import { UpdateSeoDto } from './dto/update-seo.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { ActivityLogService } from 'src/activity-log/activity-log.service';
+import { UpsertSeoDto } from './dto/upsert-seo.dto';
 
 @Injectable()
 export class SeoService {
-  private seoEntries = [];
+  constructor(
+    private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
+  ) {}
 
   getAll() {
-    return this.seoEntries;
-  }
-
-  create(dto: CreateSeoDto) {
-    // console.log('SEO entry creation requested with dto:', dto);
-    // const entry = { id: Date.now(), ...dto };
-    // this.seoEntries.push(entry);
-    // return entry;
-  }
-
-  update(id: string, dto: UpdateSeoDto) {
-    // console.log(`SEO entry update requested for id ${id} with dto:`, dto);
-    // const idx = this.seoEntries.findIndex(s => s.id == +id);
-    // if (idx === -1) return null;
-    // this.seoEntries[idx] = { ...this.seoEntries[idx], ...dto };
-    // return this.seoEntries[idx];
+    return this.prisma.sEO.findMany({ orderBy: { url: 'asc' } });
   }
 
   getByUrl(url: string) {
-    // console.log(`SEO entry retrieval requested for url: ${url}`);
-    // return this.seoEntries.find(s => s.url === url);
+    return this.prisma.sEO.findUnique({ where: { url } });
   }
 
-  generateSchema(url: string) {
-    // console.log(`Schema generation requested for url: ${url}`);
-    // const seo = this.getByUrl(url);
-    // if (!seo) return null;
-    // return {
-    //   "@context": "https://schema.org",
-    //   "@type": "WebPage",
-    //   "url": seo.url,
-    //   "name": seo.title,
-    //   "description": seo.description,
-    //   "keywords": seo.keywords?.split(',') || [],
-    // };
+  async upsert(dto: UpsertSeoDto, adminId: number) {
+    const existing = await this.prisma.sEO.findUnique({
+      where: { url: dto.url },
+    });
+
+    const data = {
+      title: dto.title ?? null,
+      description: dto.description ?? null,
+      keywords: dto.keywords ?? null,
+      canonical: dto.canonical ?? null,
+      ogTitle: dto.ogTitle ?? null,
+      ogDescription: dto.ogDescription ?? null,
+      ogImage: dto.ogImage ?? null,
+      noIndex: dto.noIndex ?? false,
+      noFollow: dto.noFollow ?? false,
+      updatedBy: adminId,
+    };
+
+    const entry = await this.prisma.sEO.upsert({
+      where: { url: dto.url },
+      update: data,
+      create: { url: dto.url, ...data },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: existing ? 'UPDATE_SEO_META' : 'CREATE_SEO_META',
+      module: 'CONTENT',
+      targetId: entry.id,
+      targetLabel: entry.url,
+      oldValue: existing ?? undefined,
+      newValue: entry,
+    });
+
+    return entry;
+  }
+
+  async remove(id: number, adminId: number) {
+    const existing = await this.prisma.sEO.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException(`SEO entry ${id} not found`);
+
+    await this.prisma.sEO.delete({ where: { id } });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'DELETE_SEO_META',
+      module: 'CONTENT',
+      targetId: existing.id,
+      targetLabel: existing.url,
+      oldValue: existing,
+    });
   }
 }

@@ -7,4 +7,8 @@ export class CreateProductImageDto {
   // @IsOptional()
   @IsInt()
   serialNo?: number;
+
+  @IsOptional()
+  @IsString()
+  alt?: string;
 }

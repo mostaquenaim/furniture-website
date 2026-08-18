@@ -1,15 +1,19 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
   Get,
   Post,
-  Put,
+  Delete,
   Body,
   Param,
+  Query,
+  ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { SeoService } from './seo.service';
-import { CreateSeoDto } from './dto/create-seo.dto';
-import { UpdateSeoDto } from './dto/update-seo.dto';
+import { UpsertSeoDto } from './dto/upsert-seo.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Permission } from 'src/permission/permission.decorator';
@@ -26,29 +30,23 @@ export class SeoController {
     return this.service.getAll();
   }
 
-  @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Permission(Action.SEO_MANAGE)
-  create(@Body() dto: CreateSeoDto) {
-    return this.service.create(dto);
-  }
-
-  @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Permission(Action.SEO_MANAGE)
-  update(@Param('id') id: string, @Body() dto: UpdateSeoDto) {
-    return this.service.update(id, dto);
-  }
-
-  // Public — pages fetch their own SEO metadata by URL to render meta tags.
-  @Get('url/:url') getByUrl(@Param('url') url: string) {
+  // Public — pages fetch their own SEO override by URL to render meta tags.
+  @Get('lookup')
+  getByUrl(@Query('url') url: string) {
     return this.service.getByUrl(url);
   }
 
-  @Post('generate')
+  @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Permission(Action.SEO_MANAGE)
-  generate(@Body('url') url: string) {
-    return this.service.generateSchema(url);
+  upsert(@Body() dto: UpsertSeoDto, @Req() req: any) {
+    return this.service.upsert(dto, req?.user?.userId);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.SEO_MANAGE)
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.service.remove(id, req?.user?.userId);
   }
 }
