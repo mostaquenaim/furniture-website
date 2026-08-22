@@ -171,10 +171,32 @@ export class CourierService {
     return { message: 'Provider deleted successfully' };
   }
 
+  // COD collection amount for a shipment: an explicit value on the request
+  // always wins (including an explicit 0 for a prepaid/exchange shipment).
+  // Otherwise it's derived from the order — Order.deliveryMethod (not
+  // paymentMethod, which doesn't exist on the model) tells us if it's COD,
+  // and remainingAmount (rather than the full total) is what's left to
+  // collect on delivery when an advance was already paid online.
+  private resolveCodAmount(
+    dto: CreateCourierShipmentDto,
+    order: any,
+  ): number {
+    if (dto.codAmount !== undefined && dto.codAmount !== null) {
+      return dto.codAmount;
+    }
+
+    if (order.deliveryMethod !== 'COD') {
+      return 0;
+    }
+
+    return order.advanceRequired ? order.remainingAmount : order.total;
+  }
+
   private prepareShipmentData(
     orderData: any,
     provider: any,
-    specialInstructions?: string,
+    dto: CreateCourierShipmentDto,
+    codAmount: number,
   ) {
     // Get merchant store ID from provider config
     const storeId =
@@ -190,26 +212,31 @@ export class CourierService {
       0,
     );
 
-    // Calculate total weight (default to 0.5 if not available)
-    const weight = this.calculateTotalWeight(orderData.items) || 0.5;
+    // Weight/description default from the order, but an admin can override
+    // either when booking (e.g. correcting a mis-measured package).
+    const weight =
+      dto.weight || this.calculateTotalWeight(orderData.items) || 0.5;
 
-    // Create item description from order items
-    const itemDescription = orderData.items
-      .map((item: any) => `${item.quantity}x ${item.productTitle}`)
-      .join(', ');
+    const itemDescription =
+      dto.itemDescription ||
+      orderData.items
+        .map((item: any) => `${item.quantity}x ${item.productTitle}`)
+        .join(', ');
 
     // Base data for all providers
     const baseData = {
       orderId: orderData.orderId || orderData.id,
-      customerName: orderData.customerName || orderData.shippingName,
+      customerName:
+        dto.recipientName || orderData.customerName || orderData.shippingName,
       customerPhone: this.normalizeBDPhone(
-        orderData.customerPhone || orderData.phone,
+        dto.recipientPhone || orderData.customerPhone || orderData.phone,
       ),
-      shippingAddress: orderData.shippingAddress || orderData.address,
+      shippingAddress:
+        dto.recipientAddress || orderData.shippingAddress || orderData.address,
       district: orderData.district?.name || orderData.districtName,
       postCode: orderData.postCode,
       amount: orderData.total,
-      codAmount: orderData.paymentMethod === 'COD' ? orderData.total : 0,
+      codAmount,
       totalQuantity,
       weight: weight.toString(), // Convert to string for Pathao
       itemDescription: itemDescription.substring(0, 500), // Limit length
@@ -225,9 +252,9 @@ export class CourierService {
           recipient_name: baseData.customerName,
           recipient_phone: baseData.customerPhone,
           recipient_address: baseData.shippingAddress,
-          delivery_type: 48, // Standard delivery
-          item_type: 2, // Document/Parcel
-          special_instruction: specialInstructions || '',
+          delivery_type: dto.deliveryType || 48, // Standard delivery
+          item_type: dto.itemType || 2, // Document/Parcel
+          special_instruction: dto.special_instruction || '',
           item_quantity: baseData.totalQuantity,
           item_weight: baseData.weight,
           item_description: baseData.itemDescription,
@@ -413,10 +440,12 @@ export class CourierService {
         );
       }
 
+      const codAmount = this.resolveCodAmount(dto, order);
       const shipmentData = this.prepareShipmentData(
         order,
         provider,
-        dto.special_instruction,
+        dto,
+        codAmount,
       );
 
       let providerResponse;
@@ -455,7 +484,7 @@ export class CourierService {
           providerStatus: providerResponse.status,
           deliveryCharge:
             dto.deliveryCharge || providerResponse.deliveryFee || 0,
-          codAmount: dto.codAmount || order.total,
+          codAmount,
           metadata: providerResponse.metadata,
           weight: Number(shipmentData.weight),
           itemDescription: shipmentData.itemDescription,
@@ -463,6 +492,8 @@ export class CourierService {
           recipientName: shipmentData.customerName,
           recipientPhone: shipmentData.customerPhone,
           recipientAddress: shipmentData.shippingAddress,
+          deliveryType: dto.deliveryType,
+          itemType: dto.itemType,
         },
       });
 
