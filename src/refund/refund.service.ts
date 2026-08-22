@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   OrderStatus,
   Payment,
+  PaymentRefund,
   Prisma,
   RefundMethod,
   RefundStatus,
@@ -221,7 +222,7 @@ export class RefundService {
       },
       include: {
         items: { include: { orderItem: true } },
-        refunds: true,
+        refunds: { orderBy: { createdAt: 'desc' } },
         order: { select: { orderId: true, status: true, total: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -263,7 +264,7 @@ export class RefundService {
         orderBy: { createdAt: 'desc' },
         include: {
           items: { include: { orderItem: true } },
-          refunds: true,
+          refunds: { orderBy: { createdAt: 'desc' } },
           order: {
             select: {
               orderId: true,
@@ -291,7 +292,7 @@ export class RefundService {
           include: { orderItem: { include: { productSize: true } } },
         },
         order: { include: { items: true, payments: true } },
-        refunds: true,
+        refunds: { orderBy: { createdAt: 'desc' } },
       },
     });
     if (!returnRequest) throw new NotFoundException('Return request not found');
@@ -767,8 +768,47 @@ export class RefundService {
     }
   }
 
-  /** Marks a refund COMPLETED and propagates the payment/order/return-request state. */
-  private async finalizeRefundCompletion(refundId: number) {
+  private emitOrderStatusChange(change: {
+    orderId: number;
+    orderNumber: string;
+    previousStatus: OrderStatus;
+    newStatus: OrderStatus;
+  }) {
+    try {
+      this.customerOrderEventsGateway.emitOrderStatusUpdated(
+        change.orderNumber,
+        {
+          orderId: change.orderNumber,
+          status: change.newStatus,
+          previousStatus: change.previousStatus,
+          updatedAt: new Date(),
+        },
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to emit realtime status update for order ${change.orderNumber}`,
+        err,
+      );
+    }
+  }
+
+  /**
+   * Marks a refund COMPLETED and propagates the payment/order/return-request
+   * state. Returns the completed refund plus, if the order's status changed
+   * as a side effect, enough info for the caller to emit the customer
+   * realtime event after the transaction resolves (never inside it — see
+   * the convention in `receiveReturnItems`/order.service.ts's status-update
+   * method).
+   */
+  private async finalizeRefundCompletion(refundId: number): Promise<{
+    refund: PaymentRefund;
+    orderStatusChange: {
+      orderId: number;
+      orderNumber: string;
+      previousStatus: OrderStatus;
+      newStatus: OrderStatus;
+    } | null;
+  }> {
     return this.prisma.$transaction(async (tx) => {
       const refund = await tx.paymentRefund.update({
         where: { id: refundId },
@@ -800,6 +840,25 @@ export class RefundService {
           (['REFUNDED', 'CANCELLED', 'FAILED'] as string[]).includes(p.status),
         );
 
+      // A return request that finishes REFUNDED while the order is still
+      // sitting at RETURN_REQUESTED means this was a *partial* return —
+      // receiveReturnItems only flips the order to RETURNED once every unit
+      // has come back. Left alone, the order would stay stuck at
+      // RETURN_REQUESTED forever: no further return request could ever be
+      // filed against it, and the customer tracking timeline would never
+      // show a "current" step again. Restore it to the status it had right
+      // before this return request was filed.
+      let newOrderStatus: OrderStatus = order.status;
+      if (refund.returnRequestId) {
+        const rr = await tx.returnRequest.update({
+          where: { id: refund.returnRequestId },
+          data: { status: ReturnRequestStatus.REFUNDED },
+        });
+        if (order.status === OrderStatus.RETURN_REQUESTED) {
+          newOrderStatus = rr.previousOrderStatus;
+        }
+      }
+
       await tx.order.update({
         where: { id: order.id },
         data: {
@@ -807,25 +866,37 @@ export class RefundService {
             paymentStatus === 'REFUNDED' && allOtherPaymentsSettled
               ? 'REFUNDED'
               : 'PARTIALLY_REFUNDED',
+          ...(newOrderStatus !== order.status
+            ? { status: newOrderStatus }
+            : {}),
         },
       });
-
-      if (refund.returnRequestId) {
-        await tx.returnRequest.update({
-          where: { id: refund.returnRequestId },
-          data: { status: ReturnRequestStatus.REFUNDED },
-        });
-      }
 
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
-          status: order.status,
-          note: `Refund of ${refund.amount} completed for payment ${refund.payment.transactionId}`,
+          status: newOrderStatus,
+          note:
+            newOrderStatus !== order.status
+              ? `Refund of ${refund.amount} completed for payment ${refund.payment.transactionId} — order restored to ${newOrderStatus} after partial return`
+              : `Refund of ${refund.amount} completed for payment ${refund.payment.transactionId}`,
         },
       });
 
-      return tx.paymentRefund.findUniqueOrThrow({ where: { id: refundId } });
+      return {
+        refund: await tx.paymentRefund.findUniqueOrThrow({
+          where: { id: refundId },
+        }),
+        orderStatusChange:
+          newOrderStatus !== order.status
+            ? {
+                orderId: order.id,
+                orderNumber: order.orderId,
+                previousStatus: order.status,
+                newStatus: newOrderStatus,
+              }
+            : null,
+      };
     });
   }
 
@@ -996,7 +1067,9 @@ export class RefundService {
       },
     });
 
-    const completed = await this.finalizeRefundCompletion(refundId);
+    const { refund: completed, orderStatusChange } =
+      await this.finalizeRefundCompletion(refundId);
+    if (orderStatusChange) this.emitOrderStatusChange(orderStatusChange);
 
     this.activityLogService.log({
       adminId,
@@ -1074,7 +1147,9 @@ export class RefundService {
       });
     }
     if (status.includes('complet') || status.includes('success')) {
-      const completed = await this.finalizeRefundCompletion(refundId);
+      const { refund: completed, orderStatusChange } =
+        await this.finalizeRefundCompletion(refundId);
+      if (orderStatusChange) this.emitOrderStatusChange(orderStatusChange);
       try {
         await this.notificationService.sendRefundUpdate(
           {
