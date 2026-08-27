@@ -19,8 +19,22 @@ async function bootstrap() {
     }),
   );
 
+  // app.enableCors({
+  //   origin: true,
+  //   credentials: true,
+  // });
+
   app.enableCors({
-    origin: true,
+    origin: [
+      'ondorkotha.com',
+      'www.ondorkotha.com',
+      'https://ondorkotha.com',
+      'https://www.ondorkotha.com',
+      'http://localhost:8000',
+      ...(process.env.SAKIGAI_FRONTEND_URL
+        ? [process.env.SAKIGAI_FRONTEND_URL]
+        : []),
+    ],
     credentials: true,
   });
 
