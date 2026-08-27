@@ -1,0 +1,78 @@
+services:
+  - type: web
+    name: sakigai-furniture-backend
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    # --include=dev: NODE_ENV=production below makes `npm install` skip
+    # devDependencies by default, but @nestjs/cli (the `nest` binary needed
+    # for `nest build`) lives there — without this flag the build fails with
+    # "sh: 1: nest: not found".
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/v1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.19.0
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # Set these in the Render dashboard (Environment tab) — never commit
+      # real secrets to this file.
+      - key: DATABASE_URL
+        sync: false
+      # Direct (non-pooled) Neon connection, required by `prisma migrate
+      # deploy` in start:prod — see prisma/schema.prisma's directUrl.
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      # Upstash rediss:// URL — takes precedence over REDIS_HOST/PORT/etc.
+      - key: REDIS_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ENABLE_NEW_PAYMENT
+        value: 'true'
+      - key: PAYMENT_PROVIDER
+        value: SSLCOMMERZ
+      - key: SSLCOMMERZ_STORE_ID
+        sync: false
+      - key: SSLCOMMERZ_STORE_PASSWORD
+        sync: false
+      - key: SSLCOMMERZ_IS_LIVE
+        value: 'false'
+      - key: MANUAL_ORDER_STATUS_UPDATE
+        value: 'true'
+      - key: DEFAULT_DELIVERY_FEE
+        value: '120'

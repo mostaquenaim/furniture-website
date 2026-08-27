@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import Redis from 'ioredis';
+import { getRedisUrl, getRedisOptions } from '../../common/utils/redis.utils';
 
 const WINDOW_SECONDS = 60;
 
@@ -26,12 +27,14 @@ export class ApiRateLimitGuard implements CanActivate, OnModuleDestroy {
   private readonly redis: Redis;
 
   constructor() {
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      lazyConnect: false,
-      maxRetriesPerRequest: 1,
-    });
+    const redisUrl = getRedisUrl();
+    this.redis = redisUrl
+      ? new Redis(redisUrl, { lazyConnect: false, maxRetriesPerRequest: 1 })
+      : new Redis({
+          ...getRedisOptions(),
+          lazyConnect: false,
+          maxRetriesPerRequest: 1,
+        });
     this.redis.on('error', (err) =>
       this.logger.warn(`Redis connection error: ${err.message}`),
     );
