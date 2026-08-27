@@ -31,6 +31,7 @@ import { CartModule } from './cart/cart.module';
 import { GuestModule } from './guest/guest.module';
 import { SupportModule } from './support/support.module';
 import { BullModule } from '@nestjs/bull';
+import { getRedisConnection } from './common/utils/redis.utils';
 import { BarcodeModule } from './barcode/barcode.module';
 import { ActivityLogModule } from './activity-log/activity-log.module';
 import { CourierModule } from './courier/courier.module';
@@ -60,10 +61,7 @@ import { PartnerInventoryModule } from './partner-inventory/partner-inventory.mo
     ScheduleModule.forRoot(),
 
     BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST ?? 'localhost',
-        port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-      },
+      redis: getRedisConnection(),
     }),
 
     AuthModule,

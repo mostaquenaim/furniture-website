@@ -100,4 +100,10 @@ export class CartController {
       id,
     );
   }
+
+  // empty the whole active cart — used by "Buy Now" before adding its item
+  @Delete('clear')
+  async clearCart(@Req() req: any, @Query('visitorId') visitorId?: string) {
+    return this.cartService.clearCart(req?.user?.userId, visitorId || null);
+  }
 }

@@ -56,3 +56,19 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
+/src/generated/prisma
+
+# One-off / local scratch files that shouldn't be versioned
+/combined.sql
+/tmp_setup.js
+/environment-file-demo
+/Sakigai-Furniture-Backend-Codebase-Audit.docx
+
+# Claude Code
+.claude/
+CLAUDE.local.md
+.neon
+
+# Claude Code skill tooling (npx skills add) — not needed to run the app
+.agents/
+skills-lock.json

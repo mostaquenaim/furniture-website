@@ -977,4 +977,35 @@ export class CartService {
 
     return { success: true };
   }
+
+  // Empties the user's active cart in one shot — used by "Buy Now" to
+  // discard whatever's already in the cart before adding just the one
+  // product being purchased directly, so checkout can't accidentally
+  // bundle in unrelated items.
+  async clearCart(userId: number | null, visitorId: string | null) {
+    const cart = await this.prisma.cart.findFirst({
+      where: {
+        status: 'ACTIVE',
+        ...(userId ? { userId } : {}),
+        ...(!userId && visitorId ? { visitorId } : {}),
+      },
+    });
+
+    if (!cart) return { success: true };
+
+    await this.prisma.cartItem.deleteMany({
+      where: { cartId: cart.id },
+    });
+
+    await this.prisma.cart.update({
+      where: { id: cart.id },
+      data: {
+        subtotalAtAdd: 0,
+        baseSubtotalAtAdd: 0,
+        couponId: null,
+      },
+    });
+
+    return { success: true };
+  }
 }
