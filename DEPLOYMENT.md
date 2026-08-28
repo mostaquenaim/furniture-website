@@ -96,7 +96,8 @@ If you'd rather not use the Blueprint, create the web service manually with:
 | `DATABASE_URL` | Neon **pooled** connection string |
 | `DATABASE_URL_UNPOOLED` | Neon **direct** connection string — required by `prisma migrate deploy` in `start:prod` |
 | `REDIS_URL` | Upstash's `rediss://...` connection string |
-| `FRONTEND_URL` | Your Vercel URL, e.g. `https://sakigai.vercel.app` |
+| `FRONTEND_URL` | Your Vercel URL, e.g. `https://sakigai.vercel.app` (used for things like email links — **not** CORS, see below) |
+| `SAKIGAI_FRONTEND_URL` | Your Vercel URL again — this is the one that actually matters for CORS, see below |
 | `BASE_URL` | Your Render URL, e.g. `https://sakigai-furniture-backend.onrender.com` |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | From your Cloudinary dashboard (free tier) |
 | `SMTP_*` or `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Pick one mailer. Resend's free tier is the easier of the two to demo with. |
@@ -148,6 +149,16 @@ status by hand for the demo.
   in ways that never mention pooling as the cause** (`prepared statement
   "s0" already exists`, a `SET search_path` that doesn't persist past its own
   transaction, an intermittent read-only-transaction error). See §1 above.
+- **CORS is a hardcoded origin allowlist, not `FRONTEND_URL`.** `src/main.ts`'s
+  `app.enableCors()` allows the client's production domains
+  (`ondorkotha.com`, `www.ondorkotha.com`, both with and without `https://`)
+  plus `http://localhost:8000`, plus whatever `SAKIGAI_FRONTEND_URL` is set
+  to — it does **not** read `FRONTEND_URL`. Deploying this repo's frontend
+  anywhere else (a new Vercel URL, a preview deploy, a different custom
+  domain) and forgetting to set `SAKIGAI_FRONTEND_URL` to match means every
+  request gets silently CORS-blocked in the browser, even though the backend
+  itself is up and healthy. If you add more deploy targets, either extend
+  that array in `main.ts` or generalize it to read from an env var.
 
 ### Known limitations of the free tier (worth knowing before you send the link)
 
@@ -201,4 +212,5 @@ branding rather than defaults.
 - [ ] Admin can log in and see the order, and manually advance its status
 - [ ] Invoice PDF download works (tests the Puppeteer path)
 - [ ] CORS is happy — no console errors calling the Render API from the
-      Vercel origin (`FRONTEND_URL` must match the Vercel URL exactly)
+      Vercel origin (`SAKIGAI_FRONTEND_URL` must match the Vercel URL exactly
+      — see the CORS gotcha above, it's not `FRONTEND_URL`)
