@@ -6,6 +6,7 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { Action } from '../src/permission/action.enum';
+import { isDemoMode, seedDemoData } from '../src/demo/demo-seed';
 
 const prisma = new PrismaClient();
 
@@ -760,6 +761,13 @@ async function main() {
   );
   console.log(`Actions per role: ${allActions.length}`);
   console.log(`Roles seeded: ${MANAGEABLE_ROLES.join(', ')}`);
+
+  // Demo/dev-only content (browsable products, categories, banners, demo
+  // accounts, sample orders, etc.) — never runs against real production.
+  if (isDemoMode()) {
+    await seedDemoData(prisma);
+    console.log('Seeded demo catalog, orders, and demo user accounts');
+  }
 }
 
 main()

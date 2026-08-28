@@ -11,11 +11,17 @@
       "Bash(PGPASSWORD=root psql -U postgres -h localhost -p 5432 -d sakigai -c \"SELECT last_value FROM piece_barcode_seq;\" -c \"SELECT count\\(*\\), min\\(\\\\\"barcodeValue\\\\\"\\), max\\(\\\\\"barcodeValue\\\\\"\\) FROM \\\\\"Piece\\\\\";\" -c \"SELECT \\\\\"barcodeValue\\\\\" FROM \\\\\"Piece\\\\\" ORDER BY \\\\\"barcodeValue\\\\\" DESC LIMIT 5;\")",
       "Bash(node \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Sammtech-furniture-bideshi-furniture-backend-sakigai-furniture-website\\\\55da94c8-bbe3-4f7b-b906-2e8ee46de4cd\\\\scratchpad\\\\check.js\")",
       "Bash(node scratch-check.js)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(git show *)",
+      "Bash(rm -f src/product/roles.enum.ts.test_revert)"
     ],
     "additionalDirectories": [
       "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component\\Headers",
-      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component"
+      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component",
+      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\utils",
+      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component\\Customer",
+      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai\\src\\component\\Auth",
+      "E:\\Sammtech\\furniture-bideshi\\furniture-frontend\\sakigai"
     ]
   }
 }

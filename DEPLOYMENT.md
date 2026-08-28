@@ -101,7 +101,7 @@ If you'd rather not use the Blueprint, create the web service manually with:
 | `BASE_URL` | Your Render URL, e.g. `https://sakigai-furniture-backend.onrender.com` |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | From your Cloudinary dashboard (free tier) |
 | `SMTP_*` or `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Pick one mailer. Resend's free tier is the easier of the two to demo with. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | Only needed if you want "Sign in with Google" to work; set the callback to `https://<render-url>/api/v1/auth/google/callback` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | Only needed if you want "Sign in with Google" to work; set the callback to `https://<render-url>/api/auth/google/callback` — no `/v1`, the Google routes are version-neutral (see `@Version(VERSION_NEUTRAL)` in `auth.controller.ts`). This exact URL must also be added to the OAuth client's Authorized redirect URIs in Google Cloud Console, or Google rejects the request with `Error 400: redirect_uri_mismatch`. |
 | `ADMIN_PASSWORD` | Any password you'll use to log into the admin panel |
 | `SSLCOMMERZ_STORE_ID` / `SSLCOMMERZ_STORE_PASSWORD` | SSLCommerz's public **sandbox** test credentials, not real ones — `SSLCOMMERZ_IS_LIVE` is already pinned to `false` in `render.yaml` |
 | `PATHAO_*`, `REDX_WEBHOOK_SECRET`, `PAPERFLY_WEBHOOK_SECRET`, `MIMSMS_*`, `FRAUD_SPY_BD_API_KEY` | Leave blank. These are real 3rd-party courier/SMS/fraud-check integrations with no sandbox mode worth wiring up for a demo — leaving them unset just means those specific features (courier booking, SMS OTP, fraud scoring) no-op or fail gracefully rather than pretend to work |
@@ -187,7 +187,13 @@ status by hand for the demo.
    just display strings, safe to leave as dummy values.
 4. Set `NEXT_PUBLIC_SSLCOMMERZ_ENABLED=false` unless you've wired up sandbox
    SSLCommerz end-to-end.
-5. Deploy. Vercel gives you a `*.vercel.app` URL immediately; a custom domain
+5. Set `NEXT_PUBLIC_DEMO_MODE=true` on this deployment (only — never on a
+   real production frontend). It shows the demo login credentials banner on
+   the sign-in screen and the "Generate Random X" buttons in the admin
+   panel. The frontend can't read the backend's `NODE_ENV`/`RENDER` (Vercel
+   always reports `NODE_ENV=production` for production builds), so this is a
+   separate, manually-set flag — same pattern as `NEXT_PUBLIC_SSLCOMMERZ_ENABLED`.
+6. Deploy. Vercel gives you a `*.vercel.app` URL immediately; a custom domain
    is optional.
 
 ## 5. Seed demo data

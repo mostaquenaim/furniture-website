@@ -51,6 +51,7 @@ import { LabelSizeModule } from './label-size/label-size.module';
 import { AdminNotificationsModule } from './admin-notifications/admin-notifications.module';
 import { ApiClientModule } from './api-client/api-client.module';
 import { PartnerInventoryModule } from './partner-inventory/partner-inventory.module';
+import { DemoModule } from './demo/demo.module';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { PartnerInventoryModule } from './partner-inventory/partner-inventory.mo
     AdminNotificationsModule,
     ApiClientModule,
     PartnerInventoryModule,
+    DemoModule,
   ],
   controllers: [AppController],
   providers: [AppService],
