@@ -86,7 +86,7 @@ export class AuthService {
     }
 
     if (
-      process.env.NODE_ENV === 'vercel' ||
+      process.env.RENDER === 'true' ||
       process.env.NODE_ENV === 'development'
     ) {
       return code;
@@ -114,8 +114,13 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    if (user.password && dto.password) {
-      const valid = await comparePassword(dto.password, user.password);
+    const passwordVerified = Boolean(user.password && dto.password);
+
+    if (passwordVerified) {
+      const valid = await comparePassword(
+        dto.password as string,
+        user.password as string,
+      );
 
       if (!valid) {
         await this.recordFailedAttempt(identifier);
@@ -129,6 +134,18 @@ export class AuthService {
       if (!user.isVerified) {
         throw new UnauthorizedException('Account not verified');
       }
+    }
+
+    // Password-only sign-in (no OTP) outside real production. render.yaml pins
+    // NODE_ENV=production on the Render deploy (required for `npm install` to
+    // pull devDependencies during build — see DEPLOYMENT.md), so NODE_ENV alone
+    // can't tell that demo apart from a genuine prod env; RENDER=true (auto-set
+    // by the Render platform on every service) is the actual signal for it.
+    const isDevOrRenderDemo =
+      process.env.NODE_ENV !== 'production' || process.env.RENDER === 'true';
+
+    if (passwordVerified && isDevOrRenderDemo) {
+      return this.issueToken(user, '1d');
     }
 
     const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';

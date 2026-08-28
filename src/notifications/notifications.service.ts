@@ -460,7 +460,10 @@ export class NotificationsService {
         phone = phone.slice(1); // +8801... → 8801...
       }
 
-      if (process.env.NODE_ENV === 'development') {
+      if (
+        process.env.NODE_ENV === 'development' ||
+        process.env.RENDER === 'true'
+      ) {
         this.logger.log(`[DEV] SMS OTP for ${phone}: ${job.data.message}`);
         return;
       }
