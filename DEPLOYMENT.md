@@ -17,22 +17,57 @@ Stack:
 
 ## 1. Database — Neon
 
+**Option A — Neon CLI (what this repo used, gives you the Claude Code /
+`neon.ts` tooling too):**
+
+```bash
+npx skills add neondatabase/agent-skills -s neon -s neon-postgres -y   # one-time
+npx neon@latest auth                                                    # browser sign-in
+npx neon@latest link --project-id <id> --org-id <org-id>               # pick or create a project first in the Neon console
+```
+`neon link` writes `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED`
+(direct) straight into `.env`, and a git-ignored `.neon` file recording which
+project/branch you're linked to.
+
+**Option B — Neon console, manual copy-paste:**
+
 1. Create a free project at neon.tech.
-2. Copy the pooled connection string it gives you — it looks like
-   `postgresql://user:pass@ep-xxxx.region.aws.neon.tech/dbname?sslmode=require`.
-3. That's your `DATABASE_URL`.
+2. From the connection details, copy **both** the pooled connection string
+   (hostname has a `-pooler` suffix) and the direct one (no `-pooler`) —
+   `postgresql://user:pass@ep-xxxx-pooler.region.aws.neon.tech/dbname?sslmode=require`
+   and the `-pooler`-less equivalent.
+3. Pooled → `DATABASE_URL`. Direct → `DATABASE_URL_UNPOOLED`.
+
+**Both are required.** `prisma/schema.prisma` declares:
+```prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")           // pooled — app runtime queries
+  directUrl = env("DATABASE_URL_UNPOOLED")   // direct — Prisma Migrate
+}
+```
+Without `directUrl`, `prisma migrate deploy` (run automatically by
+`start:prod`) goes over the pooled/PgBouncer connection instead, which can
+fail in ways that never mention pooling as the cause (`prepared statement
+"s0" already exists`, a `SET search_path` that silently doesn't persist,
+etc.) — see the gotchas section below.
+
+After the DB is provisioned: `npx prisma migrate deploy` once to apply the
+existing migrations, then seed it (see §5).
 
 ## 2. Redis — Upstash
 
 1. Create a free Redis database at upstash.com (pick a region close to
    Render's — e.g. Singapore, matching `render.yaml`).
-2. From the database's "Details" tab, note the **Endpoint** (host),
-   **Port**, and **Password**.
-3. You'll set `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, and
-   `REDIS_TLS=true` in Render — Upstash requires TLS, so `app.module.ts` and
-   `api-rate-limit.guard.ts` were updated to pass `tls`/`password` through to
-   ioredis when those env vars are set (previously they only supported plain
-   host/port, which only works for unauthenticated local Redis).
+2. From the database's "Details" tab, copy the **`rediss://...` connection
+   string** (not the individual host/port/password fields) — that's your
+   `REDIS_URL`. Also note the REST API URL + token if you want the
+   `@upstash/redis` REST client (`src/common/redis.service.ts`) for
+   general-purpose caching, separate from the queue/rate-limiter Redis usage.
+3. Set `REDIS_URL` in Render (or `.env` locally). `src/common/utils/redis.utils.ts`
+   resolves the connection from `REDIS_URL` when present, falling back to
+   `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`/`REDIS_TLS` only for local dev
+   without Upstash.
 
 ## 3. Backend — Render
 
@@ -49,7 +84,8 @@ This repo includes a `render.yaml` Blueprint, so the fastest path is:
    the server, so your Neon DB gets the schema automatically.
 
 If you'd rather not use the Blueprint, create the web service manually with:
-- **Build command**: `npm install && npx prisma generate && npm run build`
+- **Build command**: `npm install --include=dev && npx prisma generate && npm run build`
+  (`--include=dev` matters — see gotchas below)
 - **Start command**: `npm run start:prod`
 - **Health check path**: `/api/v1`
 
@@ -57,9 +93,9 @@ If you'd rather not use the Blueprint, create the web service manually with:
 
 | Variable | Value for this demo |
 |---|---|
-| `DATABASE_URL` | Neon connection string |
-| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | From Upstash |
-| `REDIS_TLS` | `true` |
+| `DATABASE_URL` | Neon **pooled** connection string |
+| `DATABASE_URL_UNPOOLED` | Neon **direct** connection string — required by `prisma migrate deploy` in `start:prod` |
+| `REDIS_URL` | Upstash's `rediss://...` connection string |
 | `FRONTEND_URL` | Your Vercel URL, e.g. `https://sakigai.vercel.app` |
 | `BASE_URL` | Your Render URL, e.g. `https://sakigai-furniture-backend.onrender.com` |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | From your Cloudinary dashboard (free tier) |
@@ -73,6 +109,45 @@ If you'd rather not use the Blueprint, create the web service manually with:
 normally advance status only via courier webhooks, which won't fire without
 real courier accounts, so this lets the admin dashboard move an order's
 status by hand for the demo.
+
+### Gotchas hit while setting this up (read before you redo this on a fresh project)
+
+- **Bull silently drops TLS on `rediss://` URLs.** If the queue library is
+  `bull` (not `bullmq`), its own URL parser (`bull/lib/queue.js`) strips the
+  scheme when building the connection object and never sets `tls` — so
+  handing it a raw Upstash `rediss://...` string makes it connect over plain
+  TCP to a TLS-only port and **hang forever with no error, no timeout**.
+  Fix: don't pass Bull a URL string — resolve it to an explicit options
+  object yourself (`src/common/utils/redis.utils.ts` → `getRedisConnection()`)
+  so `tls` is set correctly. Plain `ioredis` (`new Redis(url)`) parses
+  `rediss://` fine on its own; this only bites Bull's own config path.
+- **`NODE_ENV=production` makes `npm install` skip devDependencies.**
+  `@nestjs/cli` (the `nest` binary `nest build` needs) is a devDependency.
+  Render's build phase inherits the service's env vars, so with
+  `NODE_ENV=production` set, a plain `npm install` silently installs
+  without it and the build fails with `sh: 1: nest: not found`. Fix:
+  `npm install --include=dev` in the build command.
+- **A startup hook doing many sequential DB queries is invisible locally,
+  catastrophic on a remote DB.** `PermissionService.onApplicationBootstrap()`
+  used to check-then-insert one role×action combination at a time (up to
+  ~850 round trips on a fresh DB). Sub-millisecond against local Postgres;
+  against Neon it silently stalled for **27 minutes** before the connection
+  was dropped server-side and the query finally errored (`P1017: Server has
+  closed the connection`). Fix: one bulk `createMany({ skipDuplicates: true })`
+  instead of N sequential `findUnique`/`create` calls. Audit any other
+  `onModuleInit`/`onApplicationBootstrap` hook for the same pattern before
+  moving a project from local Postgres to a networked one.
+- **Debugging technique for a silent hang with no error and no log output:**
+  check whether the process is actually doing work — sample its CPU twice a
+  few seconds apart (`Get-Process -Id <pid> | Select CPU`). A near-zero delta
+  means it's blocked on I/O waiting for something that'll never resolve, not
+  "just slow." Add a temporary `console.error('TRACE: X START')` at the top
+  of each lifecycle hook to find exactly which one it's stuck in, then remove
+  the tracer once found.
+- **`prisma/schema.prisma` needs `directUrl` for Neon, or migrations can fail
+  in ways that never mention pooling as the cause** (`prepared statement
+  "s0" already exists`, a `SET search_path` that doesn't persist past its own
+  transaction, an intermittent read-only-transaction error). See §1 above.
 
 ### Known limitations of the free tier (worth knowing before you send the link)
 
