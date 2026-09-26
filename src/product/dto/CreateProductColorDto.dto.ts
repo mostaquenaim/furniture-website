@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsArray,
   IsString,
+  IsEnum,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -21,6 +22,7 @@ export class ProductColorSizeDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   price?: number;
 
   @IsNumber()
@@ -29,9 +31,11 @@ export class ProductColorSizeDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   discount?: number;
 
   @IsOptional()
+  @IsEnum(DiscountType)
   discountType?: DiscountType;
 }
 

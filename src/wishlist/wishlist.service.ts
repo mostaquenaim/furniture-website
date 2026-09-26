@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { sanitizeDiscount } from 'src/common/utils/discount.utils';
+import {
+  DISPLAY_SIZES,
+  sanitizeDiscount,
+} from 'src/common/utils/discount.utils';
 
 @Injectable()
 export class WishlistService {
@@ -41,7 +44,7 @@ export class WishlistService {
             include: {
               images: true,
               colors: {
-                include: { color: true },
+                include: { color: true, sizes: DISPLAY_SIZES },
               },
               subCategories: {
                 include: {

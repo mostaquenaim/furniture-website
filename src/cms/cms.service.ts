@@ -31,6 +31,11 @@ import { UpdateVariantDto } from './dto/update-variant.dto';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { GetCouponsQueryDto } from './dto/Coupon/get-coupon-query.dto';
 import { UpdateCouponDto } from './dto/Coupon/update-coupon.dto';
+import {
+  computeCouponDiscount,
+  isCouponWithinWindow,
+  validateCouponAgainstCart,
+} from './coupon-pricing.util';
 import { CreateBannerDto } from './dto/Banner/create-banner.dto';
 import { UpsertStaticPageDto } from './dto/static-page/upsert-static-page.dto';
 import { UpdateEmailTemplateDto } from './dto/email-template/update-email-template.dto';
@@ -773,16 +778,27 @@ export class CmsService {
   }
 
   // ── Create ──────
-  async createCoupon(dto: CreateCouponDto, adminId: number) {
+  // Shared by create/update so both enforce identical value rules.
+  private assertValidCouponValue(
+    type: CouponDiscountType,
+    value: number | null | undefined,
+  ) {
     if (
-      (dto.discountType === CouponDiscountType.PERCENTAGE ||
-        dto.discountType === CouponDiscountType.FIXED_AMOUNT) &&
-      (dto.discountValue === undefined || dto.discountValue === null)
+      (type === CouponDiscountType.PERCENTAGE ||
+        type === CouponDiscountType.FIXED_AMOUNT) &&
+      (value === undefined || value === null || value <= 0)
     ) {
       throw new BadRequestException(
-        'discountValue is required for PERCENTAGE or FIXED_AMOUNT coupon type',
+        'discountValue must be greater than 0 for PERCENTAGE or FIXED_AMOUNT coupon type',
       );
     }
+    if (type === CouponDiscountType.PERCENTAGE && value! > 100) {
+      throw new BadRequestException('A percentage coupon cannot exceed 100%');
+    }
+  }
+
+  async createCoupon(dto: CreateCouponDto, adminId: number) {
+    this.assertValidCouponValue(dto.discountType, dto.discountValue);
 
     const start = dto.startDate ?? new Date();
     if (new Date(dto.expiryDate) <= new Date(start)) {
@@ -900,15 +916,7 @@ export class CmsService {
         ? dto.discountValue
         : existing.discountValue;
 
-    if (
-      (resolvedType === CouponDiscountType.PERCENTAGE ||
-        resolvedType === CouponDiscountType.FIXED_AMOUNT) &&
-      (resolvedValue === undefined || resolvedValue === null)
-    ) {
-      throw new BadRequestException(
-        'discountValue is required for PERCENTAGE or FIXED_AMOUNT coupon type',
-      );
-    }
+    this.assertValidCouponValue(resolvedType, resolvedValue);
 
     // Re-validate dates if either is being updated
     const resolvedStart = dto.startDate
@@ -1063,56 +1071,42 @@ export class CmsService {
   async validateCoupon(code: string, orderValue: number) {
     const coupon = await this.prisma.coupon.findUnique({
       where: { code: code.toUpperCase().trim() },
+      include: { categories: true },
     });
 
     if (!coupon) {
       throw new NotFoundException('Coupon code not found');
     }
 
-    if (!coupon.isActive) {
-      throw new BadRequestException('This coupon is no longer active');
+    // Same rules the cart and order apply (coupon-pricing.util.ts). With only
+    // an order value there's no cart to check category eligibility against,
+    // so the whole value is treated as eligible — the real check happens
+    // when the coupon is applied to a cart.
+    const window = isCouponWithinWindow(coupon);
+    if (!window.ok) throw new BadRequestException(window.reason);
+
+    if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
+      throw new BadRequestException('This coupon has reached its usage limit');
     }
 
-    const now = new Date();
-
-    if (now < coupon.startDate) {
-      throw new BadRequestException('This coupon is not yet valid');
-    }
-
-    if (now > coupon.expiryDate) {
-      throw new BadRequestException('This coupon has expired');
-    }
-
-    if (coupon.minOrderValue && orderValue < coupon.minOrderValue) {
-      throw new BadRequestException(
-        `Minimum order value of $${coupon.minOrderValue} required for this coupon`,
-      );
-    }
-
-    // Calculate discount amount
-    let discountAmount = 0;
-
-    if (coupon.discountType === CouponDiscountType.PERCENTAGE) {
-      discountAmount = (orderValue * (coupon.discountValue ?? 0)) / 100;
-      if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
-        discountAmount = coupon.maxDiscount;
-      }
-    } else if (coupon.discountType === CouponDiscountType.FIXED_AMOUNT) {
-      discountAmount = coupon.discountValue ?? 0;
-      // Cap at order value — can't discount more than the order itself
-      if (discountAmount > orderValue) {
-        discountAmount = orderValue;
-      }
-    } else if (coupon.discountType === CouponDiscountType.FREE_DELIVERY) {
-      // Return signal — let the cart service handle the actual delivery cost
-      discountAmount = 0;
-    }
+    const discount = computeCouponDiscount(
+      [
+        {
+          subtotalAtAdd: orderValue,
+          categoryIds: coupon.categories.map((c) => c.categoryId),
+        },
+      ],
+      coupon,
+    );
+    const check = validateCouponAgainstCart(coupon, discount);
+    if (!check.ok) throw new BadRequestException(check.reason);
 
     return {
       valid: true,
       coupon,
-      discountAmount,
-      finalOrderValue: Math.max(0, orderValue - discountAmount),
+      discountAmount: discount.discountAmount,
+      freeDelivery: discount.freeDelivery,
+      finalOrderValue: Math.max(0, orderValue - discount.discountAmount),
     };
   }
 

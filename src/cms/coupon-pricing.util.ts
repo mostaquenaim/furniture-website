@@ -125,7 +125,7 @@ export function validateCouponAgainstCart(
   ) {
     return {
       ok: false,
-      reason: `Minimum order value for this coupon is ${coupon.minOrderValue}`,
+      reason: `Minimum order value for this coupon is ৳${coupon.minOrderValue}`,
     };
   }
 
