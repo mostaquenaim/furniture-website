@@ -1049,6 +1049,10 @@ export class CartService {
   // product being purchased directly, so checkout can't accidentally
   // bundle in unrelated items.
   async clearCart(userId: number | null, visitorId: string | null) {
+    // Without an owner the filter below would be just { status: 'ACTIVE' }
+    // and match (and wipe) some other customer's cart.
+    if (!userId && !visitorId) return { success: true };
+
     const cart = await this.prisma.cart.findFirst({
       where: {
         status: 'ACTIVE',
