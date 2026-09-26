@@ -1,3 +1,4 @@
+import { IsImageUrl } from '../../../common/validators/is-image-url.decorator';
 import {
   IsBoolean,
   IsIn,
@@ -14,9 +15,7 @@ export class CreateBannerDto {
   @MaxLength(200)
   title!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @IsUrl()
+  @IsImageUrl()
   image!: string;
 
   @IsOptional()

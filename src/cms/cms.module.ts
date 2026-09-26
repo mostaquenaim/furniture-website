@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CmsController } from './cms.controller';
 import { CmsService } from './cms.service';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { CartService } from 'src/cart/cart.service';
 import { OrderService } from 'src/order/order.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -39,7 +38,6 @@ import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
   providers: [
     ActivityLogService,
     CmsService,
-    PrismaService,
     CartService,
     OrderService,
     NotificationsService,

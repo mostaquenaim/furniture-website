@@ -1,3 +1,4 @@
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
 import {
   IsBoolean,
   IsInt,
@@ -15,8 +16,7 @@ export class CreateCategoryDto {
   @IsNotEmpty()
   slug: string;
 
-  @IsOptional()
-  @IsString()
+  @IsImageUrl({ optional: true })
   image?: string;
 
   @IsOptional()

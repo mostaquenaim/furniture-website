@@ -1,9 +1,8 @@
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
 import {
   IsInt,
-  IsString,
   IsBoolean,
   IsOptional,
-  IsUrl,
   Min,
 } from 'class-validator';
 
@@ -11,7 +10,7 @@ export class CreateFeaturedCategoryDto {
   @IsInt()
   subCategoryId!: number;
 
-  @IsUrl()
+  @IsImageUrl()
   image!: string;
 
   @IsOptional()

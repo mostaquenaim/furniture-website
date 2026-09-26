@@ -9,7 +9,6 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationProcessor } from './notification.processor';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 
@@ -47,7 +46,6 @@ import { ActivityLogService } from 'src/activity-log/activity-log.service';
   providers: [
     NotificationsService,
     NotificationProcessor,
-    PrismaService,
     PermissionService,
     ActivityLogService,
   ],

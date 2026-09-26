@@ -1,3 +1,4 @@
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
 import {
   IsNumber,
   IsOptional,
@@ -44,7 +45,7 @@ export class CreateProductColorDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsImageUrl({ each: true })
   images?: string[];
 
   @IsOptional()

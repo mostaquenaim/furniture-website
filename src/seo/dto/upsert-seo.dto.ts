@@ -1,3 +1,4 @@
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
 import {
   IsBoolean,
   IsNotEmpty,
@@ -39,8 +40,7 @@ export class UpsertSeoDto {
   @MaxLength(160)
   ogDescription?: string;
 
-  @IsOptional()
-  @IsString()
+  @IsImageUrl({ optional: true })
   ogImage?: string;
 
   @IsOptional()

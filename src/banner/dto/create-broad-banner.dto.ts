@@ -1,10 +1,15 @@
-import { IsString, IsUrl, IsBoolean, IsOptional } from 'class-validator';
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
+import {
+  IsString,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateBroadBannerDto {
   @IsString()
   title!: string;
 
-  @IsUrl()
+  @IsImageUrl()
   image!: string;
 
   @IsOptional()

@@ -4,7 +4,6 @@ import { PieceController } from './piece.controller';
 import { PieceService } from './piece.service';
 import { StalePieceAlertService } from './stale-piece-alert.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { InventoryModule } from 'src/inventory/inventory.module';
@@ -24,7 +23,6 @@ import { NotificationModule } from 'src/notifications/notifications.module';
   providers: [
     PieceService,
     StalePieceAlertService,
-    PrismaService,
     PermissionService,
     ActivityLogService,
   ],

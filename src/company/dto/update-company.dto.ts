@@ -1,4 +1,9 @@
-import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
+import {
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateCompanyDto {
   // Basic
@@ -7,12 +12,10 @@ export class UpdateCompanyDto {
   @MaxLength(100)
   name?: string;
 
-  @IsOptional()
-  @IsString()
+  @IsImageUrl({ optional: true })
   logo?: string;
 
-  @IsOptional()
-  @IsString()
+  @IsImageUrl({ optional: true })
   favicon?: string;
 
   @IsOptional()
@@ -93,8 +96,7 @@ export class UpdateCompanyDto {
   @MaxLength(160)
   metaDescription?: string;
 
-  @IsOptional()
-  @IsString()
+  @IsImageUrl({ optional: true })
   ogImage?: string;
 
   // Marketing / tracking
