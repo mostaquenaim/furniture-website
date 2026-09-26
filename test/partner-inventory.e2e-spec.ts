@@ -94,6 +94,8 @@ describe('Partner Inventory API (e2e)', () => {
     const rowA = await prisma.productSize.create({
       data: {
         sku: 'E2E-A',
+        basePrice: 1000,
+        price: 1000,
         quantity: 20,
         lowStockAt: 5,
         colorId: productColor.id,
@@ -103,6 +105,8 @@ describe('Partner Inventory API (e2e)', () => {
     const rowB = await prisma.productSize.create({
       data: {
         sku: 'E2E-B',
+        basePrice: 1000,
+        price: 1000,
         quantity: 1,
         lowStockAt: 5,
         colorId: productColor.id,

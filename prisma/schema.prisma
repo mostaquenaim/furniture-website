@@ -708,8 +708,8 @@ model ProductSize {
 
   discountType String?
   discount     Int     @default(0)
-  basePrice    Int?
-  price        Int?
+  basePrice    Int
+  price        Int
   quantity     Int     @default(0)
   lowStockAt   Int     @default(5)
 

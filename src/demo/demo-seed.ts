@@ -312,6 +312,7 @@ async function createProductRecord(
               sizeId: size.id,
               sku: `SKU-${slug.toUpperCase().slice(0, 8)}-${color.id}-${size.id}`,
               basePrice,
+              price: basePrice,
               quantity: faker.number.int({ min: 5, max: 40 }),
             })),
           },

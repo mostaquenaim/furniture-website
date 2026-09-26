@@ -30,14 +30,64 @@ export class CartService {
   // state — nothing about the discount is cached on the cart, so this
   // self-corrects if items change or the coupon is edited/expires, instead
   // of silently going stale (see coupon-pricing.util.ts).
+  //
+  // A coupon that's inactive/expired/not-yet-started (e.g. an admin switched
+  // it back to draft) is unlinked from the cart here, so the customer never
+  // sees a dead code "applied" and order creation can't be blocked by it.
+  // A live coupon the cart just doesn't qualify for (min spend, categories)
+  // stays linked — adding items can make it apply — and couponError says why.
+  private async resolveCartCoupon<
+    T extends { id: number; couponId: number | null },
+  >(
+    cart: T & { coupon: CouponWithCategories | null },
+  ): Promise<
+    T & {
+      coupon: CouponWithCategories | null;
+      discountAmount: number;
+      freeDelivery: boolean;
+      couponError: string | null;
+    }
+  > {
+    if (cart.coupon && !isCouponWithinWindow(cart.coupon).ok) {
+      await this.prisma.cart.update({
+        where: { id: cart.id },
+        data: { couponId: null },
+      });
+      return {
+        ...cart,
+        couponId: null,
+        coupon: null,
+        discountAmount: 0,
+        freeDelivery: false,
+        couponError: null,
+      };
+    }
+
+    const { discountAmount, freeDelivery, couponError } =
+      await this.computeCartDiscount(cart.id, cart.coupon);
+    return { ...cart, discountAmount, freeDelivery, couponError };
+  }
+
   private async computeCartDiscount(
     cartId: number,
     coupon: CouponWithCategories | null,
-  ): Promise<{ discountAmount: number; freeDelivery: boolean }> {
-    if (!coupon) return { discountAmount: 0, freeDelivery: false };
+  ): Promise<{
+    discountAmount: number;
+    freeDelivery: boolean;
+    couponError: string | null;
+  }> {
+    if (!coupon) {
+      return { discountAmount: 0, freeDelivery: false, couponError: null };
+    }
 
     const window = isCouponWithinWindow(coupon);
-    if (!window.ok) return { discountAmount: 0, freeDelivery: false };
+    if (!window.ok) {
+      return {
+        discountAmount: 0,
+        freeDelivery: false,
+        couponError: window.reason,
+      };
+    }
 
     const items = await this.prisma.cartItem.findMany({
       where: { cartId },
@@ -70,11 +120,18 @@ export class CartService {
 
     const discount = computeCouponDiscount(eligibilityItems, coupon);
     const cartCheck = validateCouponAgainstCart(coupon, discount);
-    if (!cartCheck.ok) return { discountAmount: 0, freeDelivery: false };
+    if (!cartCheck.ok) {
+      return {
+        discountAmount: 0,
+        freeDelivery: false,
+        couponError: cartCheck.reason,
+      };
+    }
 
     return {
       discountAmount: discount.discountAmount,
       freeDelivery: discount.freeDelivery,
+      couponError: null,
     };
   }
 
@@ -113,20 +170,12 @@ export class CartService {
         coupon: null,
         discountAmount: 0,
         freeDelivery: false,
+        couponError: null,
       };
     }
 
     if (filter.isSummary) {
-      const { discountAmount, freeDelivery } = await this.computeCartDiscount(
-        cart.id,
-        cart.coupon,
-      );
-      return {
-        ...cart,
-        items: [],
-        discountAmount,
-        freeDelivery,
-      };
+      return { ...(await this.resolveCartCoupon(cart)), items: [] };
     }
 
     const items = await this.prisma.cartItem.findMany({
@@ -262,18 +311,11 @@ export class CartService {
       }
     }
 
-    const { discountAmount, freeDelivery } = await this.computeCartDiscount(
-      cart.id,
-      cart.coupon,
-    );
-
     return {
-      ...cart,
+      ...(await this.resolveCartCoupon(cart)),
       items,
       codAvailable,
       codMessage,
-      discountAmount,
-      freeDelivery,
     };
   }
 
@@ -305,20 +347,12 @@ export class CartService {
         baseSubtotalAtAdd: 0,
         discountAmount: 0,
         freeDelivery: false,
+        couponError: null,
       };
     }
 
     if (filter.isSummary) {
-      const { discountAmount, freeDelivery } = await this.computeCartDiscount(
-        cart.id,
-        cart.coupon,
-      );
-      return {
-        ...cart,
-        items: [],
-        discountAmount,
-        freeDelivery,
-      };
+      return { ...(await this.resolveCartCoupon(cart)), items: [] };
     }
 
     const items = await this.prisma.cartItem.findMany({
@@ -454,18 +488,11 @@ export class CartService {
       }
     }
 
-    const { discountAmount, freeDelivery } = await this.computeCartDiscount(
-      cart.id,
-      cart.coupon,
-    );
-
     return {
-      ...cart,
+      ...(await this.resolveCartCoupon(cart)),
       items,
       codAvailable,
       codMessage,
-      discountAmount,
-      freeDelivery,
     };
   }
 
@@ -561,12 +588,7 @@ export class CartService {
       throw new BadRequestException('Not enough stock');
     }
 
-    if (productSize.price == null) {
-      throw new BadRequestException('Variant price not set');
-    }
-
-    const basePrice =
-      productSize.basePrice ?? productSize.color.product.basePrice;
+    const basePrice = productSize.basePrice;
     const finalPrice = productSize.price;
 
     const colorName = productSize.color.color.name;
@@ -667,9 +689,8 @@ export class CartService {
       throw new BadRequestException('Not enough stock');
     }
 
-    const basePrice =
-      productSize.basePrice ?? productSize.color.product.basePrice;
-    const finalPrice = productSize.price ?? basePrice;
+    const basePrice = productSize.basePrice;
+    const finalPrice = productSize.price;
 
     const colorName = productSize.color.color.name;
     const sizeName = productSize.size.name;
@@ -899,6 +920,22 @@ export class CartService {
     const window = isCouponWithinWindow(coupon);
     if (!window.ok) throw new BadRequestException(window.reason);
 
+    // Same limits createOrder enforces — checked here too so a spent coupon
+    // is rejected when it's applied, not only at "Place Order".
+    if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
+      throw new BadRequestException('This coupon has reached its usage limit');
+    }
+    if (userId && coupon.perUserLimit != null) {
+      const usedByUser = await this.prisma.order.count({
+        where: { userId, couponId: coupon.id },
+      });
+      if (usedByUser >= coupon.perUserLimit) {
+        throw new BadRequestException(
+          'You have already used this coupon the maximum number of times',
+        );
+      }
+    }
+
     const eligibilityItems = cart.items.map((item) => ({
       subtotalAtAdd: item.subtotalAtAdd,
       categoryIds: item.productSize.color.product.subCategories.map(
@@ -925,6 +962,35 @@ export class CartService {
       freeDelivery: discount.freeDelivery,
       coupon,
     };
+  }
+
+  // remove coupon
+  async removeCoupon(
+    userId: number | null,
+    visitorId: string | null,
+    cartId: number,
+  ) {
+    if (!userId && !visitorId) {
+      throw new BadRequestException('visitorId required');
+    }
+
+    const cart = await this.prisma.cart.findFirst({
+      where: {
+        id: cartId,
+        status: 'ACTIVE',
+        ...(userId ? { userId } : {}),
+        ...(!userId && visitorId ? { visitorId } : {}),
+      },
+    });
+
+    if (!cart) throw new NotFoundException('Cart not found');
+
+    await this.prisma.cart.update({
+      where: { id: cartId },
+      data: { couponId: null },
+    });
+
+    return { success: true };
   }
 
   // delete item

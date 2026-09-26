@@ -938,10 +938,10 @@ export class ProductService {
               // quantity-only restock) — fall back to the existing value
               // instead of wiping it, otherwise every partial update would
               // silently null out the price and zero out the discount.
-              const resolvedBasePrice =
+              const resolvedBasePrice: number =
                 size.price !== undefined && size.price !== null
                   ? Number(size.price)
-                  : existingSize.basePrice;
+                  : (existingSize.basePrice ?? effectiveBasePrice);
               const resolvedDiscount =
                 size.discount !== undefined
                   ? size.discount
@@ -951,10 +951,9 @@ export class ProductService {
                   ? size.discountType
                   : (existingSize.discountType as DiscountType | null);
 
-              let sizePrice: number | null = resolvedBasePrice;
+              let sizePrice: number = resolvedBasePrice;
 
               if (
-                resolvedBasePrice !== null &&
                 resolvedDiscount &&
                 resolvedDiscount > 0 &&
                 resolvedDiscountType
@@ -967,7 +966,7 @@ export class ProductService {
                 } else if (resolvedDiscountType === DiscountType.FIXED) {
                   sizePrice = resolvedBasePrice - resolvedDiscount;
                 }
-                if (sizePrice !== null && sizePrice < 0) sizePrice = 0;
+                if (sizePrice < 0) sizePrice = 0;
               }
 
               await tx.productSize.update({
