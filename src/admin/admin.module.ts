@@ -25,6 +25,7 @@ import { RefundModule } from 'src/refund/refund.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusService } from 'src/order-status/order-status.service';
 import { PieceModule } from 'src/piece/piece.module';
+import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PieceModule } from 'src/piece/piece.module';
     RefundModule,
     ReservationModule,
     PieceModule,
+    DeliveryFeeModule,
   ],
   controllers: [AdminController],
   providers: [

@@ -19,6 +19,7 @@ import { PaymentMethodConfigModule } from 'src/payment-method-config/payment-met
 import { SettingsModule } from 'src/settings/settings.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusService } from 'src/order-status/order-status.service';
+import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { OrderStatusService } from 'src/order-status/order-status.service';
     PaymentMethodConfigModule,
     SettingsModule,
     ReservationModule,
+    DeliveryFeeModule,
   ],
   controllers: [CmsController],
   providers: [

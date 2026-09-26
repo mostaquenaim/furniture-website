@@ -13,6 +13,7 @@ import { RefundModule } from 'src/refund/refund.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusModule } from 'src/order-status/order-status.module';
 import { PermissionService } from 'src/permission/permission.service';
+import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PermissionService } from 'src/permission/permission.service';
     RefundModule,
     ReservationModule,
     OrderStatusModule,
+    DeliveryFeeModule,
   ],
   providers: [
     OrderService,

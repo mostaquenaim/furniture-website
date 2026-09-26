@@ -47,6 +47,10 @@ import {
   isCouponWithinWindow,
   validateCouponAgainstCart,
 } from 'src/cms/coupon-pricing.util';
+import {
+  computeItemsWeightKg,
+  DeliveryFeeService,
+} from 'src/courier/services/delivery-fee.service';
 
 @Injectable()
 export class OrderService {
@@ -63,6 +67,7 @@ export class OrderService {
     private paymentMethodConfigService: PaymentMethodConfigService,
     private reservationService: ReservationService,
     private orderStatusService: OrderStatusService,
+    private deliveryFeeService: DeliveryFeeService,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -310,7 +315,16 @@ export class OrderService {
 
       const window = isCouponWithinWindow(coupon);
       if (!window.ok) {
-        throw new BadRequestException(window.reason);
+        // Inactive/expired/not-yet-started coupons can never become valid
+        // for this checkout, so unlink it — otherwise the cart stays stuck
+        // on it and every retry fails the same way.
+        await this.prisma.cart.update({
+          where: { id: cart.id },
+          data: { couponId: null },
+        });
+        throw new BadRequestException(
+          `${window.reason}. It has been removed from your cart — please review your order.`,
+        );
       }
 
       const eligibilityItems = cart.items.map((item) => ({
@@ -342,13 +356,34 @@ export class OrderService {
       }
     }
 
-    // Delivery fee is always server-computed from the validated district —
-    // never trust a client-supplied value here, or a customer could zero out shipping.
-    const deliveryCharge = freeDelivery
-      ? 0
-      : (district.deliveryFee ??
-        Number(process.env.DEFAULT_DELIVERY_FEE) ??
-        120);
+    // Delivery fee is always server-computed — never trust a client-supplied
+    // value, or a customer could zero out shipping. It goes through the same
+    // DeliveryFeeService.quote() the checkout preview uses, with the weight
+    // taken from the cart's products, so the charge matches what was shown.
+    const { fee: quotedDeliveryFee } = await this.deliveryFeeService.quote({
+      districtId: district.id,
+      zoneId: dto.address.zoneId,
+      weightKg: computeItemsWeightKg(
+        cart.items.map((item) => ({
+          quantity: item.quantity,
+          weight: item.productSize?.color?.product?.weight,
+        })),
+      ),
+    });
+
+    if (
+      dto.expectedDeliveryFee !== undefined &&
+      Math.round(dto.expectedDeliveryFee) !== quotedDeliveryFee
+    ) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'DELIVERY_FEE_CHANGED',
+        deliveryFee: quotedDeliveryFee,
+        message: `The delivery charge for your address has been updated to ৳${quotedDeliveryFee}. Please review your order and place it again.`,
+      });
+    }
+
+    const deliveryCharge = freeDelivery ? 0 : quotedDeliveryFee;
     const total = subtotal - discount + deliveryCharge;
 
     if (dto.paymentMethod === 'COD') {

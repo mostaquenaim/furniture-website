@@ -71,6 +71,20 @@ export class CartController {
     );
   }
 
+  // remove coupon
+  @Delete('coupon/:cartId')
+  async removeCoupon(
+    @Param('cartId', ParseIntPipe) cartId: number,
+    @Req() req: any,
+    @Query('visitorId') visitorId?: string,
+  ) {
+    return this.cartService.removeCoupon(
+      req?.user?.userId,
+      visitorId || null,
+      cartId,
+    );
+  }
+
   // update cart item quantity
   @Patch('items/:id')
   async updateCartItemQuantity(

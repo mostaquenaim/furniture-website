@@ -28,6 +28,7 @@ import { CourierService } from 'src/courier/services/courier.service';
 import { SeasonalCategoryService } from 'src/seasonal-category/seasonal-category.service';
 import { HomepageGalleryService } from 'src/homepage-gallery/homepage-gallery.service';
 import { BroadBannerService } from 'src/banner/banner.service';
+import { DeliveryFeeService } from 'src/courier/services/delivery-fee.service';
 
 @Controller()
 export class CmsController {
@@ -38,6 +39,7 @@ export class CmsController {
     private readonly seasonalCategoryService: SeasonalCategoryService,
     private readonly homepageGalleryService: HomepageGalleryService,
     private readonly broadBannerService: BroadBannerService,
+    private readonly deliveryFeeService: DeliveryFeeService,
   ) {}
 
   // Validate a coupon code — public storefront endpoint (guest or logged-in
@@ -176,8 +178,8 @@ export class CmsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('delivery/fee')
-  async getDeliveryFee(@Body() body: any) {
-    const { cityId, zoneId, weight } = body;
+  async getDeliveryFee(@Body() body: any, @Req() req: any) {
+    const { cityId, zoneId, weight, cartId } = body;
 
     if (!cityId) {
       throw new BadRequestException('cityId is required');
@@ -187,14 +189,24 @@ export class CmsController {
       throw new BadRequestException('zoneId is required');
     }
 
-    if (!weight || weight <= 0) {
+    // Prefer the weight of the customer's actual cart so this preview uses
+    // exactly the weight createOrder will charge for; a raw weight is only
+    // accepted for callers that don't have a cart.
+    const weightKg = cartId
+      ? await this.deliveryFeeService.getCartWeightKg(
+          Number(cartId),
+          req?.user?.userId,
+        )
+      : Number(weight);
+
+    if (!cartId && (!Number.isFinite(weightKg) || weightKg <= 0)) {
       throw new BadRequestException('Invalid weight');
     }
 
-    return this.courierService.calculateDeliveryFee({
-      cityId: Number(cityId),
+    return this.deliveryFeeService.quote({
+      districtId: Number(cityId),
       zoneId: Number(zoneId),
-      weight: Number(weight),
+      weightKg,
     });
   }
 

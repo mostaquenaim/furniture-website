@@ -71,6 +71,14 @@ export class GuestController {
     return this.cartService.applyCoupon(null, visitorId, cartId, code);
   }
 
+  @Delete('cart/coupon/:cartId')
+  async removeCoupon(
+    @Param('cartId', ParseIntPipe) cartId: number,
+    @Query('visitorId') visitorId: string,
+  ) {
+    return this.cartService.removeCoupon(null, visitorId, cartId);
+  }
+
   @Patch('items/:id')
   async updateCartItemQuantity(
     @Param('id', ParseIntPipe) id: number,
