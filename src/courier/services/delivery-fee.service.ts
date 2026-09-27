@@ -6,11 +6,12 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PathaoProvider } from '../providers/pathao.provider';
 
-// Pathao bills anything under 0.5 kg as 0.5 kg and caps the price plan at
-// 10 kg (see PathaoProvider.calculateRate) — normalising here keeps the
-// cache key in step with what Pathao actually prices.
+// Pathao bills anything under 0.5 kg as 0.5 kg, and its price plan only goes
+// up to 10 kg (see PathaoProvider.calculateRate). Heavier parcels — common
+// for furniture — are quoted at the 10 kg price plus `extra_per_kg` (from the
+// Pathao provider config) for every started kg above 10.
 const MIN_BILLABLE_KG = 0.5;
-const MAX_BILLABLE_KG = 10;
+const PATHAO_MAX_KG = 10;
 
 // Pathao's price plans change rarely; caching keeps the checkout preview and
 // the order-time charge on the same number and keeps us under Pathao's
@@ -25,8 +26,17 @@ export interface DeliveryFeeQuote {
   source: 'pathao' | 'district';
 }
 
-/** Total parcel weight in kg for a set of cart/order lines. Product.weight is
- * a Prisma Decimal, so it's coerced with Number(). */
+/** Shipping weight of one unit: the size's own weight if set, else the
+ * product's. */
+export function resolveUnitWeight(
+  sizeWeight: unknown,
+  productWeight: unknown,
+): unknown {
+  return sizeWeight ?? productWeight;
+}
+
+/** Total parcel weight in kg for a set of cart/order lines. Weights are
+ * Prisma Decimals, so they're coerced with Number(). */
 export function computeItemsWeightKg(
   items: { quantity: number; weight: unknown }[],
 ): number {
@@ -67,6 +77,7 @@ export class DeliveryFeeService {
             quantity: true,
             productSize: {
               select: {
+                weight: true,
                 color: { select: { product: { select: { weight: true } } } },
               },
             },
@@ -80,7 +91,10 @@ export class DeliveryFeeService {
     return computeItemsWeightKg(
       cart.items.map((item) => ({
         quantity: item.quantity,
-        weight: item.productSize?.color?.product?.weight,
+        weight: resolveUnitWeight(
+          item.productSize?.weight,
+          item.productSize?.color?.product?.weight,
+        ),
       })),
     );
   }
@@ -104,12 +118,9 @@ export class DeliveryFeeService {
     if (!params.zoneId) return fallback;
 
     const billableKg =
-      Math.round(
-        Math.min(
-          Math.max(params.weightKg || 0, MIN_BILLABLE_KG),
-          MAX_BILLABLE_KG,
-        ) * 100,
-      ) / 100;
+      Math.round(Math.max(params.weightKg || 0, MIN_BILLABLE_KG) * 100) / 100;
+    const pricedKg = Math.min(billableKg, PATHAO_MAX_KG);
+    const overweightKg = Math.max(0, Math.ceil(billableKg - PATHAO_MAX_KG));
 
     const cacheKey = `${params.districtId}:${params.zoneId}:${billableKg}`;
     const cached = this.cache.get(cacheKey);
@@ -133,9 +144,9 @@ export class DeliveryFeeService {
     try {
       const rate = await this.pathao.calculateRate({
         store_id: storeId,
-        item_type: 2,
+        item_type: 2, // Parcel (1 = Document)
         delivery_type: 48, // Normal delivery — never On Demand for customer quotes
-        item_weight: billableKg,
+        item_weight: pricedKg,
         recipient_city: params.districtId,
         recipient_zone: params.zoneId,
       });
@@ -151,8 +162,23 @@ export class DeliveryFeeService {
       // Optional merchant markup on top of Pathao's price, set via the
       // provider's config JSON. Absent means none — an explicit 0 is honoured.
       const extra = Number(provider.config?.extra_charge ?? 0);
+
+      let overweightCharge = 0;
+      if (overweightKg > 0) {
+        const perKg = Number(provider.config?.extra_per_kg);
+        if (Number.isFinite(perKg) && perKg > 0) {
+          overweightCharge = overweightKg * perKg;
+        } else {
+          this.logger.warn(
+            `Parcel is ${billableKg} kg (over Pathao's ${PATHAO_MAX_KG} kg plan) but extra_per_kg is not set in the Pathao provider config — quoting the ${PATHAO_MAX_KG} kg price only`,
+          );
+        }
+      }
+
       const fee = Math.round(
-        pathaoFee + (Number.isFinite(extra) && extra > 0 ? extra : 0),
+        pathaoFee +
+          (Number.isFinite(extra) && extra > 0 ? extra : 0) +
+          overweightCharge,
       );
 
       if (this.cache.size >= QUOTE_CACHE_MAX_ENTRIES) this.cache.clear();

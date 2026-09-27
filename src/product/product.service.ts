@@ -59,6 +59,7 @@ export class ProductService {
       discount?: number | null;
       discountType?: DiscountType | null;
       quantity: number | string;
+      weight?: number | null;
     },
     basePriceFallback: number,
     adminId: number,
@@ -92,6 +93,7 @@ export class ProductService {
         price: finalPrice,
         discountType: size.discountType || null,
         discount: size.discount || 0,
+        weight: size.weight ?? null,
         quantity: 0,
       },
     });
@@ -976,6 +978,8 @@ export class ProductService {
                   price: sizePrice,
                   discountType: resolvedDiscountType ?? null,
                   discount: resolvedDiscount ?? 0,
+                  // Omitted = keep; explicit null = clear back to product weight.
+                  ...(size.weight !== undefined && { weight: size.weight }),
                 },
               });
             }

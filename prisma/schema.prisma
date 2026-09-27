@@ -713,6 +713,10 @@ model ProductSize {
   quantity     Int     @default(0)
   lowStockAt   Int     @default(5)
 
+  // Shipping weight in kg for this size; null falls back to Product.weight.
+  // Lets a 3-seater and a 1-seater of the same product quote differently.
+  weight Decimal? @db.Decimal(6, 2)
+
   soldCount Int @default(0)
 
   // Piece-level barcode tracking (see Piece model): LEGACY_QUANTITY keeps

@@ -28,6 +28,10 @@ import { COURIER_TO_ORDER_STATUS } from '../courier-status.map';
 import { ReservationService } from 'src/reservation/reservation.service';
 import { OrderStatusService } from 'src/order-status/order-status.service';
 import { CustomerOrderEventsGateway } from 'src/realtime/customer-order-events.gateway';
+import {
+  computeItemsWeightKg,
+  resolveUnitWeight,
+} from './delivery-fee.service';
 
 @Injectable()
 export class CourierService {
@@ -252,8 +256,15 @@ export class CourierService {
           recipient_name: baseData.customerName,
           recipient_phone: baseData.customerPhone,
           recipient_address: baseData.shippingAddress,
+          // Pathao IDs picked at checkout (District.id is Pathao's city_id;
+          // zone/area come straight from Pathao's lists). Sending them keeps
+          // Pathao billing the same zone the customer's fee was quoted for,
+          // instead of guessing it from the address text.
+          recipient_city: orderData.districtId ?? undefined,
+          recipient_zone: orderData.zoneId ?? undefined,
+          recipient_area: orderData.areaId ?? undefined,
           delivery_type: dto.deliveryType || 48, // Standard delivery
-          item_type: dto.itemType || 2, // Document/Parcel
+          item_type: dto.itemType || 2, // 2 = Parcel, 1 = Document
           special_instruction: dto.special_instruction || '',
           item_quantity: baseData.totalQuantity,
           item_weight: baseData.weight,
@@ -370,6 +381,7 @@ export class CourierService {
           items: {
             include: {
               product: true,
+              productSize: { select: { weight: true } },
             },
           },
           district: true,
@@ -777,11 +789,13 @@ export class CourierService {
       return 0.5; // Default weight
     }
 
-    const totalWeight = items.reduce((sum, item) => {
-      const itemWeight = item.product?.weight || item.weight || 0;
-      const quantity = item.quantity || 1;
-      return sum + itemWeight * quantity;
-    }, 0);
+    // Same per-size → per-product fallback the customer's quote used.
+    const totalWeight = computeItemsWeightKg(
+      items.map((item) => ({
+        quantity: item.quantity || 1,
+        weight: resolveUnitWeight(item.productSize?.weight, item.product?.weight),
+      })),
+    );
 
     // Minimum weight check (Pathao requires at least 0.5 kg)
     return Math.max(totalWeight, 0.5);

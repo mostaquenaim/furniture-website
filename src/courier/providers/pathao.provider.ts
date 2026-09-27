@@ -94,8 +94,11 @@ export class PathaoProvider implements CourierProviderInterface {
             recipient_name: data.recipient_name || data.customerName,
             recipient_phone: data.recipient_phone || data.customerPhone,
             recipient_address: data.recipient_address || data.shippingAddress,
+            ...(data.recipient_city && { recipient_city: data.recipient_city }),
+            ...(data.recipient_zone && { recipient_zone: data.recipient_zone }),
+            ...(data.recipient_area && { recipient_area: data.recipient_area }),
             delivery_type: data.delivery_type || 48, // 48 = standard delivery
-            item_type: data.item_type || 2, // 2 = document, 1 = parcel
+            item_type: data.item_type || 2, // 2 = parcel, 1 = document
             special_instruction: data.special_instruction || '',
             item_quantity: data.item_quantity || data.totalQuantity || 1,
             item_weight: data.item_weight || data.weight || '0.5',
@@ -188,6 +191,8 @@ export class PathaoProvider implements CourierProviderInterface {
   async calculateRate(data: any): Promise<any> {
     const token = await this.getPathaoAccessToken();
 
+    // Pathao's price plan accepts 0.5–10 kg; callers pricing heavier parcels
+    // add their own surcharge on top (see DeliveryFeeService.quote).
     const weight = Math.max(0.5, Math.min(data.item_weight, 10));
     try {
       const response = await firstValueFrom(
