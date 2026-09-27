@@ -7,6 +7,7 @@ import {
   IsEnum,
   ValidateNested,
   IsDate,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateProductColorDto } from './CreateProductColorDto.dto';
@@ -15,6 +16,7 @@ import { DiscountType } from '../roles.enum';
 
 export class CreateProductDto {
   @IsNumber()
+  @Min(0)
   basePrice: number;
 
   @IsArray()
@@ -40,6 +42,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   discount?: number;
 
   @IsOptional()

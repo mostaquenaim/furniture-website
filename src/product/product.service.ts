@@ -18,8 +18,13 @@ import { DiscountType } from './roles.enum';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { PieceService } from 'src/piece/piece.service';
 import { Prisma, UserRole } from '@prisma/client';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import {
+  applyDiscount,
+  assertValidDiscount,
   assertValidDiscountWindow,
+  computeDisplayPricing,
+  DISPLAY_SIZES,
   sanitizeDiscount,
 } from 'src/common/utils/discount.utils';
 import {
@@ -64,18 +69,17 @@ export class ProductService {
         ? Number(size.price)
         : basePriceFallback;
 
-    let finalPrice = sizeBasePrice;
-    if (size.discount && size.discount > 0 && size.discountType) {
-      if (size.discountType === DiscountType.PERCENT) {
-        finalPrice = Math.round(
-          sizeBasePrice - (sizeBasePrice * size.discount) / 100,
-        );
-      }
-      if (size.discountType === DiscountType.FIXED) {
-        finalPrice = sizeBasePrice - size.discount;
-      }
-      if (finalPrice < 0) finalPrice = 0;
-    }
+    assertValidDiscount(
+      sizeBasePrice,
+      size.discount,
+      size.discountType,
+      'Size discount',
+    );
+    const finalPrice = applyDiscount(
+      sizeBasePrice,
+      size.discount,
+      size.discountType,
+    );
 
     const requestedQuantity = Math.max(0, Number(size.quantity) || 0);
 
@@ -162,22 +166,17 @@ export class ProductService {
     }
 
     assertValidDiscountWindow(dto.discountStart, dto.discountEnd);
+    assertValidDiscount(dto.basePrice, dto.discount, dto.discountType);
 
-    const basePrice = dto.basePrice;
-    let price = basePrice;
-
-    if (dto.discount && dto.discount > 0) {
-      if (dto.discountType === DiscountType.PERCENT) {
-        price = Math.round(basePrice - (basePrice * dto.discount) / 100);
-      }
-
-      if (dto.discountType === DiscountType.FIXED) {
-        price = basePrice - dto.discount;
-      }
-    }
-
-    // safety guard
-    if (price < 0) price = 0;
+    // Placeholder until the sizes exist — syncStoredPrice below replaces it
+    // with the cheapest size's live price inside the same transaction.
+    const price = computeDisplayPricing({
+      basePrice: dto.basePrice,
+      discount: dto.discount,
+      discountType: dto.discountType,
+      discountStart: dto.discountStart,
+      discountEnd: dto.discountEnd,
+    }).price;
 
     // Validate tags
     if (dto.tags && dto.tags.length > 10) {
@@ -312,6 +311,8 @@ export class ProductService {
           skipDuplicates: true,
         });
       }
+
+      await this.syncStoredPrice(tx, product.id);
 
       // Return the complete product with all relations
       const updatedProduct = await tx.product.findUnique({
@@ -541,6 +542,7 @@ export class ProductService {
               orderBy: { serialNo: 'asc' },
               select: { image: true },
             },
+            colors: { select: { sizes: DISPLAY_SIZES } },
           },
         }
       : {
@@ -659,19 +661,21 @@ export class ProductService {
     const effectiveDiscountType =
       dto.discountType !== undefined ? dto.discountType : product.discountType;
 
-    let price: number = effectiveBasePrice;
+    assertValidDiscount(
+      effectiveBasePrice,
+      effectiveDiscount,
+      effectiveDiscountType,
+    );
 
-    if (effectiveDiscount && effectiveDiscount > 0) {
-      if (effectiveDiscountType === DiscountType.PERCENT) {
-        price = Math.round(
-          effectiveBasePrice - (effectiveBasePrice * effectiveDiscount) / 100,
-        );
-      } else if (effectiveDiscountType === DiscountType.FIXED) {
-        price = effectiveBasePrice - effectiveDiscount;
-      }
-    }
-
-    if (price < 0) price = 0;
+    // Placeholder — syncStoredPrice re-derives it from the sizes once
+    // they've been written in the transaction below.
+    const price = computeDisplayPricing({
+      basePrice: effectiveBasePrice,
+      discount: effectiveDiscount,
+      discountType: effectiveDiscountType,
+      discountStart: resolvedDiscountStart,
+      discountEnd: resolvedDiscountEnd,
+    }).price;
 
     const piecesGenerated: { productSizeId: number; quantity: number }[] = [];
 
@@ -951,23 +955,17 @@ export class ProductService {
                   ? size.discountType
                   : (existingSize.discountType as DiscountType | null);
 
-              let sizePrice: number = resolvedBasePrice;
-
-              if (
-                resolvedDiscount &&
-                resolvedDiscount > 0 &&
-                resolvedDiscountType
-              ) {
-                if (resolvedDiscountType === DiscountType.PERCENT) {
-                  sizePrice = Math.round(
-                    resolvedBasePrice -
-                      (resolvedBasePrice * resolvedDiscount) / 100,
-                  );
-                } else if (resolvedDiscountType === DiscountType.FIXED) {
-                  sizePrice = resolvedBasePrice - resolvedDiscount;
-                }
-                if (sizePrice < 0) sizePrice = 0;
-              }
+              assertValidDiscount(
+                resolvedBasePrice,
+                resolvedDiscount,
+                resolvedDiscountType,
+                'Size discount',
+              );
+              const sizePrice = applyDiscount(
+                resolvedBasePrice,
+                resolvedDiscount,
+                resolvedDiscountType,
+              );
 
               await tx.productSize.update({
                 where: { id: existingSize.id },
@@ -984,6 +982,8 @@ export class ProductService {
           }
         }
       }
+
+      await this.syncStoredPrice(tx, product.id);
 
       const updatedProduct = await tx.product.findUnique({
         where: { id: product.id },
@@ -1052,36 +1052,110 @@ export class ProductService {
     });
   }
 
-  // Re-derive each product's top-level display price from its own
-  // basePrice/discount/window. ProductSize.price is deliberately left
-  // untouched here — variant pricing is managed independently via each
-  // size's own discount fields (see the two-tier design in discount.utils.ts).
+  // Product.price is derived (cheapest size's live price, see
+  // discount.utils.ts) and only exists so the DB can filter/sort by price.
+  // In-stock sizes are preferred so it matches what listings show; a product
+  // with nothing in stock falls back to all its sizes.
+  private async syncStoredPrice(
+    tx: Prisma.TransactionClient,
+    productId: number,
+  ): Promise<void> {
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      select: {
+        price: true,
+        basePrice: true,
+        discount: true,
+        discountType: true,
+        discountStart: true,
+        discountEnd: true,
+        colors: {
+          select: {
+            sizes: {
+              select: {
+                basePrice: true,
+                price: true,
+                discount: true,
+                discountType: true,
+                quantity: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!product) return;
+
+    const price = this.derivedStoredPrice(product, new Date());
+    if (price !== product.price) {
+      await tx.product.update({ where: { id: productId }, data: { price } });
+    }
+  }
+
+  private derivedStoredPrice(
+    product: Omit<Parameters<typeof computeDisplayPricing>[0], 'colors'> & {
+      colors: {
+        sizes: {
+          quantity: number;
+          basePrice: number;
+          price: number;
+          discount: number;
+          discountType: string | null;
+        }[];
+      }[];
+    },
+    now: Date,
+  ): number {
+    const inStock = product.colors.map((c) => ({
+      sizes: c.sizes.filter((s) => s.quantity > 0),
+    }));
+    const hasInStock = inStock.some((c) => c.sizes.length > 0);
+    return computeDisplayPricing(
+      { ...product, colors: hasInStock ? inStock : product.colors },
+      now,
+    ).price;
+  }
+
+  // Re-derives every product's stored price. Runs every minute so a discount
+  // window opening/closing (and stock changing which size is cheapest) is
+  // reflected in price filters/sorting within a minute; only changed rows are
+  // written. Also exposed to admins as a manual "sync prices" action.
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'sync-product-prices' })
   async syncAllProductPrices() {
-    const products = await this.prisma.product.findMany();
     const now = new Date();
+    const products = await this.prisma.product.findMany({
+      select: {
+        id: true,
+        price: true,
+        basePrice: true,
+        discount: true,
+        discountType: true,
+        discountStart: true,
+        discountEnd: true,
+        colors: {
+          select: {
+            sizes: {
+              select: {
+                basePrice: true,
+                price: true,
+                discount: true,
+                discountType: true,
+                quantity: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     for (const product of products) {
-      const basePrice = product.basePrice;
-      let price = basePrice;
-
-      const hasWindow = !!product.discountStart && !!product.discountEnd;
-      const windowActive =
-        !hasWindow ||
-        (product.discountStart! <= now && product.discountEnd! >= now);
-
-      if (product.discount && product.discount > 0 && windowActive) {
-        if (product.discountType === DiscountType.PERCENT) {
-          price = Math.round(basePrice - (basePrice * product.discount) / 100);
-        } else if (product.discountType === DiscountType.FIXED) {
-          price = basePrice - product.discount;
-        }
+      const price = this.derivedStoredPrice(product, now);
+      if (price !== product.price) {
+        await this.prisma.product.update({
+          where: { id: product.id },
+          data: { price },
+        });
       }
-      if (price < 0) price = 0;
-
-      await this.prisma.product.update({
-        where: { id: product.id },
-        data: { price },
-      });
     }
 
     return { message: 'Product prices synchronized successfully' };
@@ -1612,6 +1686,7 @@ export class ProductService {
                 image: true,
               },
             },
+            colors: { select: { sizes: DISPLAY_SIZES } },
           },
         },
       },
@@ -1643,6 +1718,7 @@ export class ProductService {
         where: { serialNo: 1 },
         select: { image: true },
       },
+      colors: { select: { sizes: DISPLAY_SIZES } },
     };
   }
 
@@ -1722,7 +1798,7 @@ export class ProductService {
       take: limit,
       include: {
         images: true,
-        colors: { include: { color: true } },
+        colors: { include: { color: true, sizes: DISPLAY_SIZES } },
       },
     });
     return products.map((p) => sanitizeDiscount(p));
@@ -1739,17 +1815,7 @@ export class ProductService {
     sortBy?: string;
     order?: 'asc' | 'desc';
   }) {
-    const now = new Date();
-    const where = {
-      isActive: true,
-      discount: { gt: 0 },
-      ...IN_STOCK_PRODUCT_WHERE,
-      OR: [
-        // No window set → discount never expires.
-        { discountStart: null, discountEnd: null },
-        { discountStart: { lte: now }, discountEnd: { gte: now } },
-      ],
-    };
+    const where = this.onSaleWhere(new Date());
 
     const [data, total] = await Promise.all([
       this.prisma.product.findMany({
@@ -1760,7 +1826,7 @@ export class ProductService {
         include: {
           images: true,
           colors: {
-            include: { color: true },
+            include: { color: true, sizes: DISPLAY_SIZES },
           },
           subCategories: {
             include: {
@@ -1825,19 +1891,36 @@ export class ProductService {
   }
 
   async getSaleStatus() {
-    const now = new Date();
     const count = await this.prisma.product.count({
-      where: {
-        isActive: true,
-        discount: { gt: 0 },
-        totalProductQuantity: { gt: 0 },
-        OR: [
-          { discountStart: null, discountEnd: null },
-          { discountStart: { lte: now }, discountEnd: { gte: now } },
-        ],
-      },
+      where: this.onSaleWhere(new Date()),
     });
     return { hasActiveSale: count > 0, count };
+  }
+
+  // "On sale" = at least one in-stock size carries a discount and the
+  // product's window is open (or unset). Sizes are what's charged, so the
+  // product-level default discount alone doesn't count.
+  private onSaleWhere(now: Date): Prisma.ProductWhereInput {
+    return {
+      isActive: true,
+      ...IN_STOCK_PRODUCT_WHERE,
+      colors: {
+        some: {
+          sizes: {
+            some: {
+              ...IN_STOCK_SIZE_WHERE,
+              discount: { gt: 0 },
+              discountType: { not: null },
+            },
+          },
+        },
+      },
+      OR: [
+        // No window set → discount never expires.
+        { discountStart: null, discountEnd: null },
+        { discountStart: { lte: now }, discountEnd: { gte: now } },
+      ],
+    };
   }
 
   // get product's all reviews
@@ -1949,6 +2032,7 @@ export class ProductService {
       where: { slug },
       include: {
         images: { orderBy: { serialNo: 'asc' } },
+        colors: { select: { sizes: DISPLAY_SIZES } },
         subCategories: {
           include: {
             subCategory: {
@@ -1975,7 +2059,9 @@ export class ProductService {
     const siteUrl = (process.env.SITE_URL ?? '').replace(/\/$/, '');
     const productUrl = `${siteUrl}/products/${product.slug}`;
     const inStock = product.totalProductQuantity > 0;
-    const effectivePrice = product.price ?? product.basePrice;
+    // Same live "from" price listings show — never the raw stored column,
+    // which could advertise an expired discount to search engines.
+    const effectivePrice = computeDisplayPricing(product).price;
 
     const firstSub = product.subCategories[0]?.subCategory;
     const category = firstSub?.category;
@@ -2012,7 +2098,8 @@ export class ProductService {
         image: product.images.map((i) => i.image),
         brand: {
           '@type': 'Brand',
-          name: product.brand ?? process.env.BRAND_NAME ?? 'Ondorkotha Furniture',
+          name:
+            product.brand ?? process.env.BRAND_NAME ?? 'Ondorkotha Furniture',
         },
         ...(firstSub && { category: firstSub.name }),
         offers: {

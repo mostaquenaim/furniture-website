@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { CategoryService } from 'src/category/category.service';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { CmsService } from 'src/cms/cms.service';
 import { ProductService } from 'src/product/product.service';
@@ -48,7 +47,6 @@ import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
     AdminService,
     BlogsService,
     CategoryService,
-    PrismaService,
     PermissionService,
     CmsService,
     ProductService,

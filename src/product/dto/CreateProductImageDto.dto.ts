@@ -1,7 +1,12 @@
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateProductImageDto {
-  @IsString()
+  @IsImageUrl()
   image: string;
 
   // @IsOptional()

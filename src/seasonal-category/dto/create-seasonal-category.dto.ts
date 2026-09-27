@@ -1,3 +1,4 @@
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
 import {
   IsString,
   IsNotEmpty,
@@ -16,8 +17,7 @@ export class CreateSeasonalCategoryDto {
   @MaxLength(200)
   title!: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsImageUrl()
   image!: string;
 
   @IsString()

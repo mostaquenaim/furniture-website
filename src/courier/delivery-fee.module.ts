@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { DeliveryFeeService } from './services/delivery-fee.service';
 
 @Module({
@@ -10,7 +9,7 @@ import { DeliveryFeeService } from './services/delivery-fee.service';
       maxRedirects: 5,
     }),
   ],
-  providers: [DeliveryFeeService, PrismaService],
+  providers: [DeliveryFeeService],
   exports: [DeliveryFeeService],
 })
 export class DeliveryFeeModule {}

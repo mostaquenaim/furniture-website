@@ -13,6 +13,7 @@ import {
   isCouponWithinWindow,
   validateCouponAgainstCart,
 } from 'src/cms/coupon-pricing.util';
+import { effectiveSizePrice } from 'src/common/utils/discount.utils';
 
 interface CartFilter {
   productSlug?: string;
@@ -24,6 +25,94 @@ interface CartFilter {
 @Injectable()
 export class CartService {
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * Brings a cart in line with live data before it's read: drops items whose
+   * size is out of stock, clamps quantities to stock, re-prices every item to
+   * its size's current effective price (honouring the product's discount
+   * window, either direction), and recomputes the cart totals. Writes only
+   * what changed. Returns the fresh totals.
+   */
+  private async refreshCart(
+    cartId: number,
+  ): Promise<{ subtotalAtAdd: number; baseSubtotalAtAdd: number }> {
+    const now = new Date();
+    const items = await this.prisma.cartItem.findMany({
+      where: { cartId },
+      select: {
+        id: true,
+        quantity: true,
+        priceAtAdd: true,
+        basePriceAtAdd: true,
+        subtotalAtAdd: true,
+        baseSubtotalAtAdd: true,
+        productSize: {
+          select: {
+            quantity: true,
+            price: true,
+            basePrice: true,
+            color: {
+              select: {
+                product: {
+                  select: { discountStart: true, discountEnd: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    let subtotalAtAdd = 0;
+    let baseSubtotalAtAdd = 0;
+
+    for (const item of items) {
+      const stock = item.productSize.quantity;
+      if (stock <= 0) {
+        await this.prisma.cartItem.delete({ where: { id: item.id } });
+        continue;
+      }
+
+      const quantity = Math.min(item.quantity, stock);
+      const price = effectiveSizePrice(
+        item.productSize,
+        item.productSize.color.product,
+        now,
+      );
+      const basePrice = item.productSize.basePrice;
+      const subtotal = price * quantity;
+      const baseSubtotal = basePrice * quantity;
+
+      if (
+        quantity !== item.quantity ||
+        price !== item.priceAtAdd ||
+        basePrice !== item.basePriceAtAdd ||
+        subtotal !== item.subtotalAtAdd ||
+        baseSubtotal !== item.baseSubtotalAtAdd
+      ) {
+        await this.prisma.cartItem.update({
+          where: { id: item.id },
+          data: {
+            quantity,
+            priceAtAdd: price,
+            subtotalAtAdd: subtotal,
+            basePriceAtAdd: basePrice,
+            baseSubtotalAtAdd: baseSubtotal,
+          },
+        });
+      }
+
+      subtotalAtAdd += subtotal;
+      baseSubtotalAtAdd += baseSubtotal;
+    }
+
+    await this.prisma.cart.update({
+      where: { id: cartId },
+      data: { subtotalAtAdd, baseSubtotalAtAdd },
+    });
+
+    return { subtotalAtAdd, baseSubtotalAtAdd };
+  }
 
   // Live discount preview for a cart that has a coupon attached. Always
   // recomputed from current item prices/categories + the coupon's current
@@ -174,6 +263,23 @@ export class CartService {
       };
     }
 
+    return this.buildCartResponse(cart, filter);
+  }
+
+  // Shared tail of getCartItems/getGuestCartItems: refresh the cart against
+  // live stock/prices first, so everything returned (items, totals, coupon
+  // discount) reflects what the order would actually charge right now.
+  private async buildCartResponse<
+    T extends {
+      id: number;
+      couponId: number | null;
+      subtotalAtAdd: number;
+      baseSubtotalAtAdd: number;
+      coupon: CouponWithCategories | null;
+    },
+  >(cart: T, filter: CartFilter) {
+    Object.assign(cart, await this.refreshCart(cart.id));
+
     if (filter.isSummary) {
       return { ...(await this.resolveCartCoupon(cart)), items: [] };
     }
@@ -286,28 +392,6 @@ export class CartService {
         codAvailable = false;
         codMessage = `Cash on Delivery is not available for ${product.title}`;
         break;
-      }
-    }
-
-    for (const item of items) {
-      const availableStock = item.productSize.quantity;
-
-      if (availableStock <= 0) {
-        await this.prisma.cartItem.delete({
-          where: { id: item.id },
-        });
-        continue;
-      }
-
-      if (item.quantity > availableStock) {
-        await this.prisma.cartItem.update({
-          where: { id: item.id },
-          data: {
-            quantity: availableStock,
-            subtotalAtAdd: availableStock * item.priceAtAdd,
-            baseSubtotalAtAdd: availableStock * item.basePriceAtAdd,
-          },
-        });
       }
     }
 
@@ -351,149 +435,7 @@ export class CartService {
       };
     }
 
-    if (filter.isSummary) {
-      return { ...(await this.resolveCartCoupon(cart)), items: [] };
-    }
-
-    const items = await this.prisma.cartItem.findMany({
-      where: {
-        cartId: cart.id,
-        ...(filter.productSlug && {
-          productSize: {
-            color: {
-              product: { slug: filter.productSlug },
-            },
-          },
-        }),
-        ...(filter.colorId && {
-          productSize: { colorId: filter.colorId },
-        }),
-        ...(filter.sizeId && {
-          productSizeId: filter.sizeId,
-        }),
-      },
-      select: {
-        id: true,
-        quantity: true,
-        priceAtAdd: true,
-        subtotalAtAdd: true,
-        basePriceAtAdd: true,
-        baseSubtotalAtAdd: true,
-        color: true,
-        size: true,
-        productSizeId: true,
-        productSize: {
-          select: {
-            id: true,
-            quantity: true,
-            price: true,
-            basePrice: true,
-            size: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            color: {
-              select: {
-                id: true,
-                color: {
-                  select: {
-                    id: true,
-                    name: true,
-                    hexCode: true,
-                  },
-                },
-                product: {
-                  select: {
-                    id: true,
-                    slug: true,
-                    title: true,
-                    basePrice: true,
-                    material: true,
-                    createdAt: true,
-                    images: {
-                      select: { image: true },
-                    },
-                    subCategories: {
-                      select: {
-                        subCategory: {
-                          select: {
-                            id: true,
-                            name: true,
-                            isCODAvailable: true,
-                            category: {
-                              select: {
-                                id: true,
-                                name: true,
-                                series: {
-                                  select: {
-                                    id: true,
-                                    name: true,
-                                  },
-                                },
-                              },
-                            },
-                          },
-                        },
-                      },
-                    },
-                    weight: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // cod check
-    let codAvailable: boolean = true;
-    let codMessage: string | null = null;
-
-    for (const item of items) {
-      const product = item.productSize.color.product;
-
-      const hasNonCodSubcategory = product.subCategories.some(
-        (psc) => !psc.subCategory.isCODAvailable,
-      );
-
-      if (hasNonCodSubcategory) {
-        codAvailable = false;
-        codMessage = `Cash on Delivery is not available for ${product.title}`;
-        break;
-      }
-    }
-
-    for (const item of items) {
-      const availableStock = item.productSize.quantity;
-
-      if (availableStock <= 0) {
-        await this.prisma.cartItem.delete({
-          where: { id: item.id },
-        });
-        continue;
-      }
-
-      if (item.quantity > availableStock) {
-        await this.prisma.cartItem.update({
-          where: { id: item.id },
-          data: {
-            quantity: availableStock,
-            subtotalAtAdd: availableStock * item.priceAtAdd,
-            baseSubtotalAtAdd: availableStock * item.basePriceAtAdd,
-          },
-        });
-      }
-    }
-
-    return {
-      ...(await this.resolveCartCoupon(cart)),
-      items,
-      codAvailable,
-      codMessage,
-    };
+    return this.buildCartResponse(cart, filter);
   }
 
   // create cart
@@ -589,7 +531,10 @@ export class CartService {
     }
 
     const basePrice = productSize.basePrice;
-    const finalPrice = productSize.price;
+    const finalPrice = effectiveSizePrice(
+      productSize,
+      productSize.color.product,
+    );
 
     const colorName = productSize.color.color.name;
     const sizeName = productSize.size.name;
@@ -615,7 +560,9 @@ export class CartService {
         where: { id: existingItem.id },
         data: {
           quantity: newQty,
+          priceAtAdd: finalPrice,
           subtotalAtAdd: finalPrice * newQty,
+          basePriceAtAdd: basePrice,
           baseSubtotalAtAdd: basePrice * newQty,
         },
       });
@@ -690,7 +637,10 @@ export class CartService {
     }
 
     const basePrice = productSize.basePrice;
-    const finalPrice = productSize.price;
+    const finalPrice = effectiveSizePrice(
+      productSize,
+      productSize.color.product,
+    );
 
     const colorName = productSize.color.color.name;
     const sizeName = productSize.size.name;
@@ -715,7 +665,9 @@ export class CartService {
         where: { id: existingItem.id },
         data: {
           quantity: newQty,
+          priceAtAdd: finalPrice,
           subtotalAtAdd: finalPrice * newQty,
+          basePriceAtAdd: basePrice,
           baseSubtotalAtAdd: basePrice * newQty,
         },
       });
@@ -813,7 +765,17 @@ export class CartService {
         },
       },
       include: {
-        productSize: true,
+        productSize: {
+          include: {
+            color: {
+              select: {
+                product: {
+                  select: { discountStart: true, discountEnd: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -821,21 +783,23 @@ export class CartService {
       throw new NotFoundException('Cart item not found');
     }
 
-    if (
-      cartItem.productSize?.quantity &&
-      quantity > cartItem.productSize.quantity
-    ) {
+    if (quantity > cartItem.productSize.quantity) {
       throw new BadRequestException('Insufficient stock');
     }
 
-    const price = cartItem.priceAtAdd;
-    const basePrice = cartItem.basePriceAtAdd;
+    const price = effectiveSizePrice(
+      cartItem.productSize,
+      cartItem.productSize.color.product,
+    );
+    const basePrice = cartItem.productSize.basePrice;
 
     const updatedItem = await this.prisma.cartItem.update({
       where: { id: cartItemId },
       data: {
         quantity,
+        priceAtAdd: price,
         subtotalAtAdd: price * quantity,
+        basePriceAtAdd: basePrice,
         baseSubtotalAtAdd: basePrice * quantity,
       },
     });
@@ -936,8 +900,12 @@ export class CartService {
       }
     }
 
+    // Live prices, not the stored subtotals — the cart may not have been
+    // refreshed since a discount window opened/closed.
     const eligibilityItems = cart.items.map((item) => ({
-      subtotalAtAdd: item.subtotalAtAdd,
+      subtotalAtAdd:
+        effectiveSizePrice(item.productSize, item.productSize.color.product) *
+        item.quantity,
       categoryIds: item.productSize.color.product.subCategories.map(
         (psc) => psc.subCategory.categoryId,
       ),
@@ -1049,6 +1017,10 @@ export class CartService {
   // product being purchased directly, so checkout can't accidentally
   // bundle in unrelated items.
   async clearCart(userId: number | null, visitorId: string | null) {
+    // Without an owner the filter below would be just { status: 'ACTIVE' }
+    // and match (and wipe) some other customer's cart.
+    if (!userId && !visitorId) return { success: true };
+
     const cart = await this.prisma.cart.findFirst({
       where: {
         status: 'ACTIVE',

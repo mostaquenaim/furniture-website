@@ -47,6 +47,7 @@ import {
   isCouponWithinWindow,
   validateCouponAgainstCart,
 } from 'src/cms/coupon-pricing.util';
+import { effectiveSizePrice } from 'src/common/utils/discount.utils';
 import {
   computeItemsWeightKg,
   DeliveryFeeService,
@@ -266,32 +267,63 @@ export class OrderService {
       throw new ForbiddenException('Invalid cart');
     }
 
-    // 2a. Check for price changes
-    const priceChangedItems: string[] = [];
+    // 2a. Re-price every line at its live effective price (size price, or
+    // size basePrice outside the product's discount window). The cart is
+    // updated to match either way; an increase stops the order so the
+    // customer sees the new price before paying it, a decrease just goes
+    // through at the lower price.
+    const now = new Date();
+    const linePrices = new Map<number, { price: number; basePrice: number }>();
+    let priceIncreased = false;
+    let cartChanged = false;
+
     for (const item of cart.items) {
-      const productPrice = item?.productSize?.price ?? 0;
-      if (productPrice > Number(item.priceAtAdd)) {
-        // Update cart subtotalAtAdd for this item
+      const price = effectiveSizePrice(
+        item.productSize,
+        item.productSize.color.product,
+        now,
+      );
+      const basePrice = item.productSize.basePrice;
+      linePrices.set(item.id, { price, basePrice });
+
+      if (price > item.priceAtAdd) priceIncreased = true;
+      if (price !== item.priceAtAdd || basePrice !== item.basePriceAtAdd) {
+        cartChanged = true;
         await this.prisma.cartItem.update({
           where: { id: item.id },
           data: {
-            priceAtAdd: productPrice,
-            subtotalAtAdd: productPrice * item.quantity,
+            priceAtAdd: price,
+            subtotalAtAdd: price * item.quantity,
+            basePriceAtAdd: basePrice,
+            baseSubtotalAtAdd: basePrice * item.quantity,
           },
         });
-
-        priceChangedItems.push(item?.productSize?.color?.product?.title);
       }
     }
 
-    if (priceChangedItems.length > 0) {
+    // 3. Calculate totals — from the live line prices, never the stored
+    // cart.subtotalAtAdd, which can lag behind item changes.
+    const subtotal = cart.items.reduce(
+      (sum, item) => sum + linePrices.get(item.id)!.price * item.quantity,
+      0,
+    );
+    const baseSubtotal = cart.items.reduce(
+      (sum, item) => sum + linePrices.get(item.id)!.basePrice * item.quantity,
+      0,
+    );
+
+    if (cartChanged) {
+      await this.prisma.cart.update({
+        where: { id: cart.id },
+        data: { subtotalAtAdd: subtotal, baseSubtotalAtAdd: baseSubtotal },
+      });
+    }
+
+    if (priceIncreased) {
       throw new BadRequestException(
         `The price of one or more product(s) has increased. Your cart has been updated with the new price.`,
       );
     }
-
-    // 3. Calculate totals
-    const subtotal = cart.subtotalAtAdd ?? 0;
 
     // Re-validate the coupon against trusted DB state right now — never
     // trust whatever discount the cart carried earlier. A coupon can go
@@ -328,7 +360,7 @@ export class OrderService {
       }
 
       const eligibilityItems = cart.items.map((item) => ({
-        subtotalAtAdd: item.subtotalAtAdd,
+        subtotalAtAdd: linePrices.get(item.id)!.price * item.quantity,
         categoryIds: (
           item.productSize?.color?.product?.subCategories ?? []
         ).map((psc) => psc.subCategory.categoryId),
@@ -514,10 +546,10 @@ export class OrderService {
               color: item?.color,
               size: item?.size,
               quantity: item?.quantity,
-              priceAtPurchase: item?.productSize?.price ?? 0,
-              basePriceAtPurchase: item?.productSize?.basePrice ?? 0,
+              priceAtPurchase: linePrices.get(item.id)!.price,
+              basePriceAtPurchase: linePrices.get(item.id)!.basePrice,
               totalPriceAtPurchase:
-                (item?.productSize?.price ?? 0) * item?.quantity,
+                linePrices.get(item.id)!.price * item.quantity,
             })),
           },
         },
@@ -532,7 +564,8 @@ export class OrderService {
         data: {
           invoiceNo,
           orderId: order.id,
-          subtotal: order.total - deliveryCharge,
+          // Pre-discount, so subtotal - discount + shipping = total.
+          subtotal,
           discount: order.discount ?? 0,
           shippingCost: deliveryCharge ?? 0,
           tax: 0,

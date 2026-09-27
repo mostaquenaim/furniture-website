@@ -9,7 +9,6 @@ import { ConfigModule } from '@nestjs/config';
 import { RedxProvider } from './providers/redx.provider';
 import { PaperflyProvider } from './providers/paperfly.provider';
 import { PathaoProvider } from './providers/pathao.provider';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { SteadfastProvider } from './providers/steadfast.provider';
@@ -41,7 +40,6 @@ import { CustomerOrderEventsModule } from 'src/realtime/customer-order-events.mo
     RedxProvider,
     PaperflyProvider,
     PathaoProvider,
-    PrismaService,
     PermissionService,
     ActivityLogService,
     CourierWebhookService,

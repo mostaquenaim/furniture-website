@@ -11,11 +11,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
-import { sanitizeDiscount } from '../common/utils/discount.utils';
+import {
+  DISPLAY_SIZES,
+  sanitizeDiscount,
+} from '../common/utils/discount.utils';
 
 const activeProductInclude = {
   images: true,
-  colors: { include: { color: true } },
+  colors: { include: { color: true, sizes: DISPLAY_SIZES } },
 };
 
 @Injectable()
@@ -29,8 +32,9 @@ export class FlashSalesService {
 
   /**
    * Public: the single campaign whose date window includes right now.
-   * Products are individually sanitized — a product's own discount window
-   * (discountStart/discountEnd) is independent of the campaign window.
+   * Products are individually sanitized — the campaign only curates which
+   * products are featured; prices always come from each product's sizes and
+   * its own discount window (see discount.utils.ts).
    */
   async findActive() {
     const now = new Date();

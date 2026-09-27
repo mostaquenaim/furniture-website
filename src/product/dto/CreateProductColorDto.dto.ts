@@ -1,9 +1,11 @@
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
 import {
   IsNumber,
   IsOptional,
   IsBoolean,
   IsArray,
   IsString,
+  IsEnum,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -20,6 +22,7 @@ export class ProductColorSizeDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   price?: number;
 
   @IsNumber()
@@ -28,9 +31,11 @@ export class ProductColorSizeDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   discount?: number;
 
   @IsOptional()
+  @IsEnum(DiscountType)
   discountType?: DiscountType;
 }
 
@@ -44,7 +49,7 @@ export class CreateProductColorDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsImageUrl({ each: true })
   images?: string[];
 
   @IsOptional()

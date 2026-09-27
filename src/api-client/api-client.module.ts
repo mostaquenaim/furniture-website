@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { PermissionService } from 'src/permission/permission.service';
 import { ApiClientController } from './api-client.controller';
@@ -13,7 +12,6 @@ import { ApiUsageLogInterceptor } from './interceptors/api-usage-log.interceptor
   controllers: [ApiClientController],
   providers: [
     ApiClientService,
-    PrismaService,
     ActivityLogService,
     // RolesGuard (used by ApiClientController) needs PermissionService
     // resolvable from this module — same pattern InventoryModule follows.

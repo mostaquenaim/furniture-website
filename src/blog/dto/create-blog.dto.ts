@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsArray, IsBoolean, IsInt } from 'class-validator';
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+  IsInt,
+} from 'class-validator';
 
 export class CreateBlogDto {
   @IsString()
@@ -10,8 +17,7 @@ export class CreateBlogDto {
   @IsString()
   content: string;
 
-  @IsOptional()
-  @IsString()
+  @IsImageUrl({ optional: true })
   image?: string;
 
   @IsOptional()

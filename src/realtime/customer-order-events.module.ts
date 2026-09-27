@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { PrismaService } from '../prisma/prisma.service';
 import { CustomerOrderEventsGateway } from './customer-order-events.gateway';
 
 @Module({
@@ -9,7 +8,7 @@ import { CustomerOrderEventsGateway } from './customer-order-events.gateway';
       secret: process.env.JWT_SECRET || 'secretkey',
     }),
   ],
-  providers: [CustomerOrderEventsGateway, PrismaService],
+  providers: [CustomerOrderEventsGateway],
   exports: [CustomerOrderEventsGateway],
 })
 export class CustomerOrderEventsModule {}

@@ -1,3 +1,4 @@
+import { IsImageUrl } from '../../common/validators/is-image-url.decorator';
 import {
   IsBoolean,
   IsInt,
@@ -19,8 +20,7 @@ export class CreateColorDto {
   @IsInt()
   sortOrder?: number;
 
-  @IsOptional()
-  @IsString()
+  @IsImageUrl({ optional: true })
   image?: string;
 
   @IsOptional()
