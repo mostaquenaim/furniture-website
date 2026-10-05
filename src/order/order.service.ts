@@ -70,7 +70,7 @@ export class OrderService {
     private reservationService: ReservationService,
     private orderStatusService: OrderStatusService,
     private deliveryFeeService: DeliveryFeeService,
-  ) { }
+  ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
     const today = new Date();
@@ -143,11 +143,10 @@ export class OrderService {
       };
     }
 
-
     // Verify OTP
     const otpData = await this.prisma.oTP.findFirst({
       where: {
-        userId,   //cant set visitorId here because userId is integer nad visitorId is string
+        userId, //cant set visitorId here because userId is integer nad visitorId is string
         code: otp,
         type: 'phone',
         verified: false,
@@ -168,7 +167,10 @@ export class OrderService {
   }
 
   // Guest checkout rate limiting: max 2 orders per phone number in 10 minutes
-  private async assertGuestOrderRateLimit(phone: string, client: any = this.prisma) {
+  private async assertGuestOrderRateLimit(
+    phone: string,
+    client: any = this.prisma,
+  ) {
     // Calculate the time exactly 10 minutes before now.
     // Example:
     // Current time = 10:30
@@ -190,8 +192,8 @@ export class OrderService {
     // prevent creating another order.
     if (recentOrders >= 2) {
       throw new BadRequestException(
-        'This phone number has reached the guest checkout limit'
-      )
+        'This phone number has reached the guest checkout limit',
+      );
     }
   }
 
@@ -227,9 +229,11 @@ export class OrderService {
     );
   }
 
-
-
-  async createOrder(userId: number | null, dto: CreateOrderDto, visitorId?: string,) {
+  async createOrder(
+    userId: number | null,
+    dto: CreateOrderDto,
+    visitorId?: string,
+  ) {
     // 1. Validate district (especially for COD)
     const district = await this.prisma.city.findUnique({
       where: { id: dto.address.districtId },
@@ -251,12 +255,22 @@ export class OrderService {
 
     if (!userId) {
       // Guest checkout: require OTP for the provided phone number
-      const otpResponse = await this.handlePhoneOtp(null, normalizedOrderPhone, dto.otp);
+      const otpResponse = await this.handlePhoneOtp(
+        null,
+        normalizedOrderPhone,
+        dto.otp,
+      );
 
       if (otpResponse) return otpResponse;
-    } else if (userId &&
-      (!normalizedUserPhone || normalizedOrderPhone !== normalizedUserPhone)) {
-      const otpResponse = await this.handlePhoneOtp(userId, normalizedOrderPhone, dto.otp);
+    } else if (
+      userId &&
+      (!normalizedUserPhone || normalizedOrderPhone !== normalizedUserPhone)
+    ) {
+      const otpResponse = await this.handlePhoneOtp(
+        userId,
+        normalizedOrderPhone,
+        dto.otp,
+      );
 
       if (otpResponse) return otpResponse;
     }
@@ -317,7 +331,9 @@ export class OrderService {
       }
     }
 
-    const ownsCart = userId ? cart.userId === userId : cart.visitorId === visitorId;
+    const ownsCart = userId
+      ? cart.userId === userId
+      : cart.visitorId === visitorId;
     if (!ownsCart || cart.status !== 'ACTIVE') {
       throw new ForbiddenException('Invalid cart');
     }
@@ -668,12 +684,12 @@ export class OrderService {
             items:
               order.items && order.items.length > 0
                 ? order.items.map((i) => ({
-                  productTitle: i.productTitle,
-                  size: i.size,
-                  color: i.color,
-                  quantity: i.quantity,
-                  priceAtPurchase: i.priceAtPurchase,
-                }))
+                    productTitle: i.productTitle,
+                    size: i.size,
+                    color: i.color,
+                    quantity: i.quantity,
+                    priceAtPurchase: i.priceAtPurchase,
+                  }))
                 : [],
             subtotal: order.items.reduce(
               (sum, i) => sum + Number(i.totalPriceAtPurchase),
@@ -1091,23 +1107,25 @@ export class OrderService {
     <div class="meta-block">
       <div class="meta-label">Issued</div>
       <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.issuedAt)}</div>
-      ${invoice.dueDate
-        ? `
+      ${
+        invoice.dueDate
+          ? `
         <div class="meta-label" style="margin-top:14px">Due</div>
         <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.dueDate)}</div>
       `
-        : ''
+          : ''
       }
     </div>
     <div class="meta-block">
       <div class="meta-label">Order Ref</div>
       <div class="meta-mono">${invoice.order?.id ?? '—'}</div>
-      ${invoice.paidAt
-        ? `
+      ${
+        invoice.paidAt
+          ? `
         <div class="meta-label" style="margin-top:14px">Paid On</div>
         <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.paidAt)}</div>
       `
-        : ''
+          : ''
       }
     </div>
   </div>
@@ -1131,23 +1149,25 @@ export class OrderService {
       <div class="totals-row">
         <span>Subtotal</span><span class="val">${this.taka(subtotal)}</span>
       </div>
-      ${(invoice.discount ?? 0) > 0
-        ? `
+      ${
+        (invoice.discount ?? 0) > 0
+          ? `
       <div class="totals-row green">
         <span>Discount</span><span class="val">− ${this.taka(invoice.discount)}</span>
       </div>`
-        : ''
+          : ''
       }
       <div class="totals-row">
         <span>Shipping</span>
         <span class="val">${(invoice.shippingCost ?? 0) > 0 ? this.taka(invoice.shippingCost) : 'Free'}</span>
       </div>
-      ${(invoice.tax ?? 0) > 0
-        ? `
+      ${
+        (invoice.tax ?? 0) > 0
+          ? `
       <div class="totals-row">
         <span>Tax</span><span class="val">${this.taka(invoice.tax)}</span>
       </div>`
-        : ''
+          : ''
       }
       <div class="totals-grand">
         <span class="label">Total</span>
@@ -1369,7 +1389,6 @@ export class OrderService {
     const where = { visitorId, ...(status ? { status } : {}) };
 
     const [data, total] = await this.prisma.$transaction([
-
       // data
       this.prisma.order.findMany({
         where,
@@ -1398,14 +1417,14 @@ export class OrderService {
                   images: {
                     take: 1,
                     orderBy: {
-                      serialNo: 'asc'
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      serialNo: 'asc',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       }),
 
       // total
@@ -1418,9 +1437,9 @@ export class OrderService {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
       },
-    }
+    };
   }
 
   // track order
@@ -1512,13 +1531,13 @@ export class OrderService {
         status: statusMapping[status as OrderStatus],
         date: history
           ? new Date(history.createdAt).toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          })
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
           : '',
         completed: !!history,
         current: order.status === status,
@@ -1640,7 +1659,7 @@ export class OrderService {
     if (process.env.MANUAL_ORDER_STATUS_UPDATE !== 'true') {
       throw new BadRequestException(
         'Manual order status changes are disabled — status is driven by the courier webhook. ' +
-        'Set MANUAL_ORDER_STATUS_UPDATE=true in the environment to re-enable manual updates.',
+          'Set MANUAL_ORDER_STATUS_UPDATE=true in the environment to re-enable manual updates.',
       );
     }
 
@@ -1840,7 +1859,4 @@ export class OrderService {
 
     return updatedOrder;
   }
-
-
-
 }

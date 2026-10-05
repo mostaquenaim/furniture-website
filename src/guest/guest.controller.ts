@@ -25,7 +25,7 @@ export class GuestController {
     private readonly guestService: GuestService,
     private readonly cartService: CartService,
     private readonly orderService: OrderService,
-  ) { }
+  ) {}
 
   @Post('init')
   async createVisitor(@Body('visitorId') visitorId: string) {
@@ -109,8 +109,8 @@ export class GuestController {
     if (!visitorId) {
       return {
         success: false,
-        message: 'visitorId required'
-      }
+        message: 'visitorId required',
+      };
     }
 
     return this.orderService.createOrder(null, dto, visitorId);
@@ -123,14 +123,9 @@ export class GuestController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.orderService.getGuestOrders(
-      visitorId,
-      {
-        page: Math.max(1, Number(page) || 1),
-        limit: Math.min(25, Math.max(1, Number(limit) || 10)),
-      }
-    )
+    return this.orderService.getGuestOrders(visitorId, {
+      page: Math.max(1, Number(page) || 1),
+      limit: Math.min(25, Math.max(1, Number(limit) || 10)),
+    });
   }
-
-
 }
