@@ -74,15 +74,8 @@ export class GuestController {
     return this.cartService.countCartItems(null, visitorId);
   }
 
-  @Patch('cart/apply-coupon/:cartId')
-  async applyCoupon(
-    @Param('cartId', ParseIntPipe) cartId: number,
-    @Query('visitorId') visitorId: string,
-    @Body('code') code: string,
-  ) {
-    return this.cartService.applyCoupon(null, visitorId, cartId, code);
-  }
-
+  // No guest apply-coupon route: coupons require an account. Removing one
+  // that's already on the cart is still allowed.
   @Delete('cart/coupon/:cartId')
   async removeCoupon(
     @Param('cartId', ParseIntPipe) cartId: number,

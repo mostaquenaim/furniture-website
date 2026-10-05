@@ -839,6 +839,17 @@ export class CartService {
     cartId: number,
     couponCode: string,
   ) {
+    // Coupons are account-only. Covers both guest entry points (the shared
+    // cart route with ?visitorId= and any old guest route); `code` lets the
+    // frontend show a log-in prompt instead of a plain error.
+    if (!userId) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'COUPON_REQUIRES_LOGIN',
+        message: 'Please log in to use a coupon.',
+      });
+    }
+
     // Fetch cart with items and each item's categories, so eligibility can
     // be checked without a second round trip.
     const cart = await this.prisma.cart.findFirst({
