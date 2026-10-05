@@ -1202,6 +1202,7 @@ export class OrderService {
       thumb,
       from,
       to,
+      customerType,
     }: {
       page?: number;
       limit?: number;
@@ -1211,6 +1212,7 @@ export class OrderService {
       thumb?: boolean;
       from?: string;
       to?: string;
+      customerType?: 'guest' | 'registered';
     },
   ) {
     const skip = (page - 1) * limit;
@@ -1225,7 +1227,15 @@ export class OrderService {
 
     const isAdmin = user.role != 'CUSTOMER';
 
-    const where: any = {};
+    // admin-only; customers are always scoped to their own userId below
+    const customerTypeFilter =
+      isAdmin && customerType === 'guest'
+        ? { userId: null }
+        : isAdmin && customerType === 'registered'
+          ? { userId: { not: null } }
+          : {};
+
+    const where: any = { ...customerTypeFilter };
 
     if (!isAdmin) where.userId = userId;
 
@@ -1264,7 +1274,8 @@ export class OrderService {
     let data: any[];
     let total: number;
 
-    const whereCondition = !isAdmin ? { userId: userId } : {};
+    // status tab counts follow the customerType filter so they match the list
+    const whereCondition = !isAdmin ? { userId: userId } : customerTypeFilter;
 
     const statusGroups = await this.prisma.order.groupBy({
       by: ['status'],
