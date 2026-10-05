@@ -1386,7 +1386,7 @@ export class OrderService {
     },
   ) {
     const skip = (page - 1) * limit;
-    const where = { visitorId, ...(status ? { status } : {}) };
+    const where = { visitorId, userId: null, ...(status ? { status } : {}) };
 
     const [data, total] = await this.prisma.$transaction([
       // data
@@ -1642,6 +1642,161 @@ export class OrderService {
       customer: {
         id: order.user?.id,
         email: order.customerEmail || order.user?.email,
+      },
+    };
+  }
+
+  // get a single guest order (scoped to the visitor, never a user-owned order)
+  async getGuestOrder(visitorId: string, orderId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [{ orderId }, { trackingToken: orderId }],
+        visitorId,
+        userId: null,
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                slug: true,
+                images: {
+                  take: 1,
+                  orderBy: { serialNo: 'asc' },
+                },
+              },
+            },
+            productSize: { select: { quantity: true } },
+          },
+        },
+        orderStatusHistories: {
+          orderBy: { createdAt: 'asc' },
+        },
+        district: true,
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const statusMapping: Record<OrderStatus, string> = {
+      PENDING: 'Order Placed',
+      CONFIRMED: 'Order Confirmed',
+      PACKED: 'Packed',
+      SHIPPED: 'Shipped',
+      DELIVERED: 'Delivered',
+      CANCELLED: 'Cancelled',
+      RETURNED: 'Returned',
+      PROCESSING: 'Processing',
+      RETURN_REQUESTED: 'Return Requested',
+      FAILED: 'Failed',
+      ON_HOLD: 'On Hold',
+      PARTIALLY_DELIVERED: 'Partially Delivered',
+    };
+
+    const isSpecialStatus = ['CANCELLED', 'RETURNED'].includes(order.status);
+    const expectedFlow = isSpecialStatus
+      ? ['PENDING', order.status]
+      : ['PENDING', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED'];
+
+    const trackingEvents = expectedFlow.map((status) => {
+      const history = order.orderStatusHistories.find(
+        (h) => h.status === status,
+      );
+
+      return {
+        status: statusMapping[status as OrderStatus],
+        date: history
+          ? new Date(history.createdAt).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+          : '',
+        completed: !!history,
+        current: order.status === status,
+      };
+    });
+
+    return {
+      id: order.id,
+      orderNumber: order.orderId,
+      trackingToken: order.trackingToken,
+      orderDate: new Date(order.createdAt).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      estimatedDelivery: new Date(
+        new Date(order.createdAt).setDate(
+          new Date(order.createdAt).getDate() + 7,
+        ),
+      ).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      status: order.status,
+      trackingEvents,
+      hasOutOfStockItem: this.orderHasOutOfStockItem(order.status, order.items),
+      awbNumber: order.awbNumber,
+      deliveryMethod: order.deliveryMethod,
+      deliveryCharge: order.deliveryCharge || 0,
+      discount: order.discount || 0,
+      subtotal:
+        order.total - (order.deliveryCharge || 0) + (order.discount || 0),
+      total: order.total,
+      // no invoiceId: the invoice PDF endpoint requires auth, guests would hit a 401
+      paymentStatus: order.paymentStatus,
+      advanceRequired: order.advanceRequired,
+      advancePercentage: order.advancePercentage,
+      advanceAmount: order.advanceAmount,
+      remainingAmount: order.remainingAmount,
+
+      payments: order.payments.map((p) => ({
+        id: p.id,
+        method: p.method ?? order.deliveryMethod,
+        status: p.status,
+        transactionId: p.transactionId,
+        amount: p.amount,
+        phase: p.phase,
+      })),
+
+      shippingAddress: {
+        name: order.customerName,
+        phone: order.customerPhone,
+        address: order.shippingAddress,
+        district: order.district?.name || order.districtName,
+      },
+
+      items: order.items.map((item) => ({
+        id: item.id,
+        name: item.productTitle,
+        image: item.product.images[0]?.image || '/placeholder-product.jpg',
+        quantity: item.quantity,
+        price: item.priceAtPurchase,
+        color: item.color,
+        size: item.size,
+        sku: item.sku,
+        productSizeId: item.productSizeId,
+        isOutOfStock:
+          item.productSizeId != null && (item.productSize?.quantity ?? 0) <= 0,
+        subtotal: item.totalPriceAtPurchase,
+        isReviewed: item.isReviewed,
+        slug: item.product.slug,
+        productId: item.product.id,
+      })),
+
+      customer: {
+        email: order.customerEmail,
       },
     };
   }

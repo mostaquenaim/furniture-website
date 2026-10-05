@@ -12,12 +12,12 @@ import {
   Patch,
   ParseIntPipe,
   Delete,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { CartService } from 'src/cart/cart.service';
 import { GuestService } from './guest.service';
 import { OrderService } from 'src/order/order.service';
 import { CreateOrderDto } from 'src/order/dto/create-order.dto';
-import { Visitor } from 'handlebars';
 
 @Controller('guest')
 export class GuestController {
@@ -104,22 +104,15 @@ export class GuestController {
   @Post('orders/create')
   async createGuestOrder(
     @Body(new ValidationPipe({ transform: true })) dto: CreateOrderDto,
-    @Query('visitorId') visitorId: string,
+    @Query('visitorId', ParseUUIDPipe) visitorId: string,
   ) {
-    if (!visitorId) {
-      return {
-        success: false,
-        message: 'visitorId required',
-      };
-    }
-
     return this.orderService.createOrder(null, dto, visitorId);
   }
 
   // For getting all Guest Orders
   @Get('orders')
   getGuestOrders(
-    @Query('visitorId') visitorId: string,
+    @Query('visitorId', ParseUUIDPipe) visitorId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -127,5 +120,14 @@ export class GuestController {
       page: Math.max(1, Number(page) || 1),
       limit: Math.min(25, Math.max(1, Number(limit) || 10)),
     });
+  }
+
+  // For getting a single Guest Order
+  @Get('orders/:orderId')
+  getGuestOrder(
+    @Param('orderId') orderId: string,
+    @Query('visitorId', ParseUUIDPipe) visitorId: string,
+  ) {
+    return this.orderService.getGuestOrder(visitorId, orderId);
   }
 }
