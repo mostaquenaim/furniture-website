@@ -40,6 +40,7 @@ import {
 import { CustomerOrderEventsGateway } from '../realtime/customer-order-events.gateway';
 import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
 import { ReservationService } from 'src/reservation/reservation.service';
+import { BD_PHONE_REGEX } from 'src/common/utils/phone.utils';
 import { OrderStatusService } from 'src/order-status/order-status.service';
 import {
   computeCouponDiscount,
@@ -95,12 +96,12 @@ export class OrderService {
     return `ORD-${dateStr}-${random}-${sequence}`;
   }
 
+  // 1712345678 / 01712345678 / +8801712345678 → +8801712345678
   normalizeBDPhone(phone: string) {
-    let p = phone.replace(/\D/g, ''); // remove all non-digits
-    if (p.startsWith('0')) p = '+880' + p.slice(1);
-    else if (p.startsWith('1')) p = '+880' + p;
-    else if (!p.startsWith('+880')) p = '+880' + p;
-    return p;
+    let p = (phone ?? '').replace(/\D/g, ''); // remove all non-digits
+    if (p.startsWith('880')) p = p.slice(3);
+    else if (p.startsWith('0')) p = p.slice(1);
+    return '+880' + p;
   }
 
   private async handlePhoneOtp(
@@ -255,6 +256,15 @@ export class OrderService {
 
     // Phone OTP gate: verify if ordering phone differs from account phone
     const normalizedOrderPhone = this.normalizeBDPhone(dto.address.phone);
+
+    // Validated after normalizing (the DTO only sees the raw digits), and
+    // before the OTP gate so an invalid number never triggers an SMS
+    if (!BD_PHONE_REGEX.test(normalizedOrderPhone)) {
+      throw new BadRequestException(
+        'Please enter a valid Bangladeshi mobile number',
+      );
+    }
+
     const normalizedUserPhone = user?.phone
       ? this.normalizeBDPhone(user.phone)
       : null;
@@ -486,17 +496,6 @@ export class OrderService {
       appliedCoupon = coupon;
     }
 
-    let customerPhone = dto.address.phone;
-
-    // Ensure it starts with '+880'
-    if (!customerPhone.startsWith('+880')) {
-      if (customerPhone.startsWith('0')) {
-        customerPhone = '+880' + customerPhone.slice(1);
-      } else if (customerPhone.startsWith('1')) {
-        customerPhone = '+880' + customerPhone;
-      }
-    }
-
     // Delivery fee is always server-computed — never trust a client-supplied
     // value, or a customer could zero out shipping. It goes through the same
     // DeliveryFeeService.quote() the checkout preview uses, with the weight
@@ -652,7 +651,7 @@ export class OrderService {
           trackingToken,
           discount,
           customerName: dto.address.name,
-          customerPhone: customerPhone,
+          customerPhone: normalizedOrderPhone,
           shippingAddress: dto.address.fullAddress,
           zoneId: dto.address.zoneId || null,
           zoneName: dto.address.zoneName || null,
