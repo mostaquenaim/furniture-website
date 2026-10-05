@@ -336,21 +336,6 @@ export class OrderService {
       !normalizedUserPhone ||
       normalizedOrderPhone !== normalizedUserPhone;
 
-    if (needsOtp) {
-      if (!dto.otp) return this.sendOrderOtp(userId, normalizedOrderPhone);
-
-      const otp = await this.findValidOrderOtp(
-        userId,
-        normalizedOrderPhone,
-        dto.otp,
-      );
-      // step 12 moves this into the order transaction
-      await this.prisma.oTP.update({
-        where: { id: otp.id },
-        data: { verified: true },
-      });
-    }
-
     // 2. Fetch user's cart items
     const cart = await this.prisma.cart.findUnique({
       where: { id: dto.cartId },
@@ -384,6 +369,15 @@ export class OrderService {
       throw new BadRequestException('Cart is empty');
     }
 
+    // Ownership first, before any check whose error could reveal what's in
+    // someone else's cart (e.g. a product title in the COD message)
+    const ownsCart = userId
+      ? cart.userId === userId
+      : cart.visitorId === visitorId;
+    if (!ownsCart || cart.status !== 'ACTIVE') {
+      throw new ForbiddenException('Invalid cart');
+    }
+
     if (dto.paymentMethod === 'COD') {
       // District check
       if (!district.isCODAvailable) {
@@ -405,13 +399,6 @@ export class OrderService {
           }
         }
       }
-    }
-
-    const ownsCart = userId
-      ? cart.userId === userId
-      : cart.visitorId === visitorId;
-    if (!ownsCart || cart.status !== 'ACTIVE') {
-      throw new ForbiddenException('Invalid cart');
     }
 
     if (!userId) {
@@ -611,6 +598,29 @@ export class OrderService {
       : 0;
     const remainingAmount = advanceRequired ? total - advanceAmount : 0;
 
+    // Phone OTP gate — deliberately after every check that can reject the
+    // order (cart, COD, guest guards, prices, coupon, delivery fee), so an
+    // SMS is only ever sent for an order that would go through.
+    let verifiedOtpId: number | null = null;
+
+    if (needsOtp) {
+      if (!dto.otp) {
+        // Cheap pre-check so a rate-limited guest doesn't get an SMS; the
+        // authoritative check runs under the advisory lock in the tx below
+        if (!userId) await this.assertGuestOrderRateLimit(normalizedOrderPhone);
+        return this.sendOrderOtp(userId, normalizedOrderPhone);
+      }
+
+      // Outside the tx on purpose: the attempt it claims must survive a
+      // failed order, or a rollback would hand the attempt back
+      const otp = await this.findValidOrderOtp(
+        userId,
+        normalizedOrderPhone,
+        dto.otp,
+      );
+      verifiedOtpId = otp.id;
+    }
+
     const stockEvents: StockUpdatedPayload[] = [];
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -632,6 +642,19 @@ export class OrderService {
         // prevent two guest orders with the same phone number from passing the rate-limit check at the same time.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${normalizedOrderPhone}))`;
         await this.assertGuestOrderRateLimit(normalizedOrderPhone, tx);
+      }
+
+      // Mark the OTP used in the same tx as the order: if the order fails the
+      // code stays usable for a retry, and the conditional update means two
+      // concurrent requests can't both place an order with one code
+      if (verifiedOtpId !== null) {
+        const used = await tx.oTP.updateMany({
+          where: { id: verifiedOtpId, verified: false },
+          data: { verified: true },
+        });
+        if (used.count === 0) {
+          throw new BadRequestException('Invalid or expired OTP');
+        }
       }
 
       for (const item of cart.items) {
