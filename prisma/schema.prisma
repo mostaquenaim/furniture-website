@@ -82,6 +82,7 @@ model Visitor {
   userId Int?
 
   carts     Cart[]
+  orders    Order[]
   views     ProductView[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -105,8 +106,8 @@ model RolePermission {
 // Partner API (3rd-party, key-authenticated access)
 // =====================
 model ApiClient {
-  id       Int    @id @default(autoincrement())
-  name     String // e.g. "Acme ERP Sync" — shown in the admin panel and logs
+  id   Int    @id @default(autoincrement())
+  name String // e.g. "Acme ERP Sync" — shown in the admin panel and logs
 
   // Only the prefix is ever displayed/logged again after creation; the full
   // secret is shown to the admin exactly once and never stored in plaintext.
@@ -140,7 +141,7 @@ enum ApiClientStatus {
 // from ActivityLog, which requires a human adminId and is shaped around a
 // narrated admin action rather than high-volume machine traffic.
 model ApiKeyRequestLog {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   apiClientId Int
   apiClient   ApiClient @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
   method      String
@@ -166,8 +167,8 @@ model OTP {
   verified  Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user   User @relation(fields: [userId], references: [id])
-  userId Int
+  user   User? @relation(fields: [userId], references: [id])
+  userId Int?
 }
 
 model BlackListToken {
@@ -889,7 +890,11 @@ model Order {
   returnRequests       ReturnRequest[]
   shipmentGroup        ShipmentGroup?
 
+  visitorId String?
+  visitor   Visitor? @relation(fields: [visitorId], references: [id])
+
   @@index([couponId, userId])
+  @@index([visitorId, createdAt])
 }
 
 model OrderItem {

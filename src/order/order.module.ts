@@ -33,5 +33,6 @@ import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
     PermissionService,
   ],
   controllers: [OrderController],
+  exports: [OrderService],
 })
 export class OrderModule {}
