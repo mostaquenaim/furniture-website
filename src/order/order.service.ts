@@ -234,6 +234,12 @@ export class OrderService {
     dto: CreateOrderDto,
     visitorId?: string,
   ) {
+    // Guests are COD-only — checked before the OTP gate so a guest never
+    // gets an SMS for an order that would be rejected anyway
+    if (!userId && dto.paymentMethod !== 'COD') {
+      throw new BadRequestException('Guest orders are Cash on Delivery only');
+    }
+
     // 1. Validate district (especially for COD)
     const district = await this.prisma.city.findUnique({
       where: { id: dto.address.districtId },
@@ -336,6 +342,38 @@ export class OrderService {
       : cart.visitorId === visitorId;
     if (!ownsCart || cart.status !== 'ACTIVE') {
       throw new ForbiddenException('Invalid cart');
+    }
+
+    if (!userId) {
+      // Coupons are account-only. Unlink before throwing (like the expired
+      // coupon path below) so every retry doesn't fail the same way.
+      if (cart.couponId) {
+        await this.prisma.cart.update({
+          where: { id: cart.id },
+          data: { couponId: null },
+        });
+        throw new BadRequestException(
+          'Coupons require an account. It has been removed from your cart.',
+        );
+      }
+
+      // Same test as the advance calculation below: isAdvancePayment alone
+      // doesn't require a deposit, it also needs advancePercentage > 0
+      const needsAdvance = cart.items
+        .flatMap((i) => i.productSize?.color?.product?.subCategories ?? [])
+        .some(
+          (ps) =>
+            ps.subCategory.isAdvancePayment &&
+            ps.subCategory.advancePercentage > 0,
+        );
+      if (needsAdvance) {
+        throw new BadRequestException({
+          statusCode: 400,
+          code: 'GUEST_ADVANCE_PAYMENT_REQUIRES_LOGIN',
+          message:
+            'This order needs an advance payment. Please log in to continue.',
+        });
+      }
     }
 
     // 2a. Re-price every line at its live effective price (size price, or
