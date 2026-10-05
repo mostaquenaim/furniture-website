@@ -68,9 +68,24 @@ export class DeliveryFeeService {
     this.pathao = new PathaoProvider(httpService, configService);
   }
 
-  async getCartWeightKg(cartId: number, userId?: number | null, visitorId?: string): Promise<number> {
+  async getCartWeightKg(
+    cartId: number,
+    userId?: number | null,
+    visitorId?: string,
+  ): Promise<number> {
+    // An undefined visitorId is dropped by Prisma, which would leave the
+    // filter as just { id, status } and read any customer's cart.
+    // visitorId arrives untyped from the request body, hence the type check
+    if (!userId && (typeof visitorId !== 'string' || !visitorId)) {
+      throw new BadRequestException('visitorId required');
+    }
+
     const cart = await this.prisma.cart.findFirst({
-      where: { id: cartId, status: 'ACTIVE', ...(userId ? { userId } : { visitorId}) },
+      where: {
+        id: cartId,
+        status: 'ACTIVE',
+        ...(userId ? { userId } : { visitorId }),
+      },
       select: {
         items: {
           select: {
