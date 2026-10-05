@@ -68,9 +68,9 @@ export class DeliveryFeeService {
     this.pathao = new PathaoProvider(httpService, configService);
   }
 
-  async getCartWeightKg(cartId: number, userId: number): Promise<number> {
+  async getCartWeightKg(cartId: number, userId?: number | null, visitorId?: string): Promise<number> {
     const cart = await this.prisma.cart.findFirst({
-      where: { id: cartId, userId, status: 'ACTIVE' },
+      where: { id: cartId, status: 'ACTIVE', ...(userId ? { userId } : { visitorId}) },
       select: {
         items: {
           select: {

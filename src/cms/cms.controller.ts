@@ -150,13 +150,14 @@ export class CmsController {
   }
 
   // DISTRICTS
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('districts')
   async getDistricts() {
     return this.cmsService.getDistricts();
   }
 
-  @UseGuards(JwtAuthGuard)
+
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('zones')
   async getZones(@Query('cityId') cityId: string) {
     if (!cityId) {
@@ -166,7 +167,7 @@ export class CmsController {
     return this.courierService.getZones(Number(cityId));
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('areas')
   async getAreas(@Query('zoneId') zoneId: string) {
     if (!zoneId) {
@@ -176,10 +177,10 @@ export class CmsController {
     return this.courierService.getAreas(Number(zoneId));
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @Post('delivery/fee')
   async getDeliveryFee(@Body() body: any, @Req() req: any) {
-    const { cityId, zoneId, weight, cartId } = body;
+    const { cityId, zoneId, weight, cartId, visitorId } = body;
 
     if (!cityId) {
       throw new BadRequestException('cityId is required');
@@ -196,6 +197,7 @@ export class CmsController {
       ? await this.deliveryFeeService.getCartWeightKg(
           Number(cartId),
           req?.user?.userId,
+          visitorId,
         )
       : Number(weight);
 

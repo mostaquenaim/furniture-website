@@ -15,13 +15,17 @@ import {
 } from '@nestjs/common';
 import { CartService } from 'src/cart/cart.service';
 import { GuestService } from './guest.service';
+import { OrderService } from 'src/order/order.service';
+import { CreateOrderDto } from 'src/order/dto/create-order.dto';
+import { Visitor } from 'handlebars';
 
 @Controller('guest')
 export class GuestController {
   constructor(
     private readonly guestService: GuestService,
     private readonly cartService: CartService,
-  ) {}
+    private readonly orderService: OrderService,
+  ) { }
 
   @Post('init')
   async createVisitor(@Body('visitorId') visitorId: string) {
@@ -95,4 +99,38 @@ export class GuestController {
   ) {
     return this.cartService.removeItem(null, visitorId, id);
   }
+
+  // For creating Guest Order
+  @Post('orders/create')
+  async createGuestOrder(
+    @Body(new ValidationPipe({ transform: true })) dto: CreateOrderDto,
+    @Query('visitorId') visitorId: string,
+  ) {
+    if (!visitorId) {
+      return {
+        success: false,
+        message: 'visitorId required'
+      }
+    }
+
+    return this.orderService.createOrder(null, dto, visitorId);
+  }
+
+  // For getting all Guest Orders
+  @Get('orders')
+  getGuestOrders(
+    @Query('visitorId') visitorId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.orderService.getGuestOrders(
+      visitorId,
+      {
+        page: Math.max(1, Number(page) || 1),
+        limit: Math.min(25, Math.max(1, Number(limit) || 10)),
+      }
+    )
+  }
+
+
 }
