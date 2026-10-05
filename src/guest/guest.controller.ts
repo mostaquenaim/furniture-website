@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Controller,
@@ -18,6 +16,7 @@ import { CartService } from 'src/cart/cart.service';
 import { GuestService } from './guest.service';
 import { OrderService } from 'src/order/order.service';
 import { CreateOrderDto } from 'src/order/dto/create-order.dto';
+import { GuestAddCartItemDto } from './dto/guest-add-cart-item.dto';
 
 @Controller('guest')
 export class GuestController {
@@ -66,7 +65,7 @@ export class GuestController {
   }
 
   @Post('cart/items')
-  async addGuestItem(@Body(new ValidationPipe({ transform: true })) dto) {
+  async addGuestItem(@Body() dto: GuestAddCartItemDto) {
     return this.cartService.addItemToGuestCart(dto.visitorId, dto);
   }
 
