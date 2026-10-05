@@ -40,6 +40,15 @@ export class GuestController {
     };
   }
 
+  // Upgrade a legacy visitorId to a UUID, carrying the active cart over
+  @Patch('migrate')
+  migrateVisitor(
+    @Body('from') from: string,
+    @Body('to', ParseUUIDPipe) to: string,
+  ) {
+    return this.guestService.migrateVisitor(from, to);
+  }
+
   @Get('cart/items/:visitorId')
   async getGuestCartItems(
     @Param('visitorId') visitorId: string,
