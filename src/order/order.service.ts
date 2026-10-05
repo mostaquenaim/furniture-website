@@ -51,6 +51,7 @@ import { effectiveSizePrice } from 'src/common/utils/discount.utils';
 import {
   computeItemsWeightKg,
   DeliveryFeeService,
+  resolveUnitWeight,
 } from 'src/courier/services/delivery-fee.service';
 
 @Injectable()
@@ -452,7 +453,10 @@ export class OrderService {
       weightKg: computeItemsWeightKg(
         cart.items.map((item) => ({
           quantity: item.quantity,
-          weight: item.productSize?.color?.product?.weight,
+          weight: resolveUnitWeight(
+            item.productSize?.weight,
+            item.productSize?.color?.product?.weight,
+          ),
         })),
       ),
     });
