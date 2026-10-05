@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Controller,
@@ -12,15 +10,20 @@ import {
   Patch,
   ParseIntPipe,
   Delete,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { CartService } from 'src/cart/cart.service';
 import { GuestService } from './guest.service';
+import { OrderService } from 'src/order/order.service';
+import { CreateOrderDto } from 'src/order/dto/create-order.dto';
+import { GuestAddCartItemDto } from './dto/guest-add-cart-item.dto';
 
 @Controller('guest')
 export class GuestController {
   constructor(
     private readonly guestService: GuestService,
     private readonly cartService: CartService,
+    private readonly orderService: OrderService,
   ) {}
 
   @Post('init')
@@ -34,6 +37,15 @@ export class GuestController {
     return {
       success: true,
     };
+  }
+
+  // Upgrade a legacy visitorId to a UUID, carrying the active cart over
+  @Patch('migrate')
+  migrateVisitor(
+    @Body('from') from: string,
+    @Body('to', ParseUUIDPipe) to: string,
+  ) {
+    return this.guestService.migrateVisitor(from, to);
   }
 
   @Get('cart/items/:visitorId')
@@ -53,7 +65,7 @@ export class GuestController {
   }
 
   @Post('cart/items')
-  async addGuestItem(@Body(new ValidationPipe({ transform: true })) dto) {
+  async addGuestItem(@Body() dto: GuestAddCartItemDto) {
     return this.cartService.addItemToGuestCart(dto.visitorId, dto);
   }
 
@@ -62,15 +74,8 @@ export class GuestController {
     return this.cartService.countCartItems(null, visitorId);
   }
 
-  @Patch('cart/apply-coupon/:cartId')
-  async applyCoupon(
-    @Param('cartId', ParseIntPipe) cartId: number,
-    @Query('visitorId') visitorId: string,
-    @Body('code') code: string,
-  ) {
-    return this.cartService.applyCoupon(null, visitorId, cartId, code);
-  }
-
+  // No guest apply-coupon route: coupons require an account. Removing one
+  // that's already on the cart is still allowed.
   @Delete('cart/coupon/:cartId')
   async removeCoupon(
     @Param('cartId', ParseIntPipe) cartId: number,
@@ -94,5 +99,36 @@ export class GuestController {
     @Query('visitorId') visitorId: string,
   ) {
     return this.cartService.removeItem(null, visitorId, id);
+  }
+
+  // For creating Guest Order
+  @Post('orders/create')
+  async createGuestOrder(
+    @Body(new ValidationPipe({ transform: true })) dto: CreateOrderDto,
+    @Query('visitorId', ParseUUIDPipe) visitorId: string,
+  ) {
+    return this.orderService.createOrder(null, dto, visitorId);
+  }
+
+  // For getting all Guest Orders
+  @Get('orders')
+  getGuestOrders(
+    @Query('visitorId', ParseUUIDPipe) visitorId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.orderService.getGuestOrders(visitorId, {
+      page: Math.max(1, Number(page) || 1),
+      limit: Math.min(25, Math.max(1, Number(limit) || 10)),
+    });
+  }
+
+  // For getting a single Guest Order
+  @Get('orders/:orderId')
+  getGuestOrder(
+    @Param('orderId') orderId: string,
+    @Query('visitorId', ParseUUIDPipe) visitorId: string,
+  ) {
+    return this.orderService.getGuestOrder(visitorId, orderId);
   }
 }

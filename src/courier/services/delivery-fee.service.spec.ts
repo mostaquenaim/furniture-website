@@ -1,6 +1,7 @@
 import {
   computeItemsWeightKg,
   DeliveryFeeService,
+  resolveUnitWeight,
 } from './delivery-fee.service';
 
 describe('DeliveryFeeService', () => {
@@ -93,6 +94,43 @@ describe('DeliveryFeeService', () => {
 
     // 0.3 kg is billed as 0.5 kg, so both hit the same cache entry.
     expect(calculateRate).toHaveBeenCalledTimes(1);
+  });
+
+  it('prices over-10 kg parcels at the 10 kg plan plus extra_per_kg per started kg', async () => {
+    prisma.courierProvider.findUnique.mockResolvedValueOnce(
+      pathaoProvider({ extra_per_kg: 15 }),
+    );
+    const quote = await service.quote({
+      districtId: 1,
+      zoneId: 5,
+      weightKg: 12.3,
+    });
+
+    expect(calculateRate).toHaveBeenCalledWith(
+      expect.objectContaining({ item_weight: 10 }),
+    );
+    // 60 (10 kg plan) + ceil(2.3) = 3 kg × 15
+    expect(quote).toEqual({ fee: 105, source: 'pathao' });
+  });
+
+  it('quotes over-10 kg parcels at the 10 kg price when extra_per_kg is unset', async () => {
+    expect(
+      (await service.quote({ districtId: 1, zoneId: 5, weightKg: 25 })).fee,
+    ).toBe(60);
+  });
+
+  it('does not share a cache entry between different over-10 kg weights', async () => {
+    prisma.courierProvider.findUnique.mockResolvedValue(
+      pathaoProvider({ extra_per_kg: 10 }),
+    );
+    const a = await service.quote({ districtId: 1, zoneId: 5, weightKg: 11 });
+    const b = await service.quote({ districtId: 1, zoneId: 5, weightKg: 20 });
+    expect([a.fee, b.fee]).toEqual([70, 160]);
+  });
+
+  it('prefers the size weight over the product weight', () => {
+    expect(resolveUnitWeight('30', '0.5')).toBe('30');
+    expect(resolveUnitWeight(null, '0.5')).toBe('0.5');
   });
 
   it('sums Decimal-like product weights by quantity', () => {

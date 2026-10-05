@@ -37,6 +37,12 @@ export class ProductColorSizeDto {
   @IsOptional()
   @IsEnum(DiscountType)
   discountType?: DiscountType;
+
+  // Shipping weight (kg) for this size; null/omitted uses the product weight.
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  weight?: number | null;
 }
 
 export class CreateProductColorDto {

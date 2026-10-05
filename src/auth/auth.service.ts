@@ -456,48 +456,134 @@ export class AuthService {
       .catch(() => {});
   }
 
+  // Moves a guest's data into the account they just signed into: their guest
+  // orders, their cart (combined with the account cart if there is one) and
+  // their recently-viewed products.
   async mergeGuestData(visitorId: string, userId: number) {
+    if (typeof visitorId !== 'string' || !visitorId || visitorId.length > 100) {
+      throw new BadRequestException('visitorId required');
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      // Link visitor to user (always do this first)
+      const visitor = await tx.visitor.findUnique({ where: { id: visitorId } });
+
+      // A device already linked to a different account (e.g. a shared
+      // browser that kept its visitorId) must not hand that person's guest
+      // orders or cart to whoever signs in next.
+      if (visitor?.userId && visitor.userId !== userId) {
+        return {
+          ordersMerged: 0,
+          cart: 'none' as const,
+          reason: 'VISITOR_LINKED_TO_OTHER_USER',
+        };
+      }
+
       await tx.visitor.upsert({
         where: { id: visitorId },
         update: { userId },
         create: { id: visitorId, userId },
       });
 
-      const userCart = await tx.cart.findFirst({
-        where: {
-          userId,
-          status: 'ACTIVE',
-        },
+      // visitorId is kept on the orders for reference; guest order lists
+      // filter on userId: null, so these stop showing as guest orders.
+      const { count: ordersMerged } = await tx.order.updateMany({
+        where: { visitorId, userId: null },
+        data: { userId },
       });
 
-      if (userCart) {
-        // Abort cart movement, but visitor is already linked
-        return { merged: false, reason: 'USER_CART_EXISTS' };
-      }
-
-      const guestCart = await tx.cart.findFirst({
-        where: {
-          visitorId,
-          status: 'ACTIVE',
-        },
+      // (productId, userId, visitorId) is unique; these rows keep their
+      // visitorId, so setting userId can't collide with the account's own
+      // (visitorId: null) views.
+      await tx.productView.updateMany({
+        where: { visitorId, userId: null },
+        data: { userId },
       });
 
-      if (!guestCart) {
-        return { merged: false, reason: 'NO_GUEST_CART' };
-      }
+      const cart = await this.mergeGuestCart(tx, visitorId, userId);
 
-      await tx.cart.update({
-        where: { id: guestCart.id },
-        data: {
-          visitorId: null,
-          userId,
-        },
-      });
-
-      return { merged: true };
+      return { ordersMerged, cart };
     });
+  }
+
+  private async mergeGuestCart(
+    tx: Prisma.TransactionClient,
+    visitorId: string,
+    userId: number,
+  ): Promise<'none' | 'moved' | 'combined'> {
+    const guestCart = await tx.cart.findFirst({
+      where: { visitorId, userId: null, status: 'ACTIVE' },
+      include: { items: { include: { productSize: true } } },
+    });
+    if (!guestCart) return 'none';
+
+    const userCart = await tx.cart.findFirst({
+      where: { userId, status: 'ACTIVE' },
+      include: { items: true },
+    });
+
+    if (!userCart) {
+      // Claim with a conditional update so two concurrent logins can't both
+      // take the same guest cart.
+      const { count } = await tx.cart.updateMany({
+        where: { id: guestCart.id, userId: null, status: 'ACTIVE' },
+        data: { visitorId: null, userId },
+      });
+      return count === 1 ? 'moved' : 'none';
+    }
+
+    const { count } = await tx.cart.updateMany({
+      where: { id: guestCart.id, status: 'ACTIVE' },
+      data: { status: 'ABANDONED' },
+    });
+    if (count !== 1) return 'none';
+
+    for (const item of guestCart.items) {
+      // Cap at live stock; the cart refresh on the next read handles a size
+      // that has since sold out entirely.
+      const stockCap = Math.max(1, item.productSize.quantity);
+      const existing = userCart.items.find(
+        (u) => u.productSizeId === item.productSizeId,
+      );
+
+      if (existing) {
+        // Same size in both carts: one line with the combined quantity
+        // (cartId + productSizeId is unique, so it can't be moved across).
+        const quantity = Math.min(existing.quantity + item.quantity, stockCap);
+        await tx.cartItem.update({
+          where: { id: existing.id },
+          data: {
+            quantity,
+            subtotalAtAdd: existing.priceAtAdd * quantity,
+            baseSubtotalAtAdd: existing.basePriceAtAdd * quantity,
+          },
+        });
+        await tx.cartItem.delete({ where: { id: item.id } });
+      } else {
+        const quantity = Math.min(item.quantity, stockCap);
+        await tx.cartItem.update({
+          where: { id: item.id },
+          data: {
+            cartId: userCart.id,
+            quantity,
+            subtotalAtAdd: item.priceAtAdd * quantity,
+            baseSubtotalAtAdd: item.basePriceAtAdd * quantity,
+          },
+        });
+      }
+    }
+
+    const items = await tx.cartItem.findMany({
+      where: { cartId: userCart.id },
+    });
+    await tx.cart.update({
+      where: { id: userCart.id },
+      data: {
+        subtotalAtAdd: items.reduce((s, i) => s + i.subtotalAtAdd, 0),
+        baseSubtotalAtAdd: items.reduce((s, i) => s + i.baseSubtotalAtAdd, 0),
+      },
+    });
+
+    return 'combined';
   }
 
   async update(userId: number, dto: UpdateUserDto) {

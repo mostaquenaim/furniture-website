@@ -102,7 +102,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Patch('merge-user')
   async mergeUser(@Req() req: any, @Query('visitorId') visitorId: string) {
-    await this.authService.mergeGuestData(visitorId, req?.user?.userId);
+    // { ordersMerged, cart: 'none' | 'moved' | 'combined' } — the frontend
+    // only drops its visitorId once this succeeds
+    return this.authService.mergeGuestData(visitorId, req?.user?.userId);
   }
 
   // ── Redirect user to Google consent screen ──────────────────────────

@@ -59,6 +59,7 @@ export class ProductService {
       discount?: number | null;
       discountType?: DiscountType | null;
       quantity: number | string;
+      weight?: number | null;
     },
     basePriceFallback: number,
     adminId: number,
@@ -92,6 +93,7 @@ export class ProductService {
         price: finalPrice,
         discountType: size.discountType || null,
         discount: size.discount || 0,
+        weight: size.weight ?? null,
         quantity: 0,
       },
     });
@@ -976,6 +978,8 @@ export class ProductService {
                   price: sizePrice,
                   discountType: resolvedDiscountType ?? null,
                   discount: resolvedDiscount ?? 0,
+                  // Omitted = keep; explicit null = clear back to product weight.
+                  ...(size.weight !== undefined && { weight: size.weight }),
                 },
               });
             }
@@ -1121,6 +1125,22 @@ export class ProductService {
   // reflected in price filters/sorting within a minute; only changed rows are
   // written. Also exposed to admins as a manual "sync prices" action.
   @Cron(CronExpression.EVERY_MINUTE, { name: 'sync-product-prices' })
+  async syncAllProductPricesJob() {
+    try {
+      await this.syncAllProductPrices();
+    } catch (err) {
+      // A transient DB outage (e.g. Neon compute waking up, network blip)
+      // shouldn't dump a full stack every minute — the next tick retries.
+      if (err?.code === 'P1001' || err?.code === 'P1002') {
+        this.logger.warn(
+          `Product price sync skipped: database unreachable (${err.code})`,
+        );
+        return;
+      }
+      this.logger.error('Product price sync failed', err);
+    }
+  }
+
   async syncAllProductPrices() {
     const now = new Date();
     const products = await this.prisma.product.findMany({
