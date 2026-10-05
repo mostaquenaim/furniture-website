@@ -10,6 +10,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -40,6 +41,7 @@ import {
 import { CustomerOrderEventsGateway } from '../realtime/customer-order-events.gateway';
 import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
 import { ReservationService } from 'src/reservation/reservation.service';
+import { BD_PHONE_REGEX } from 'src/common/utils/phone.utils';
 import { OrderStatusService } from 'src/order-status/order-status.service';
 import {
   computeCouponDiscount,
@@ -53,6 +55,12 @@ import {
   DeliveryFeeService,
   resolveUnitWeight,
 } from 'src/courier/services/delivery-fee.service';
+
+// Separate from auth's 'phone' OTPs so login and order codes can't expire or
+// satisfy each other. Plain string column — no migration needed.
+const ORDER_OTP_TYPE = 'order_phone';
+const ORDER_OTP_MAX_ATTEMPTS = 5;
+const ORDER_OTP_HOURLY_LIMIT = 5;
 
 @Injectable()
 export class OrderService {
@@ -70,7 +78,7 @@ export class OrderService {
     private reservationService: ReservationService,
     private orderStatusService: OrderStatusService,
     private deliveryFeeService: DeliveryFeeService,
-  ) { }
+  ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
     const today = new Date();
@@ -95,80 +103,135 @@ export class OrderService {
     return `ORD-${dateStr}-${random}-${sequence}`;
   }
 
+  // 1712345678 / 01712345678 / +8801712345678 → +8801712345678
   normalizeBDPhone(phone: string) {
-    let p = phone.replace(/\D/g, ''); // remove all non-digits
-    if (p.startsWith('0')) p = '+880' + p.slice(1);
-    else if (p.startsWith('1')) p = '+880' + p;
-    else if (!p.startsWith('+880')) p = '+880' + p;
-    return p;
+    let p = (phone ?? '').replace(/\D/g, ''); // remove all non-digits
+    if (p.startsWith('880')) p = p.slice(3);
+    else if (p.startsWith('0')) p = p.slice(1);
+    return '+880' + p;
   }
 
-  private async handlePhoneOtp(
-    userId: number | null,
-    phone: string,
-    otp?: string,
-  ) {
-    // Send OTP if not provided
-    if (!otp) {
-      const code = crypto.randomInt(100000, 999999).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  // Order OTPs. `userId: null` in a where clause is `IS NULL`, so guest codes
+  // never mix with users' codes; ORDER_OTP_TYPE keeps them apart from the
+  // login/verification OTPs auth.service sends with type 'phone'.
+  private async sendOrderOtp(userId: number | null, phone: string) {
+    const now = new Date();
 
-      await this.prisma.oTP.updateMany({
-        where: { userId, type: 'phone', verified: false },
-        data: { expiresAt: new Date() },
-      });
-
-      // Create new OTP
-      await this.prisma.oTP.create({
-        data: {
-          userId,
-          code,
-          type: 'phone',
-          expiresAt,
-          phone,
-        },
-      });
-
-      // Send SMS
-      await this.notificationQueue.add('sendSMS', {
+    // Within 60s of the last unused code: don't send another SMS
+    const recent = await this.prisma.oTP.findFirst({
+      where: {
+        userId,
         phone,
-        message: `Your Ondorkotha verification OTP is ${code}. It will expire in 10 minutes.`,
-      });
-
+        type: ORDER_OTP_TYPE,
+        verified: false,
+        createdAt: { gte: new Date(now.getTime() - 60_000) },
+        expiresAt: { gt: now },
+      },
+    });
+    if (recent) {
       return {
         status: 'OTP_REQUIRED',
         otpSentTo: 'phone',
-        message:
-          'Please verify the phone number for this order. An OTP has been sent to the provided phone number.',
+        message: 'An OTP was sent to this number less than a minute ago.',
       };
     }
 
-
-    // Verify OTP
-    const otpData = await this.prisma.oTP.findFirst({
+    // Hourly SMS cap per phone, across guests and users
+    const sentLastHour = await this.prisma.oTP.count({
       where: {
-        userId,   //cant set visitorId here because userId is integer nad visitorId is string
-        code: otp,
-        type: 'phone',
-        verified: false,
-        expiresAt: {
-          gte: new Date(),
+        phone,
+        type: ORDER_OTP_TYPE,
+        createdAt: { gte: new Date(now.getTime() - 3_600_000) },
+      },
+    });
+    if (sentLastHour >= ORDER_OTP_HOURLY_LIMIT) {
+      throw new HttpException(
+        {
+          statusCode: 429,
+          code: 'OTP_LIMIT',
+          message:
+            'Too many OTP requests for this number. Please try again later.',
         },
+        429,
+      );
+    }
+
+    // Expire only this phone's pending codes for this user/guest
+    await this.prisma.oTP.updateMany({
+      where: { userId, phone, type: ORDER_OTP_TYPE, verified: false },
+      data: { expiresAt: now },
+    });
+
+    const code = crypto.randomInt(100000, 999999).toString();
+
+    await this.prisma.oTP.create({
+      data: {
+        userId,
+        code,
+        type: ORDER_OTP_TYPE,
+        expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+        phone,
       },
     });
 
-    if (!otpData) throw new BadRequestException('Invalid or expired OTP');
-
-    await this.prisma.oTP.update({
-      where: { id: otpData.id },
-      data: { verified: true },
+    await this.notificationQueue.add('sendSMS', {
+      phone,
+      message: `Your Ondorkotha verification OTP is ${code}. It will expire in 10 minutes.`,
     });
 
-    return null;
+    return {
+      status: 'OTP_REQUIRED',
+      otpSentTo: 'phone',
+      message:
+        'Please verify the phone number for this order. An OTP has been sent to the provided phone number.',
+    };
+  }
+
+  // Looks up the latest live code for THIS phone, then compares — so wrong
+  // attempts count against that one code, and a code sent to another phone
+  // can never match
+  private async findValidOrderOtp(
+    userId: number | null,
+    phone: string,
+    code: string,
+  ) {
+    const otp = await this.prisma.oTP.findFirst({
+      where: {
+        userId,
+        phone,
+        type: ORDER_OTP_TYPE,
+        verified: false,
+        expiresAt: { gt: new Date() },
+        attempts: { lt: ORDER_OTP_MAX_ATTEMPTS },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!otp) throw new BadRequestException('Invalid or expired OTP');
+
+    // Claim an attempt atomically first; Postgres serializes this UPDATE, so
+    // the total is capped at ORDER_OTP_MAX_ATTEMPTS however many requests
+    // race. Correct codes count too. Must stay on this.prisma (never the
+    // order tx), or a failed order would roll the attempt back.
+    const claimed = await this.prisma.oTP.updateMany({
+      where: {
+        id: otp.id,
+        verified: false,
+        attempts: { lt: ORDER_OTP_MAX_ATTEMPTS },
+      },
+      data: { attempts: { increment: 1 } },
+    });
+    if (claimed.count === 0 || otp.code !== code) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    return otp;
   }
 
   // Guest checkout rate limiting: max 2 orders per phone number in 10 minutes
-  private async assertGuestOrderRateLimit(phone: string, client: any = this.prisma) {
+  private async assertGuestOrderRateLimit(
+    phone: string,
+    client: any = this.prisma,
+  ) {
     // Calculate the time exactly 10 minutes before now.
     // Example:
     // Current time = 10:30
@@ -190,8 +253,8 @@ export class OrderService {
     // prevent creating another order.
     if (recentOrders >= 2) {
       throw new BadRequestException(
-        'This phone number has reached the guest checkout limit'
-      )
+        'This phone number has reached the guest checkout limit',
+      );
     }
   }
 
@@ -227,9 +290,17 @@ export class OrderService {
     );
   }
 
+  async createOrder(
+    userId: number | null,
+    dto: CreateOrderDto,
+    visitorId?: string,
+  ) {
+    // Guests are COD-only — checked before the OTP gate so a guest never
+    // gets an SMS for an order that would be rejected anyway
+    if (!userId && dto.paymentMethod !== 'COD') {
+      throw new BadRequestException('Guest orders are Cash on Delivery only');
+    }
 
-
-  async createOrder(userId: number | null, dto: CreateOrderDto, visitorId?: string,) {
     // 1. Validate district (especially for COD)
     const district = await this.prisma.city.findUnique({
       where: { id: dto.address.districtId },
@@ -245,21 +316,25 @@ export class OrderService {
 
     // Phone OTP gate: verify if ordering phone differs from account phone
     const normalizedOrderPhone = this.normalizeBDPhone(dto.address.phone);
+
+    // Validated after normalizing (the DTO only sees the raw digits), and
+    // before the OTP gate so an invalid number never triggers an SMS
+    if (!BD_PHONE_REGEX.test(normalizedOrderPhone)) {
+      throw new BadRequestException(
+        'Please enter a valid Bangladeshi mobile number',
+      );
+    }
+
     const normalizedUserPhone = user?.phone
       ? this.normalizeBDPhone(user.phone)
       : null;
 
-    if (!userId) {
-      // Guest checkout: require OTP for the provided phone number
-      const otpResponse = await this.handlePhoneOtp(null, normalizedOrderPhone, dto.otp);
-
-      if (otpResponse) return otpResponse;
-    } else if (userId &&
-      (!normalizedUserPhone || normalizedOrderPhone !== normalizedUserPhone)) {
-      const otpResponse = await this.handlePhoneOtp(userId, normalizedOrderPhone, dto.otp);
-
-      if (otpResponse) return otpResponse;
-    }
+    // Guests always verify the phone; logged-in users only when ordering to a
+    // phone other than their account phone
+    const needsOtp =
+      !userId ||
+      !normalizedUserPhone ||
+      normalizedOrderPhone !== normalizedUserPhone;
 
     // 2. Fetch user's cart items
     const cart = await this.prisma.cart.findUnique({
@@ -294,6 +369,15 @@ export class OrderService {
       throw new BadRequestException('Cart is empty');
     }
 
+    // Ownership first, before any check whose error could reveal what's in
+    // someone else's cart (e.g. a product title in the COD message)
+    const ownsCart = userId
+      ? cart.userId === userId
+      : cart.visitorId === visitorId;
+    if (!ownsCart || cart.status !== 'ACTIVE') {
+      throw new ForbiddenException('Invalid cart');
+    }
+
     if (dto.paymentMethod === 'COD') {
       // District check
       if (!district.isCODAvailable) {
@@ -317,9 +401,36 @@ export class OrderService {
       }
     }
 
-    const ownsCart = userId ? cart.userId === userId : cart.visitorId === visitorId;
-    if (!ownsCart || cart.status !== 'ACTIVE') {
-      throw new ForbiddenException('Invalid cart');
+    if (!userId) {
+      // Coupons are account-only. Unlink before throwing (like the expired
+      // coupon path below) so every retry doesn't fail the same way.
+      if (cart.couponId) {
+        await this.prisma.cart.update({
+          where: { id: cart.id },
+          data: { couponId: null },
+        });
+        throw new BadRequestException(
+          'Coupons require an account. It has been removed from your cart.',
+        );
+      }
+
+      // Same test as the advance calculation below: isAdvancePayment alone
+      // doesn't require a deposit, it also needs advancePercentage > 0
+      const needsAdvance = cart.items
+        .flatMap((i) => i.productSize?.color?.product?.subCategories ?? [])
+        .some(
+          (ps) =>
+            ps.subCategory.isAdvancePayment &&
+            ps.subCategory.advancePercentage > 0,
+        );
+      if (needsAdvance) {
+        throw new BadRequestException({
+          statusCode: 400,
+          code: 'GUEST_ADVANCE_PAYMENT_REQUIRES_LOGIN',
+          message:
+            'This order needs an advance payment. Please log in to continue.',
+        });
+      }
     }
 
     // 2a. Re-price every line at its live effective price (size price, or
@@ -432,17 +543,6 @@ export class OrderService {
       appliedCoupon = coupon;
     }
 
-    let customerPhone = dto.address.phone;
-
-    // Ensure it starts with '+880'
-    if (!customerPhone.startsWith('+880')) {
-      if (customerPhone.startsWith('0')) {
-        customerPhone = '+880' + customerPhone.slice(1);
-      } else if (customerPhone.startsWith('1')) {
-        customerPhone = '+880' + customerPhone;
-      }
-    }
-
     // Delivery fee is always server-computed — never trust a client-supplied
     // value, or a customer could zero out shipping. It goes through the same
     // DeliveryFeeService.quote() the checkout preview uses, with the weight
@@ -498,6 +598,29 @@ export class OrderService {
       : 0;
     const remainingAmount = advanceRequired ? total - advanceAmount : 0;
 
+    // Phone OTP gate — deliberately after every check that can reject the
+    // order (cart, COD, guest guards, prices, coupon, delivery fee), so an
+    // SMS is only ever sent for an order that would go through.
+    let verifiedOtpId: number | null = null;
+
+    if (needsOtp) {
+      if (!dto.otp) {
+        // Cheap pre-check so a rate-limited guest doesn't get an SMS; the
+        // authoritative check runs under the advisory lock in the tx below
+        if (!userId) await this.assertGuestOrderRateLimit(normalizedOrderPhone);
+        return this.sendOrderOtp(userId, normalizedOrderPhone);
+      }
+
+      // Outside the tx on purpose: the attempt it claims must survive a
+      // failed order, or a rollback would hand the attempt back
+      const otp = await this.findValidOrderOtp(
+        userId,
+        normalizedOrderPhone,
+        dto.otp,
+      );
+      verifiedOtpId = otp.id;
+    }
+
     const stockEvents: StockUpdatedPayload[] = [];
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -519,6 +642,19 @@ export class OrderService {
         // prevent two guest orders with the same phone number from passing the rate-limit check at the same time.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${normalizedOrderPhone}))`;
         await this.assertGuestOrderRateLimit(normalizedOrderPhone, tx);
+      }
+
+      // Mark the OTP used in the same tx as the order: if the order fails the
+      // code stays usable for a retry, and the conditional update means two
+      // concurrent requests can't both place an order with one code
+      if (verifiedOtpId !== null) {
+        const used = await tx.oTP.updateMany({
+          where: { id: verifiedOtpId, verified: false },
+          data: { verified: true },
+        });
+        if (used.count === 0) {
+          throw new BadRequestException('Invalid or expired OTP');
+        }
       }
 
       for (const item of cart.items) {
@@ -598,7 +734,7 @@ export class OrderService {
           trackingToken,
           discount,
           customerName: dto.address.name,
-          customerPhone: customerPhone,
+          customerPhone: normalizedOrderPhone,
           shippingAddress: dto.address.fullAddress,
           zoneId: dto.address.zoneId || null,
           zoneName: dto.address.zoneName || null,
@@ -668,12 +804,12 @@ export class OrderService {
             items:
               order.items && order.items.length > 0
                 ? order.items.map((i) => ({
-                  productTitle: i.productTitle,
-                  size: i.size,
-                  color: i.color,
-                  quantity: i.quantity,
-                  priceAtPurchase: i.priceAtPurchase,
-                }))
+                    productTitle: i.productTitle,
+                    size: i.size,
+                    color: i.color,
+                    quantity: i.quantity,
+                    priceAtPurchase: i.priceAtPurchase,
+                  }))
                 : [],
             subtotal: order.items.reduce(
               (sum, i) => sum + Number(i.totalPriceAtPurchase),
@@ -1091,23 +1227,25 @@ export class OrderService {
     <div class="meta-block">
       <div class="meta-label">Issued</div>
       <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.issuedAt)}</div>
-      ${invoice.dueDate
-        ? `
+      ${
+        invoice.dueDate
+          ? `
         <div class="meta-label" style="margin-top:14px">Due</div>
         <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.dueDate)}</div>
       `
-        : ''
+          : ''
       }
     </div>
     <div class="meta-block">
       <div class="meta-label">Order Ref</div>
       <div class="meta-mono">${invoice.order?.id ?? '—'}</div>
-      ${invoice.paidAt
-        ? `
+      ${
+        invoice.paidAt
+          ? `
         <div class="meta-label" style="margin-top:14px">Paid On</div>
         <div class="meta-value" style="font-size:13px;font-weight:400">${this.fmtDate(invoice.paidAt)}</div>
       `
-        : ''
+          : ''
       }
     </div>
   </div>
@@ -1131,23 +1269,25 @@ export class OrderService {
       <div class="totals-row">
         <span>Subtotal</span><span class="val">${this.taka(subtotal)}</span>
       </div>
-      ${(invoice.discount ?? 0) > 0
-        ? `
+      ${
+        (invoice.discount ?? 0) > 0
+          ? `
       <div class="totals-row green">
         <span>Discount</span><span class="val">− ${this.taka(invoice.discount)}</span>
       </div>`
-        : ''
+          : ''
       }
       <div class="totals-row">
         <span>Shipping</span>
         <span class="val">${(invoice.shippingCost ?? 0) > 0 ? this.taka(invoice.shippingCost) : 'Free'}</span>
       </div>
-      ${(invoice.tax ?? 0) > 0
-        ? `
+      ${
+        (invoice.tax ?? 0) > 0
+          ? `
       <div class="totals-row">
         <span>Tax</span><span class="val">${this.taka(invoice.tax)}</span>
       </div>`
-        : ''
+          : ''
       }
       <div class="totals-grand">
         <span class="label">Total</span>
@@ -1182,6 +1322,7 @@ export class OrderService {
       thumb,
       from,
       to,
+      customerType,
     }: {
       page?: number;
       limit?: number;
@@ -1191,6 +1332,7 @@ export class OrderService {
       thumb?: boolean;
       from?: string;
       to?: string;
+      customerType?: 'guest' | 'registered';
     },
   ) {
     const skip = (page - 1) * limit;
@@ -1205,7 +1347,15 @@ export class OrderService {
 
     const isAdmin = user.role != 'CUSTOMER';
 
-    const where: any = {};
+    // admin-only; customers are always scoped to their own userId below
+    const customerTypeFilter =
+      isAdmin && customerType === 'guest'
+        ? { userId: null }
+        : isAdmin && customerType === 'registered'
+          ? { userId: { not: null } }
+          : {};
+
+    const where: any = { ...customerTypeFilter };
 
     if (!isAdmin) where.userId = userId;
 
@@ -1244,7 +1394,8 @@ export class OrderService {
     let data: any[];
     let total: number;
 
-    const whereCondition = !isAdmin ? { userId: userId } : {};
+    // status tab counts follow the customerType filter so they match the list
+    const whereCondition = !isAdmin ? { userId: userId } : customerTypeFilter;
 
     const statusGroups = await this.prisma.order.groupBy({
       by: ['status'],
@@ -1366,10 +1517,9 @@ export class OrderService {
     },
   ) {
     const skip = (page - 1) * limit;
-    const where = { visitorId, ...(status ? { status } : {}) };
+    const where = { visitorId, userId: null, ...(status ? { status } : {}) };
 
     const [data, total] = await this.prisma.$transaction([
-
       // data
       this.prisma.order.findMany({
         where,
@@ -1398,14 +1548,14 @@ export class OrderService {
                   images: {
                     take: 1,
                     orderBy: {
-                      serialNo: 'asc'
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      serialNo: 'asc',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       }),
 
       // total
@@ -1418,9 +1568,9 @@ export class OrderService {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
       },
-    }
+    };
   }
 
   // track order
@@ -1512,13 +1662,13 @@ export class OrderService {
         status: statusMapping[status as OrderStatus],
         date: history
           ? new Date(history.createdAt).toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          })
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
           : '',
         completed: !!history,
         current: order.status === status,
@@ -1627,6 +1777,161 @@ export class OrderService {
     };
   }
 
+  // get a single guest order (scoped to the visitor, never a user-owned order)
+  async getGuestOrder(visitorId: string, orderId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        OR: [{ orderId }, { trackingToken: orderId }],
+        visitorId,
+        userId: null,
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                slug: true,
+                images: {
+                  take: 1,
+                  orderBy: { serialNo: 'asc' },
+                },
+              },
+            },
+            productSize: { select: { quantity: true } },
+          },
+        },
+        orderStatusHistories: {
+          orderBy: { createdAt: 'asc' },
+        },
+        district: true,
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const statusMapping: Record<OrderStatus, string> = {
+      PENDING: 'Order Placed',
+      CONFIRMED: 'Order Confirmed',
+      PACKED: 'Packed',
+      SHIPPED: 'Shipped',
+      DELIVERED: 'Delivered',
+      CANCELLED: 'Cancelled',
+      RETURNED: 'Returned',
+      PROCESSING: 'Processing',
+      RETURN_REQUESTED: 'Return Requested',
+      FAILED: 'Failed',
+      ON_HOLD: 'On Hold',
+      PARTIALLY_DELIVERED: 'Partially Delivered',
+    };
+
+    const isSpecialStatus = ['CANCELLED', 'RETURNED'].includes(order.status);
+    const expectedFlow = isSpecialStatus
+      ? ['PENDING', order.status]
+      : ['PENDING', 'CONFIRMED', 'PACKED', 'SHIPPED', 'DELIVERED'];
+
+    const trackingEvents = expectedFlow.map((status) => {
+      const history = order.orderStatusHistories.find(
+        (h) => h.status === status,
+      );
+
+      return {
+        status: statusMapping[status as OrderStatus],
+        date: history
+          ? new Date(history.createdAt).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+          : '',
+        completed: !!history,
+        current: order.status === status,
+      };
+    });
+
+    return {
+      id: order.id,
+      orderNumber: order.orderId,
+      trackingToken: order.trackingToken,
+      orderDate: new Date(order.createdAt).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      estimatedDelivery: new Date(
+        new Date(order.createdAt).setDate(
+          new Date(order.createdAt).getDate() + 7,
+        ),
+      ).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      status: order.status,
+      trackingEvents,
+      hasOutOfStockItem: this.orderHasOutOfStockItem(order.status, order.items),
+      awbNumber: order.awbNumber,
+      deliveryMethod: order.deliveryMethod,
+      deliveryCharge: order.deliveryCharge || 0,
+      discount: order.discount || 0,
+      subtotal:
+        order.total - (order.deliveryCharge || 0) + (order.discount || 0),
+      total: order.total,
+      // no invoiceId: the invoice PDF endpoint requires auth, guests would hit a 401
+      paymentStatus: order.paymentStatus,
+      advanceRequired: order.advanceRequired,
+      advancePercentage: order.advancePercentage,
+      advanceAmount: order.advanceAmount,
+      remainingAmount: order.remainingAmount,
+
+      payments: order.payments.map((p) => ({
+        id: p.id,
+        method: p.method ?? order.deliveryMethod,
+        status: p.status,
+        transactionId: p.transactionId,
+        amount: p.amount,
+        phase: p.phase,
+      })),
+
+      shippingAddress: {
+        name: order.customerName,
+        phone: order.customerPhone,
+        address: order.shippingAddress,
+        district: order.district?.name || order.districtName,
+      },
+
+      items: order.items.map((item) => ({
+        id: item.id,
+        name: item.productTitle,
+        image: item.product.images[0]?.image || '/placeholder-product.jpg',
+        quantity: item.quantity,
+        price: item.priceAtPurchase,
+        color: item.color,
+        size: item.size,
+        sku: item.sku,
+        productSizeId: item.productSizeId,
+        isOutOfStock:
+          item.productSizeId != null && (item.productSize?.quantity ?? 0) <= 0,
+        subtotal: item.totalPriceAtPurchase,
+        isReviewed: item.isReviewed,
+        slug: item.product.slug,
+        productId: item.product.id,
+      })),
+
+      customer: {
+        email: order.customerEmail,
+      },
+    };
+  }
+
   // update status of order
   async updateOrderStatus(
     orderId: string,
@@ -1640,7 +1945,7 @@ export class OrderService {
     if (process.env.MANUAL_ORDER_STATUS_UPDATE !== 'true') {
       throw new BadRequestException(
         'Manual order status changes are disabled — status is driven by the courier webhook. ' +
-        'Set MANUAL_ORDER_STATUS_UPDATE=true in the environment to re-enable manual updates.',
+          'Set MANUAL_ORDER_STATUS_UPDATE=true in the environment to re-enable manual updates.',
       );
     }
 
@@ -1840,7 +2145,4 @@ export class OrderService {
 
     return updatedOrder;
   }
-
-
-
 }

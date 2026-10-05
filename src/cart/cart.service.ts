@@ -729,6 +729,10 @@ export class CartService {
   }
 
   async countCartItems(userId: number | null, visitorId: string | null) {
+    // Without an owner the filter below would be just { status: 'ACTIVE' }
+    // and count some other customer's cart.
+    if (!userId && !visitorId) return 0;
+
     const cart = await this.prisma.cart.findFirst({
       where: {
         status: 'ACTIVE',
@@ -751,6 +755,10 @@ export class CartService {
     cartItemId: number,
     quantity: number,
   ) {
+    if (!userId && !visitorId) {
+      throw new BadRequestException('visitorId required');
+    }
+
     if (quantity < 1) {
       throw new BadRequestException('Quantity must be at least 1');
     }
@@ -839,6 +847,17 @@ export class CartService {
     cartId: number,
     couponCode: string,
   ) {
+    // Coupons are account-only. Covers both guest entry points (the shared
+    // cart route with ?visitorId= and any old guest route); `code` lets the
+    // frontend show a log-in prompt instead of a plain error.
+    if (!userId) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'COUPON_REQUIRES_LOGIN',
+        message: 'Please log in to use a coupon.',
+      });
+    }
+
     // Fetch cart with items and each item's categories, so eligibility can
     // be checked without a second round trip.
     const cart = await this.prisma.cart.findFirst({
@@ -967,6 +986,10 @@ export class CartService {
     visitorId: string | null,
     cartItemId: number,
   ) {
+    if (!userId && !visitorId) {
+      throw new BadRequestException('visitorId required');
+    }
+
     const cartItem = await this.prisma.cartItem.findFirst({
       where: {
         id: cartItemId,

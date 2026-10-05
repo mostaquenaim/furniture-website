@@ -52,6 +52,7 @@ export class OrderController {
     @Query('thumb') thumb?: boolean,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('customerType') customerType?: 'guest' | 'registered',
   ) {
     const role: UserRole = req?.user?.role;
     if (role && role !== UserRole.CUSTOMER && role !== UserRole.SUPERADMIN) {
@@ -75,6 +76,7 @@ export class OrderController {
       thumb,
       from,
       to,
+      customerType,
     });
   }
 

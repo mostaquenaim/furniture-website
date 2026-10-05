@@ -463,7 +463,7 @@ export class CourierService {
       let providerResponse;
       try {
         providerResponse = await providerImpl.createShipment(shipmentData);
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `Failed to create shipment with ${provider.name}:`,
           error,
