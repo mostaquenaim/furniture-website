@@ -10,6 +10,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -54,6 +55,12 @@ import {
   DeliveryFeeService,
   resolveUnitWeight,
 } from 'src/courier/services/delivery-fee.service';
+
+// Separate from auth's 'phone' OTPs so login and order codes can't expire or
+// satisfy each other. Plain string column — no migration needed.
+const ORDER_OTP_TYPE = 'order_phone';
+const ORDER_OTP_MAX_ATTEMPTS = 5;
+const ORDER_OTP_HOURLY_LIMIT = 5;
 
 @Injectable()
 export class OrderService {
@@ -104,67 +111,120 @@ export class OrderService {
     return '+880' + p;
   }
 
-  private async handlePhoneOtp(
-    userId: number | null,
-    phone: string,
-    otp?: string,
-  ) {
-    // Send OTP if not provided
-    if (!otp) {
-      const code = crypto.randomInt(100000, 999999).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  // Order OTPs. `userId: null` in a where clause is `IS NULL`, so guest codes
+  // never mix with users' codes; ORDER_OTP_TYPE keeps them apart from the
+  // login/verification OTPs auth.service sends with type 'phone'.
+  private async sendOrderOtp(userId: number | null, phone: string) {
+    const now = new Date();
 
-      await this.prisma.oTP.updateMany({
-        where: { userId, type: 'phone', verified: false },
-        data: { expiresAt: new Date() },
-      });
-
-      // Create new OTP
-      await this.prisma.oTP.create({
-        data: {
-          userId,
-          code,
-          type: 'phone',
-          expiresAt,
-          phone,
-        },
-      });
-
-      // Send SMS
-      await this.notificationQueue.add('sendSMS', {
+    // Within 60s of the last unused code: don't send another SMS
+    const recent = await this.prisma.oTP.findFirst({
+      where: {
+        userId,
         phone,
-        message: `Your Ondorkotha verification OTP is ${code}. It will expire in 10 minutes.`,
-      });
-
+        type: ORDER_OTP_TYPE,
+        verified: false,
+        createdAt: { gte: new Date(now.getTime() - 60_000) },
+        expiresAt: { gt: now },
+      },
+    });
+    if (recent) {
       return {
         status: 'OTP_REQUIRED',
         otpSentTo: 'phone',
-        message:
-          'Please verify the phone number for this order. An OTP has been sent to the provided phone number.',
+        message: 'An OTP was sent to this number less than a minute ago.',
       };
     }
 
-    // Verify OTP
-    const otpData = await this.prisma.oTP.findFirst({
+    // Hourly SMS cap per phone, across guests and users
+    const sentLastHour = await this.prisma.oTP.count({
       where: {
-        userId, //cant set visitorId here because userId is integer nad visitorId is string
-        code: otp,
-        type: 'phone',
-        verified: false,
-        expiresAt: {
-          gte: new Date(),
+        phone,
+        type: ORDER_OTP_TYPE,
+        createdAt: { gte: new Date(now.getTime() - 3_600_000) },
+      },
+    });
+    if (sentLastHour >= ORDER_OTP_HOURLY_LIMIT) {
+      throw new HttpException(
+        {
+          statusCode: 429,
+          code: 'OTP_LIMIT',
+          message:
+            'Too many OTP requests for this number. Please try again later.',
         },
+        429,
+      );
+    }
+
+    // Expire only this phone's pending codes for this user/guest
+    await this.prisma.oTP.updateMany({
+      where: { userId, phone, type: ORDER_OTP_TYPE, verified: false },
+      data: { expiresAt: now },
+    });
+
+    const code = crypto.randomInt(100000, 999999).toString();
+
+    await this.prisma.oTP.create({
+      data: {
+        userId,
+        code,
+        type: ORDER_OTP_TYPE,
+        expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+        phone,
       },
     });
 
-    if (!otpData) throw new BadRequestException('Invalid or expired OTP');
-
-    await this.prisma.oTP.update({
-      where: { id: otpData.id },
-      data: { verified: true },
+    await this.notificationQueue.add('sendSMS', {
+      phone,
+      message: `Your Ondorkotha verification OTP is ${code}. It will expire in 10 minutes.`,
     });
 
-    return null;
+    return {
+      status: 'OTP_REQUIRED',
+      otpSentTo: 'phone',
+      message:
+        'Please verify the phone number for this order. An OTP has been sent to the provided phone number.',
+    };
+  }
+
+  // Looks up the latest live code for THIS phone, then compares — so wrong
+  // attempts count against that one code, and a code sent to another phone
+  // can never match
+  private async findValidOrderOtp(
+    userId: number | null,
+    phone: string,
+    code: string,
+  ) {
+    const otp = await this.prisma.oTP.findFirst({
+      where: {
+        userId,
+        phone,
+        type: ORDER_OTP_TYPE,
+        verified: false,
+        expiresAt: { gt: new Date() },
+        attempts: { lt: ORDER_OTP_MAX_ATTEMPTS },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!otp) throw new BadRequestException('Invalid or expired OTP');
+
+    // Claim an attempt atomically first; Postgres serializes this UPDATE, so
+    // the total is capped at ORDER_OTP_MAX_ATTEMPTS however many requests
+    // race. Correct codes count too. Must stay on this.prisma (never the
+    // order tx), or a failed order would roll the attempt back.
+    const claimed = await this.prisma.oTP.updateMany({
+      where: {
+        id: otp.id,
+        verified: false,
+        attempts: { lt: ORDER_OTP_MAX_ATTEMPTS },
+      },
+      data: { attempts: { increment: 1 } },
+    });
+    if (claimed.count === 0 || otp.code !== code) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    return otp;
   }
 
   // Guest checkout rate limiting: max 2 orders per phone number in 10 minutes
@@ -269,26 +329,26 @@ export class OrderService {
       ? this.normalizeBDPhone(user.phone)
       : null;
 
-    if (!userId) {
-      // Guest checkout: require OTP for the provided phone number
-      const otpResponse = await this.handlePhoneOtp(
-        null,
-        normalizedOrderPhone,
-        dto.otp,
-      );
+    // Guests always verify the phone; logged-in users only when ordering to a
+    // phone other than their account phone
+    const needsOtp =
+      !userId ||
+      !normalizedUserPhone ||
+      normalizedOrderPhone !== normalizedUserPhone;
 
-      if (otpResponse) return otpResponse;
-    } else if (
-      userId &&
-      (!normalizedUserPhone || normalizedOrderPhone !== normalizedUserPhone)
-    ) {
-      const otpResponse = await this.handlePhoneOtp(
+    if (needsOtp) {
+      if (!dto.otp) return this.sendOrderOtp(userId, normalizedOrderPhone);
+
+      const otp = await this.findValidOrderOtp(
         userId,
         normalizedOrderPhone,
         dto.otp,
       );
-
-      if (otpResponse) return otpResponse;
+      // step 12 moves this into the order transaction
+      await this.prisma.oTP.update({
+        where: { id: otp.id },
+        data: { verified: true },
+      });
     }
 
     // 2. Fetch user's cart items
