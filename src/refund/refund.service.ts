@@ -37,6 +37,15 @@ import { ProcessRefundDto } from './dto/process-refund.dto';
 import { DirectRefundDto } from './dto/direct-refund.dto';
 import { CompleteManualRefundDto } from './dto/complete-manual-refund.dto';
 import { ReservationService } from '../reservation/reservation.service';
+import { AdminNotificationsService } from '../admin-notifications/admin-notifications.service';
+
+export interface CancelledOrderRefund {
+  refundId: number | null;
+  amount: number;
+  method: RefundMethod | null;
+  status: RefundStatus;
+  error?: string;
+}
 
 const RETURN_WINDOW_DAYS = 7;
 const RETURNABLE_ORDER_STATUSES: OrderStatus[] = [
@@ -65,6 +74,7 @@ export class RefundService {
     private customerOrderEventsGateway: CustomerOrderEventsGateway,
     private paymentService: PaymentService,
     private reservationService: ReservationService,
+    private adminNotificationsService: AdminNotificationsService,
   ) {}
 
   // =====================================================================
@@ -208,6 +218,15 @@ export class RefundService {
         err,
       );
     }
+
+    // Not awaited: the customer's response shouldn't wait on staff alerts
+    void this.adminNotificationsService.notify({
+      type: 'RETURN_REQUESTED',
+      title: 'New return request',
+      message: `${order.orderId} · ${order.customerName} · ${dto.reason}`,
+      link: '/admin/returns',
+      metadata: { orderId: order.orderId, returnRequestId: returnRequest.id },
+    });
 
     return returnRequest;
   }
@@ -1036,6 +1055,75 @@ export class RefundService {
     });
 
     return kicked;
+  }
+
+  /**
+   * Starts a full refund of every payment on a just-cancelled order that
+   * still has a refundable balance (a full online payment, or a COD
+   * deposit). Call it only after the cancellation has committed. A refund
+   * that fails is left as a FAILED row (retryable from the Refunds page) and
+   * reported in the result instead of thrown: the cancellation stands
+   * either way, so the admin must not see it as a failed cancel.
+   */
+  async refundCancelledOrder(params: {
+    orderPk: number;
+    orderNumber: string;
+    reason: string;
+    adminId: number;
+  }): Promise<CancelledOrderRefund[]> {
+    const { orderPk, orderNumber, reason, adminId } = params;
+    const results: CancelledOrderRefund[] = [];
+
+    const refundable = await this.findRefundablePayments(orderPk);
+    for (const { payment, remaining } of refundable) {
+      let refundId: number | null = null;
+      try {
+        const refund = await this.createPendingRefund({
+          payment,
+          amount: remaining,
+          reason,
+          notes: `Order ${orderNumber} cancelled by admin`,
+          adminId,
+        });
+        refundId = refund.id;
+
+        const kicked = await this.kickOffRefund(
+          refund.id,
+          payment,
+          `Order ${orderNumber} cancelled`,
+        );
+        results.push({
+          refundId: kicked.id,
+          amount: remaining,
+          method: kicked.refundMethod,
+          status: kicked.status,
+        });
+
+        this.activityLogService.log({
+          adminId,
+          action: 'PROCESS_CANCEL_REFUND',
+          module: 'ORDER',
+          targetId: kicked.id,
+          targetLabel: orderNumber,
+          newValue: { amount: remaining, status: kicked.status },
+        });
+      } catch (err) {
+        // kickOffRefund already marked the row FAILED before throwing
+        this.logger.error(
+          `Refund for cancelled order ${orderNumber} (payment #${payment.id}) failed`,
+          err,
+        );
+        results.push({
+          refundId,
+          amount: remaining,
+          method: null,
+          status: RefundStatus.FAILED,
+          error: err?.message ?? 'Refund failed',
+        });
+      }
+    }
+
+    return results;
   }
 
   async completeManualRefund(

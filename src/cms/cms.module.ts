@@ -19,9 +19,13 @@ import { SettingsModule } from 'src/settings/settings.module';
 import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusService } from 'src/order-status/order-status.service';
 import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
+import { AdminNotificationsService } from 'src/admin-notifications/admin-notifications.service';
+import { RefundModule } from 'src/refund/refund.module';
 
 @Module({
   imports: [
+    // OrderService (provided below) needs RefundService for admin cancels
+    RefundModule,
     BullModule.registerQueue({ name: 'notification' }),
     HttpModule.register({
       timeout: 10000,
@@ -37,6 +41,7 @@ import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
   controllers: [CmsController],
   providers: [
     ActivityLogService,
+    AdminNotificationsService,
     CmsService,
     CartService,
     OrderService,

@@ -25,6 +25,7 @@ import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusService } from 'src/order-status/order-status.service';
 import { PieceModule } from 'src/piece/piece.module';
 import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
+import { AdminNotificationsService } from 'src/admin-notifications/admin-notifications.service';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
   controllers: [AdminController],
   providers: [
     AdminService,
+    AdminNotificationsService,
     BlogsService,
     CategoryService,
     PermissionService,

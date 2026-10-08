@@ -7,5 +7,5 @@ export class GuestAddCartItemDto extends AddCartItemDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
-  visitorId: string;
+  visitorId!: string;
 }

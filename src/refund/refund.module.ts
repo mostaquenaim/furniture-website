@@ -7,6 +7,7 @@ import { CustomerOrderEventsModule } from '../realtime/customer-order-events.mod
 import { PaymentModule } from '../payment/payment.module';
 import { StockLedgerService } from '../inventory/stock-ledger.service';
 import { ReservationModule } from '../reservation/reservation.module';
+import { AdminNotificationsModule } from '../admin-notifications/admin-notifications.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ReservationModule } from '../reservation/reservation.module';
     CustomerOrderEventsModule,
     PaymentModule,
     ReservationModule,
+    AdminNotificationsModule,
   ],
   providers: [RefundService, ActivityLogService, StockLedgerService],
   exports: [RefundService],

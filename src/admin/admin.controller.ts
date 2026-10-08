@@ -52,6 +52,7 @@ import { UpdateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/upda
 import { OrderService } from 'src/order/order.service';
 import { UpdateOrderStatusDto } from 'src/order/dto/update-order-status.dto';
 import { CollectRemainderDto } from 'src/order/dto/collect-remainder.dto';
+import { CancelOrderDto } from 'src/order/dto/cancel-order.dto';
 import { ReviewService } from 'src/review/review.service';
 import { CourierService } from 'src/courier/services/courier.service';
 import { CreateCourierShipmentDto } from 'src/courier/dto/create-courier-shipment.dto';
@@ -505,7 +506,22 @@ export class AdminController {
   @Get('orders/manual-status-enabled')
   @Permission(Action.ORDER_VIEW)
   getManualOrderStatusEnabled() {
-    return { enabled: process.env.MANUAL_ORDER_STATUS_UPDATE === 'true' };
+    return {
+      enabled: process.env.MANUAL_ORDER_STATUS_UPDATE === 'true',
+      // the Cancel Order action has its own switch, independent of the dropdown
+      cancelEnabled: process.env.MANUAL_ORDER_CANCEL === 'true',
+    };
+  }
+
+  // cancel a not-yet-shipped order: restores stock, then refunds anything paid
+  @Post('orders/:orderId/cancel')
+  @Permission(Action.ORDER_UPDATE_STATUS)
+  cancelOrder(
+    @Param('orderId') id: string,
+    @Req() req: any,
+    @Body() dto: CancelOrderDto,
+  ) {
+    return this.orderService.cancelOrder(id, dto.reason, req?.user?.userId);
   }
 
   @Patch('orders/:orderId/status')
