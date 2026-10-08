@@ -13,6 +13,7 @@ import { ReservationModule } from 'src/reservation/reservation.module';
 import { OrderStatusModule } from 'src/order-status/order-status.module';
 import { PermissionService } from 'src/permission/permission.service';
 import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
+import { AdminNotificationsModule } from 'src/admin-notifications/admin-notifications.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { DeliveryFeeModule } from 'src/courier/delivery-fee.module';
     ReservationModule,
     OrderStatusModule,
     DeliveryFeeModule,
+    AdminNotificationsModule,
   ],
   providers: [
     OrderService,

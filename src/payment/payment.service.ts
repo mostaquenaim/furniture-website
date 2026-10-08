@@ -6,8 +6,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Payment, PaymentMethod, PaymentStatus } from '@prisma/client';
+import {
+  OrderStatus,
+  Payment,
+  PaymentMethod,
+  PaymentStatus,
+} from '@prisma/client';
 import { PaymentMethodConfigService } from 'src/payment-method-config/payment-method-config.service';
+import { AdminNotificationsService } from 'src/admin-notifications/admin-notifications.service';
 import SSLCommerzPayment from 'sslcommerz-lts';
 
 /**
@@ -26,6 +32,10 @@ const SETTLED_PAYMENT_STATUSES: PaymentStatus[] = [
   'ON_HOLD',
 ];
 
+// A cancelled/failed order has had its stock released, so it must never be
+// paid for or flipped back to CONFIRMED by a payment.
+const ORDER_STATUSES_CLOSED_TO_PAYMENT: OrderStatus[] = ['CANCELLED', 'FAILED'];
+
 export interface GatewayRefundResult {
   /** SSLCommerz's refund_ref_id — needed for later refundQuery polling. Null if the gateway didn't return one. */
   refundRefId: string | null;
@@ -40,6 +50,7 @@ export class PaymentService {
     private readonly configService: ConfigService,
     private prisma: PrismaService,
     private paymentMethodConfigService: PaymentMethodConfigService,
+    private adminNotificationsService: AdminNotificationsService,
   ) {}
 
   private mapGatewayMethod(cardType: string): any {
@@ -91,6 +102,12 @@ export class PaymentService {
 
     if (!order) {
       throw new BadRequestException('Order not found');
+    }
+
+    if (ORDER_STATUSES_CLOSED_TO_PAYMENT.includes(order.status)) {
+      throw new BadRequestException(
+        'This order has been cancelled and can no longer be paid',
+      );
     }
 
     // Check if order is already paid or has pending payment
@@ -423,16 +440,33 @@ export class PaymentService {
       }
 
       const isAdvancePayment = payment.phase === 'ADVANCE';
+      const orderPaymentStatus = isAdvancePayment ? 'PARTIALLY_PAID' : 'PAID';
 
-      // Update order status
-      await this.prisma.order.update({
-        where: { id: payment.orderId },
+      // Only confirm an order that is still live. If an admin cancelled it
+      // while the customer was on the gateway page, its stock is already
+      // back on sale and confirming it now would oversell. The status filter
+      // also waits on the cancel's row lock, so the two can't interleave.
+      const confirmed = await this.prisma.order.updateMany({
+        where: {
+          id: payment.orderId,
+          status: { notIn: ORDER_STATUSES_CLOSED_TO_PAYMENT },
+        },
         data: {
           status: 'CONFIRMED',
-          paymentStatus: isAdvancePayment ? 'PARTIALLY_PAID' : 'PAID',
+          paymentStatus: orderPaymentStatus,
           updatedAt: new Date(),
         },
       });
+
+      if (confirmed.count === 0) {
+        await this.recordPaymentOnClosedOrder(
+          payment.orderId,
+          orderPaymentStatus,
+          updatedPayment.paidAmount,
+          transactionId,
+        );
+        return updatedPayment;
+      }
 
       // Create order status history
       await this.prisma.orderStatusHistory.create({
@@ -460,6 +494,40 @@ export class PaymentService {
 
       throw error;
     }
+  }
+
+  /**
+   * The money was taken but the order was cancelled first: keep the order
+   * cancelled, record that it's paid (so the existing direct refund on the
+   * Refunds page accepts it), and alert staff to refund it.
+   */
+  private async recordPaymentOnClosedOrder(
+    orderPk: number,
+    orderPaymentStatus: 'PAID' | 'PARTIALLY_PAID',
+    amount: number,
+    transactionId: string,
+  ) {
+    const order = await this.prisma.order.update({
+      where: { id: orderPk },
+      data: { paymentStatus: orderPaymentStatus },
+      select: { orderId: true, status: true },
+    });
+
+    await this.prisma.orderStatusHistory.create({
+      data: {
+        orderId: orderPk,
+        status: order.status,
+        note: `Payment of ${amount} received via SSL Commerz after the order was ${order.status.toLowerCase()} — needs a refund. Transaction ID: ${transactionId}`,
+      },
+    });
+
+    void this.adminNotificationsService.notify({
+      type: 'PAYMENT_ON_CANCELLED_ORDER',
+      title: 'Refund needed',
+      message: `${order.orderId} was paid (৳${amount.toLocaleString('en-US')}) after it was cancelled. Refund it from Refunds.`,
+      link: '/admin/refunds',
+      metadata: { orderId: order.orderId, transactionId },
+    });
   }
 
   /**

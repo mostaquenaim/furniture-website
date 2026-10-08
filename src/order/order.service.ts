@@ -20,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CollectRemainderDto } from './dto/collect-remainder.dto';
 import {
+  CourierStatus,
   OrderStatus,
   PaymentMethod,
   Prisma,
@@ -55,12 +56,25 @@ import {
   DeliveryFeeService,
   resolveUnitWeight,
 } from 'src/courier/services/delivery-fee.service';
+import { AdminNotificationsService } from 'src/admin-notifications/admin-notifications.service';
+import { CancelledOrderRefund, RefundService } from 'src/refund/refund.service';
 
 // Separate from auth's 'phone' OTPs so login and order codes can't expire or
 // satisfy each other. Plain string column — no migration needed.
 const ORDER_OTP_TYPE = 'order_phone';
 const ORDER_OTP_MAX_ATTEMPTS = 5;
 const ORDER_OTP_HOURLY_LIMIT = 5;
+
+// Admin "Cancel Order" is only for orders that haven't left the warehouse;
+// anything shipped or delivered goes through the return flow instead.
+// Kept in sync with CANCELLABLE_STATUSES in the admin AllOrdersComponent.
+const ADMIN_CANCELLABLE_STATUSES: OrderStatus[] = [
+  OrderStatus.PENDING,
+  OrderStatus.CONFIRMED,
+  OrderStatus.PROCESSING,
+  OrderStatus.PACKED,
+  OrderStatus.ON_HOLD,
+];
 
 @Injectable()
 export class OrderService {
@@ -78,6 +92,8 @@ export class OrderService {
     private reservationService: ReservationService,
     private orderStatusService: OrderStatusService,
     private deliveryFeeService: DeliveryFeeService,
+    private adminNotificationsService: AdminNotificationsService,
+    private refundService: RefundService,
   ) {}
 
   private async generateOrderId(tx: Prisma.TransactionClient) {
@@ -836,6 +852,14 @@ export class OrderService {
     if (userId) {
       void this.triggerFraudCheckIfNeeded(userId, order.customerPhone);
     }
+    // Not awaited: the customer's response shouldn't wait on staff alerts
+    void this.adminNotificationsService.notify({
+      type: 'ORDER_CREATED',
+      title: 'New order',
+      message: `${order.orderId} · ${order.customerName}${userId ? '' : ' (guest)'} · ৳${order.total.toLocaleString('en-US')} · ${order.deliveryMethod === 'COD' ? 'COD' : 'Online'}`,
+      link: '/admin/orders',
+      metadata: { orderId: order.orderId },
+    });
     return order;
   }
 
@@ -2014,52 +2038,191 @@ export class OrderService {
       this.stockEventsGateway.emitStockUpdated(event);
     }
 
-    // Customer-facing notification is a side effect of a committed status
-    // change — fired after the transaction settles, and never allowed to
-    // fail the admin's status-update request even if the queue is down.
     if (previousStatus !== updatedOrder.status) {
-      try {
-        await this.notificationService.sendStatusUpdate(
-          {
-            email: updatedOrder.customerEmail,
-            phone: updatedOrder.customerPhone,
-          },
-          {
-            orderId: updatedOrder.orderId,
-            customerName: updatedOrder.customerName,
-            status: updatedOrder.status,
-            trackingToken: updatedOrder.trackingToken,
-          },
-        );
-      } catch (err) {
-        this.logger.error(
-          `Failed to queue status-update notification for order ${updatedOrder.orderId}`,
-          err,
-        );
-      }
-
-      // Push to any customer currently viewing this order's tracking page —
-      // same "fire after commit, never fail the caller" contract as the
-      // notification above.
-      try {
-        this.customerOrderEventsGateway.emitOrderStatusUpdated(
-          updatedOrder.orderId,
-          {
-            orderId: updatedOrder.orderId,
-            status: updatedOrder.status,
-            previousStatus: previousStatus!,
-            updatedAt: updatedOrder.updatedAt,
-          },
-        );
-      } catch (err) {
-        this.logger.error(
-          `Failed to emit realtime status update for order ${updatedOrder.orderId}`,
-          err,
-        );
-      }
+      await this.notifyCustomerOfStatusChange(updatedOrder, previousStatus!);
     }
 
     return updatedOrder;
+  }
+
+  /**
+   * Admin "Cancel Order" — separate from the manual status dropdown so it
+   * can be enabled on its own (MANUAL_ORDER_CANCEL) while status changes
+   * stay courier-driven. Cancels through the shared status chokepoint (which
+   * releases reservations and restores stock), then refunds whatever was
+   * already paid. The refund runs after the commit: a gateway failure must
+   * not roll back the cancellation, it's reported back for a retry instead.
+   */
+  async cancelOrder(orderId: string, reason: string, adminId: number) {
+    if (process.env.MANUAL_ORDER_CANCEL !== 'true') {
+      throw new BadRequestException(
+        'Order cancellation is disabled. Set MANUAL_ORDER_CANCEL=true in the environment to enable it.',
+      );
+    }
+
+    const cancelReason = reason.trim();
+    let previousStatus!: OrderStatus;
+    let stockEvents: StockUpdatedPayload[] = [];
+
+    const cancelledOrder = await this.prisma.$transaction(async (tx) => {
+      const found = await tx.order.findUnique({
+        where: { orderId },
+        select: { id: true },
+      });
+      if (!found) {
+        throw new NotFoundException('Order not found');
+      }
+
+      // Row lock: a second admin's cancel, a status change, or a courier
+      // webhook on this order waits here until this transaction finishes,
+      // so the status checks below can't go stale before the update.
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${found.id} FOR UPDATE`;
+
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id: found.id },
+        select: { id: true, status: true },
+      });
+
+      if (!ADMIN_CANCELLABLE_STATUSES.includes(order.status)) {
+        throw new BadRequestException(
+          order.status === OrderStatus.CANCELLED
+            ? 'This order is already cancelled'
+            : `A ${order.status} order can't be cancelled — only orders that haven't shipped yet. Use a return instead.`,
+        );
+      }
+
+      const activeShipment = await tx.courierShipment.findFirst({
+        where: {
+          orderId: order.id,
+          status: { notIn: [CourierStatus.CANCELLED, CourierStatus.FAILED] },
+        },
+        select: { id: true },
+      });
+      if (activeShipment) {
+        throw new BadRequestException(
+          'This order has a booked courier shipment. Cancel the shipment from Couriers first, then cancel the order.',
+        );
+      }
+
+      const result = await this.orderStatusService.applyStatusChange(tx, {
+        orderPk: order.id,
+        newStatus: OrderStatus.CANCELLED,
+        adminId,
+        historyNote: `Cancelled by admin. Reason: ${cancelReason}`,
+      });
+
+      previousStatus = result.previousStatus;
+      stockEvents = result.stockEvents;
+
+      this.activityLogService.log({
+        adminId,
+        action: 'CANCEL_ORDER',
+        module: 'ORDER',
+        targetId: order.id,
+        targetLabel: orderId,
+        oldValue: { status: result.previousStatus },
+        newValue: {
+          status: result.order.status,
+          stockRestored: result.order.stockRestored,
+          reason: cancelReason,
+        },
+      });
+
+      return result.order;
+    });
+
+    for (const event of stockEvents) {
+      this.stockEventsGateway.emitStockUpdated(event);
+    }
+
+    await this.notifyCustomerOfStatusChange(cancelledOrder, previousStatus);
+
+    let refunds: CancelledOrderRefund[] = [];
+    let refundError: string | null = null;
+    try {
+      refunds = await this.refundService.refundCancelledOrder({
+        orderPk: cancelledOrder.id,
+        orderNumber: cancelledOrder.orderId,
+        reason: cancelReason,
+        adminId,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Could not start refunds for cancelled order ${cancelledOrder.orderId}`,
+        err,
+      );
+      refundError = err?.message ?? 'Could not start the refund';
+    }
+
+    if (refundError || refunds.some((r) => r.status === 'FAILED')) {
+      void this.adminNotificationsService.notify({
+        type: 'REFUND_FAILED',
+        title: 'Refund needs attention',
+        message: `${cancelledOrder.orderId} was cancelled but its refund didn't go through. Retry it from Refunds.`,
+        link: '/admin/refunds',
+        metadata: { orderId: cancelledOrder.orderId },
+      });
+    }
+
+    return { order: cancelledOrder, refunds, refundError };
+  }
+
+  /**
+   * Customer-facing side effects of a committed status change — fired after
+   * the transaction settles, and never allowed to fail the admin's request
+   * even if the queue or socket is down.
+   */
+  private async notifyCustomerOfStatusChange(
+    updatedOrder: {
+      orderId: string;
+      status: OrderStatus;
+      customerName: string;
+      customerEmail: string | null;
+      customerPhone: string;
+      trackingToken: string;
+      updatedAt: Date;
+    },
+    previousStatus: OrderStatus,
+  ) {
+    try {
+      await this.notificationService.sendStatusUpdate(
+        {
+          email: updatedOrder.customerEmail,
+          phone: updatedOrder.customerPhone,
+        },
+        {
+          orderId: updatedOrder.orderId,
+          customerName: updatedOrder.customerName,
+          status: updatedOrder.status,
+          trackingToken: updatedOrder.trackingToken,
+        },
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to queue status-update notification for order ${updatedOrder.orderId}`,
+        err,
+      );
+    }
+
+    // Push to any customer currently viewing this order's tracking page —
+    // same "fire after commit, never fail the caller" contract as the
+    // notification above.
+    try {
+      this.customerOrderEventsGateway.emitOrderStatusUpdated(
+        updatedOrder.orderId,
+        {
+          orderId: updatedOrder.orderId,
+          status: updatedOrder.status,
+          previousStatus,
+          updatedAt: updatedOrder.updatedAt,
+        },
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to emit realtime status update for order ${updatedOrder.orderId}`,
+        err,
+      );
+    }
   }
 
   // Records cash collected by the courier for a COD order's remaining
