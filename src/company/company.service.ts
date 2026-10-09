@@ -46,4 +46,22 @@ export class CompanyService {
 
     return updated;
   }
+
+  async updatePrivacyPolicy(privacyPolicy: string, adminId: number) {
+    await this.get(); // ensure the singleton row exists
+
+    const updated = await this.prisma.companyInfo.update({
+      where: { id: SINGLETON_ID },
+      data: { privacyPolicy, updatedBy: adminId },
+    });
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'UPDATE_PRIVACY_POLICY',
+      module: 'CONTENT',
+      targetLabel: 'Privacy policy',
+    });
+
+    return updated;
+  }
 }

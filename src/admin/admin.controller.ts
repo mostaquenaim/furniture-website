@@ -49,6 +49,7 @@ import { UpsertStaticPageDto } from 'src/cms/dto/static-page/upsert-static-page.
 import { UpdateEmailTemplateDto } from 'src/cms/dto/email-template/update-email-template.dto';
 import { CreateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/create-terms-and-condition.dto';
 import { UpdateTermsAndConditionDto } from 'src/cms/dto/terms-and-condition/update-terms-and-condition.dto';
+import { ReorderTermsAndConditionsDto } from 'src/cms/dto/terms-and-condition/reorder-terms-and-conditions.dto';
 import { OrderService } from 'src/order/order.service';
 import { UpdateOrderStatusDto } from 'src/order/dto/update-order-status.dto';
 import { CollectRemainderDto } from 'src/order/dto/collect-remainder.dto';
@@ -856,6 +857,19 @@ export class AdminController {
     @Req() req: any,
   ) {
     return this.cmsService.createTermsAndCondition(dto, req?.user?.userId);
+  }
+
+  // Declared before 'terms-and-conditions/:id' so "reorder" isn't parsed as an id
+  @Patch('terms-and-conditions/reorder')
+  @Permission(Action.CMS_TNC_MANAGE)
+  reorderTermsAndConditions(
+    @Body() dto: ReorderTermsAndConditionsDto,
+    @Req() req: any,
+  ) {
+    return this.cmsService.reorderTermsAndConditions(
+      dto.ids,
+      req?.user?.userId,
+    );
   }
 
   @Patch('terms-and-conditions/:id')
