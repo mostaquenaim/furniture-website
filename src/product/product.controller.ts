@@ -23,6 +23,8 @@ import { Action } from 'src/permission/action.enum';
 import type { Response } from 'express';
 import { BarcodeService } from 'src/barcode/barcode.service';
 import { ReviewService } from 'src/review/review.service';
+import { parseSortParams } from 'src/common/utils/sort.utils';
+import { PRODUCT_SORT_FIELDS } from './product-sort';
 
 @Controller('product')
 export class ProductController {
@@ -46,7 +48,7 @@ export class ProductController {
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
     @Query('sortBy') sortBy?: string,
-    @Query('order') order: 'asc' | 'desc' = 'asc',
+    @Query('order') order?: string,
     @Query('thumb') thumb?: boolean,
     @Query('includeOutOfStock') includeOutOfStock?: string,
   ) {
@@ -56,7 +58,7 @@ export class ProductController {
       limit: limit !== undefined ? Number(limit) : undefined,
       search,
       isActive: isActive !== undefined ? isActive === 'true' : undefined,
-      orderBy: sortBy ? { [sortBy]: order } : undefined,
+      sort: parseSortParams(sortBy, order, PRODUCT_SORT_FIELDS, 'asc'),
       thumb,
       includeOutOfStock: includeOutOfStock === 'true',
       colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,

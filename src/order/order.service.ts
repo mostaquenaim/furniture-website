@@ -1352,7 +1352,7 @@ export class OrderService {
       limit?: number;
       search?: string;
       status?: OrderStatus;
-      orderBy?: Record<string, 'asc' | 'desc'>;
+      orderBy?: Prisma.OrderOrderByWithRelationInput[];
       thumb?: boolean;
       from?: string;
       to?: string;
@@ -1360,6 +1360,10 @@ export class OrderService {
     },
   ) {
     const skip = (page - 1) * limit;
+    const listOrderBy: Prisma.OrderOrderByWithRelationInput[] = orderBy ?? [
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ];
 
     const user = await this.prisma.user.findUnique({
       where: {
@@ -1452,7 +1456,7 @@ export class OrderService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { createdAt: 'desc' },
+          orderBy: listOrderBy,
           select: {
             id: true,
             orderId: true,
@@ -1482,7 +1486,7 @@ export class OrderService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { createdAt: 'desc' },
+          orderBy: listOrderBy,
           include: {
             items: {
               include: {

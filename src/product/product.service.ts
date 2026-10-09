@@ -32,6 +32,8 @@ import {
   IN_STOCK_SIZE_WHERE,
   filterAvailableColors,
 } from 'src/common/utils/product-availability.utils';
+import { ParsedSort } from 'src/common/utils/sort.utils';
+import { buildProductOrderBy, ProductSortField } from './product-sort';
 
 @Injectable()
 export class ProductService {
@@ -438,7 +440,7 @@ export class ProductService {
     limit,
     search,
     isActive,
-    orderBy,
+    sort,
     colorIds,
     materialIds,
     subCategoryIds,
@@ -456,12 +458,13 @@ export class ProductService {
     subCategoryIds?: number[];
     minPrice?: number;
     maxPrice?: number;
-    orderBy?: Record<string, 'asc' | 'desc'>;
+    sort?: ParsedSort<ProductSortField>;
     thumb?: boolean;
     includeOutOfStock?: boolean;
   }) {
     // No limit => no pagination, return every product matching the filters.
     const skip = limit ? (page - 1) * limit : undefined;
+    const orderBy = buildProductOrderBy(sort);
 
     const where: any = {};
 
@@ -526,7 +529,7 @@ export class ProductService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { sortOrder: 'asc' },
+          orderBy,
           select: {
             id: true,
             title: true,
@@ -551,7 +554,7 @@ export class ProductService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { sortOrder: 'asc' },
+          orderBy,
           include: {
             material: true, // If material is a single object, no 'where' allowed here
             images: {
