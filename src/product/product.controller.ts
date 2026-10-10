@@ -5,6 +5,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -249,6 +250,22 @@ export class ProductController {
   @Permission(Action.PRODUCT_UPDATE)
   toggleProductStatusBySlug(@Param('productId') productId: string) {
     return this.productService.toggleProductStatusBySlug(productId);
+  }
+
+  // Permanent delete. PRODUCT_DELETE is off for every role until a
+  // superadmin grants it; SUPERADMIN always passes RolesGuard.
+  @Get(':slug/delete-preview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.PRODUCT_DELETE)
+  getProductDeletePreview(@Param('slug') slug: string) {
+    return this.productService.getProductDeletePreview(slug);
+  }
+
+  @Delete(':slug')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.PRODUCT_DELETE)
+  deleteProduct(@Param('slug') slug: string, @Req() req: any) {
+    return this.productService.deleteProductBySlug(slug, req.user.userId);
   }
 
   @Get(':id/barcodeimage')

@@ -17,7 +17,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { DiscountType } from './roles.enum';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { PieceService } from 'src/piece/piece.service';
-import { Prisma, UserRole } from '@prisma/client';
+import { PieceStatus, Prisma, UserRole } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   applyDiscount,
@@ -32,6 +32,14 @@ import {
   IN_STOCK_SIZE_WHERE,
   filterAvailableColors,
 } from 'src/common/utils/product-availability.utils';
+
+// Pieces that never physically existed in the warehouse: generated labels
+// that were never scanned in, or labels voided before use. These are the
+// only pieces a hard product delete is allowed to remove.
+const HARD_DELETABLE_PIECE_STATUSES: PieceStatus[] = [
+  PieceStatus.CREATED,
+  PieceStatus.VOID,
+];
 
 @Injectable()
 export class ProductService {
@@ -630,6 +638,249 @@ export class ProductService {
         isActive: !product.isActive,
       },
     });
+  }
+
+  // ── Permanent (hard) delete ────────────────────────────────────────────
+  // Only a product with no history can be deleted. Anything that was ordered
+  // or has physical stock is refused — deactivate those instead, so orders,
+  // refunds and warehouse records keep pointing at a real product.
+  //
+  // The blocker check is for a readable error; the FK constraints are the
+  // real guard. If an order or a received piece lands between the check and
+  // the delete, the non-cascading OrderItem / Piece rows make Postgres reject
+  // the delete and the whole transaction rolls back.
+
+  private async getProductDeleteBlockers(
+    db: Prisma.TransactionClient,
+    productId: number,
+  ): Promise<string[]> {
+    const ofProduct = { color: { productId } };
+
+    const orderItems = await db.orderItem.count({
+      where: { OR: [{ productId }, { productSize: ofProduct }] },
+    });
+    const physicalPieces = await db.piece.count({
+      where: {
+        productSize: ofProduct,
+        status: { notIn: HARD_DELETABLE_PIECE_STATUSES },
+      },
+    });
+    const sizeStock = await db.productSize.aggregate({
+      where: ofProduct,
+      _sum: { quantity: true },
+    });
+    const lotStock = await db.inventoryItem.aggregate({
+      where: { OR: [{ productId }, { productSize: ofProduct }] },
+      _sum: { quantity: true },
+    });
+
+    const blockers: string[] = [];
+    if (orderItems > 0) {
+      blockers.push(`it appears in ${orderItems} order line(s)`);
+    }
+    if (physicalPieces > 0) {
+      blockers.push(
+        `${physicalPieces} barcoded piece(s) have been received into the warehouse`,
+      );
+    }
+    if ((sizeStock._sum.quantity ?? 0) > 0) {
+      blockers.push(`it has ${sizeStock._sum.quantity} unit(s) in stock`);
+    }
+    if ((lotStock._sum.quantity ?? 0) > 0) {
+      blockers.push(
+        `inventory lots still hold ${lotStock._sum.quantity} unit(s)`,
+      );
+    }
+    return blockers;
+  }
+
+  // Read-only: tells the admin UI up front whether the delete will be
+  // refused, and what else goes with the product if it isn't.
+  async getProductDeletePreview(slug: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { slug },
+      select: { id: true, title: true, slug: true },
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with slug "${slug}" not found`);
+    }
+
+    const ofProduct = { color: { productId: product.id } };
+    const blockers = await this.getProductDeleteBlockers(
+      this.prisma,
+      product.id,
+    );
+    const [cartItems, wishlists, unusedPieces, flashSales] = await Promise.all([
+      this.prisma.cartItem.count({ where: { productSize: ofProduct } }),
+      this.prisma.wishlist.count({ where: { productId: product.id } }),
+      this.prisma.piece.count({
+        where: {
+          productSize: ofProduct,
+          status: { in: HARD_DELETABLE_PIECE_STATUSES },
+        },
+      }),
+      this.prisma.flashSaleProduct.count({
+        where: { productId: product.id },
+      }),
+    ]);
+
+    return {
+      product,
+      canDelete: blockers.length === 0,
+      blockers,
+      willRemove: { cartItems, wishlists, unusedPieces, flashSales },
+    };
+  }
+
+  async deleteProductBySlug(slug: string, adminId: number) {
+    let outcome: {
+      product: { id: number; title: string; slug: string; sku: string | null };
+      removed: {
+        cartItems: number;
+        wishlists: number;
+        unusedPieces: number;
+        flashSales: number;
+      };
+    };
+
+    try {
+      outcome = await this.prisma.$transaction(
+        async (tx) => {
+          const product = await tx.product.findUnique({
+            where: { slug },
+            select: { id: true, title: true, slug: true, sku: true },
+          });
+          if (!product) {
+            throw new NotFoundException(
+              `Product with slug "${slug}" not found`,
+            );
+          }
+
+          const blockers = await this.getProductDeleteBlockers(tx, product.id);
+          if (blockers.length > 0) {
+            throw new ConflictException(
+              `"${product.title}" can't be deleted: ${blockers.join('; ')}. Deactivate it instead.`,
+            );
+          }
+
+          const sizeIds = (
+            await tx.productSize.findMany({
+              where: { color: { productId: product.id } },
+              select: { id: true },
+            })
+          ).map((s) => s.id);
+
+          // Carts: drop the lines, then re-total every cart that had one
+          const cartIds = [
+            ...new Set(
+              (
+                await tx.cartItem.findMany({
+                  where: { productSizeId: { in: sizeIds } },
+                  select: { cartId: true },
+                })
+              ).map((c) => c.cartId),
+            ),
+          ];
+          const cartItems = await tx.cartItem.deleteMany({
+            where: { productSizeId: { in: sizeIds } },
+          });
+          for (const cartId of cartIds) {
+            const totals = await tx.cartItem.aggregate({
+              where: { cartId },
+              _sum: { subtotalAtAdd: true, baseSubtotalAtAdd: true },
+            });
+            await tx.cart.update({
+              where: { id: cartId },
+              data: {
+                subtotalAtAdd: totals._sum.subtotalAtAdd ?? 0,
+                baseSubtotalAtAdd: totals._sum.baseSubtotalAtAdd ?? 0,
+              },
+            });
+          }
+
+          // Never-received / voided labels. Any other piece is left alone,
+          // so its FK to ProductSize aborts the delete below.
+          const pieceIds = (
+            await tx.piece.findMany({
+              where: {
+                productSizeId: { in: sizeIds },
+                status: { in: HARD_DELETABLE_PIECE_STATUSES },
+              },
+              select: { id: true },
+            })
+          ).map((p) => p.id);
+          await tx.pieceStatusEvent.deleteMany({
+            where: { pieceId: { in: pieceIds } },
+          });
+          const pieces = await tx.piece.deleteMany({
+            where: { id: { in: pieceIds } },
+          });
+          await tx.generationBatch.deleteMany({
+            where: { productSizeId: { in: sizeIds } },
+          });
+
+          // Zero-quantity stock records (positive ones were blocked above)
+          const stockWhere = {
+            OR: [{ productId: product.id }, { productSizeId: { in: sizeIds } }],
+          };
+          await tx.inventoryItem.deleteMany({ where: stockWhere });
+          await tx.stockAdjustment.deleteMany({ where: stockWhere });
+
+          const wishlists = await tx.wishlist.deleteMany({
+            where: { productId: product.id },
+          });
+          await tx.productView.deleteMany({
+            where: { productId: product.id },
+          });
+          const flashSales = await tx.flashSaleProduct.count({
+            where: { productId: product.id },
+          });
+
+          // Cascades: images, colors → color images + sizes, sub-categories,
+          // tags, flash-sale entries
+          await tx.product.delete({ where: { id: product.id } });
+
+          return {
+            product,
+            removed: {
+              cartItems: cartItems.count,
+              wishlists: wishlists.count,
+              unusedPieces: pieces.count,
+              flashSales,
+            },
+          };
+        },
+        { maxWait: 10_000, timeout: 30_000 },
+      );
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        (err.code === 'P2003' || err.code === 'P2014')
+      ) {
+        throw new ConflictException(
+          'This product was ordered or received stock while it was being deleted. Nothing was deleted — refresh and try again.',
+        );
+      }
+      throw err;
+    }
+
+    // After commit, so a rolled-back delete is never logged as done
+    await this.activityLogService.log({
+      adminId,
+      action: 'DELETE_PRODUCT',
+      module: 'PRODUCT',
+      severity: 'WARNING',
+      targetId: outcome.product.id,
+      targetLabel: outcome.product.title,
+      oldValue: {
+        title: outcome.product.title,
+        slug: outcome.product.slug,
+        sku: outcome.product.sku,
+      },
+      metadata: outcome.removed,
+    });
+
+    return { deleted: true, ...outcome };
   }
 
   // update product
