@@ -57,9 +57,6 @@ under memory pressure will silently drop queued jobs.
 Upgrade the free service from [render.yaml](render.yaml) to a paid plan:
 - Eliminates the 15-min idle spin-down (real customers shouldn't eat a
   60s cold start).
-- More RAM headroom for the Puppeteer PDF path (`order.service.ts` →
-  `renderPdf`) — under the free tier's 512MB this is the first thing that
-  falls over under concurrent invoice downloads.
 - Consider splitting the **Bull queue processor** into its own Render
   **background worker** service once job volume grows, so a slow PDF render
   or notification job can't starve the web process handling HTTP requests.

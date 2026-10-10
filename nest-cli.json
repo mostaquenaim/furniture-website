@@ -8,6 +8,10 @@
       {
         "include": "notifications/templates/**/*",
         "outDir": "dist/src"
+      },
+      {
+        "include": "order/invoice/fonts/**/*",
+        "outDir": "dist/src"
       }
     ],
     "watchAssets": true,
