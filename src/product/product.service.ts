@@ -34,6 +34,7 @@ import {
 } from 'src/common/utils/product-availability.utils';
 import { PublicReadCacheService } from 'src/common/cache/public-read-cache.service';
 import { resolveProductOrderBy } from 'src/common/utils/product-sort.utils';
+import { buildProductOrderBy, ProductSortField } from './product-sort';
 
 // How long anonymous storefront reads are served from memory. Product writes
 // in this service and stock changes clear the cache straight away; this bounds
@@ -548,7 +549,7 @@ export class ProductService {
     limit,
     search,
     isActive,
-    sort,
+    orderBy: requestedOrderBy,
     colorIds,
     materialIds,
     subCategoryIds,
@@ -559,7 +560,20 @@ export class ProductService {
   }: GetAllProductsParams) {
     // No limit => no pagination, return every product matching the filters.
     const skip = limit ? (page - 1) * limit : undefined;
-    const orderBy = buildProductOrderBy(sort);
+    // requestedOrderBy is a single { column: direction } already whitelisted
+    // by resolveProductOrderBy; buildProductOrderBy adds the id tie-breaker
+    // and keeps unpriced products last.
+    const requestedSort = requestedOrderBy
+      ? Object.entries(requestedOrderBy)[0]
+      : undefined;
+    const orderBy = buildProductOrderBy(
+      requestedSort
+        ? {
+            field: requestedSort[0] as ProductSortField,
+            direction: requestedSort[1],
+          }
+        : undefined,
+    );
 
     const where: any = {};
 
