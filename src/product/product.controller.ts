@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,6 +17,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { markPublicCacheable } from 'src/common/utils/public-cache-headers';
 import { ProductService } from './product.service';
 import { OptionalJwtAuthGuard } from 'src/auth/guards/optional-jwt-auth.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -35,46 +38,99 @@ export class ProductController {
     private readonly reviewService: ReviewService,
   ) {}
 
+  // Storefront listing: active, in-stock products only.
   @Get('all')
-  getAllProducts(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('search') search?: string,
-    @Query('isActive') isActive?: string,
-
-    @Query('colorIds') colorIds?: string,
-    @Query('materialIds') materialIds?: string,
-    @Query('subCategoryIds') subCategoryIds?: string,
-
-    @Query('minPrice') minPrice?: string,
-    @Query('maxPrice') maxPrice?: string,
-    @Query('sortBy') sortBy?: string,
-    @Query('order') order?: string,
-    @Query('thumb') thumb?: boolean,
-    @Query('includeOutOfStock') includeOutOfStock?: string,
+  async getAllProducts(
+    @Res({ passthrough: true }) res: Response,
+    @Query() query: Record<string, any>,
   ) {
-    return this.productService.getAllProducts({
+    // These used to widen this public listing to inactive / out-of-stock
+    // products for anyone. Refuse them loudly so a stale admin page fails
+    // visibly instead of quietly showing a partial list.
+    if (query.isActive !== undefined || query.includeOutOfStock !== undefined) {
+      throw new BadRequestException(
+        'isActive / includeOutOfStock are staff-only: use GET /product/admin/all',
+      );
+    }
+
+    const result = await this.productService.getAllProducts(
+      this.parseListingQuery(query),
+    );
+    markPublicCacheable(res);
+    return result;
+  }
+
+  // Admin product list: inactive and out-of-stock products included on request
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.PRODUCT_VIEW)
+  getAdminProducts(@Query() query: Record<string, any>) {
+    return this.productService.getAdminProducts(
+      this.parseStaffListingQuery(query),
+    );
+  }
+
+  // Flash-sale product picker — same listing, gated by the flash-sale
+  // permission so sale managers don't also need PRODUCT_VIEW.
+  @Get('admin/flash-sale-picker')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.FLASH_SALE_MANAGE)
+  getFlashSalePickerProducts(@Query() query: Record<string, any>) {
+    return this.productService.getAdminProducts(
+      this.parseStaffListingQuery(query),
+    );
+  }
+
+  // Storefront listing params — has no way to express inactive/out-of-stock
+  private parseListingQuery(query: Record<string, any>) {
+    const {
+      page,
+      limit,
+      search,
+      colorIds,
+      materialIds,
+      subCategoryIds,
+      minPrice,
+      maxPrice,
+      sortBy,
+      order = 'asc',
+      thumb,
+    } = query;
+
+    return {
       page: Number(page) || 1,
       // No limit passed => return every matching product (no pagination).
       limit: limit !== undefined ? Number(limit) : undefined,
-      search,
-      isActive: isActive !== undefined ? isActive === 'true' : undefined,
-      sort: parseSortParams(sortBy, order, PRODUCT_SORT_FIELDS, 'asc'),
-      thumb,
-      includeOutOfStock: includeOutOfStock === 'true',
-      colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
-      materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
+      search: typeof search === 'string' ? search : undefined,
+      orderBy: this.productService.resolveOrderBy(sortBy, order),
+      thumb: thumb === true || thumb === 'true',
+      colorIds: colorIds ? String(colorIds).split(',').map(Number) : undefined,
+      materialIds: materialIds
+        ? String(materialIds).split(',').map(Number)
+        : undefined,
       subCategoryIds: subCategoryIds
-        ? subCategoryIds.split(',').map(Number)
+        ? String(subCategoryIds).split(',').map(Number)
         : undefined,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
-    });
+    };
+  }
+
+  // Staff listing params: the storefront ones plus the inactive /
+  // out-of-stock filters
+  private parseStaffListingQuery(query: Record<string, any>) {
+    const { isActive, includeOutOfStock } = query;
+    return {
+      ...this.parseListingQuery(query),
+      isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      includeOutOfStock: includeOutOfStock === 'true',
+    };
   }
 
   // you may also like / recommended / related products
   @Get('you-may-also-like')
   async youMayAlsoLike(
+    @Res({ passthrough: true }) res: Response,
     @Query('productSlug') productSlug?: string,
     @Query('productIds') productIds?: string,
     @Query('categorySlug') categorySlug?: string,
@@ -104,19 +160,20 @@ export class ProductController {
           .filter((n) => !isNaN(n))
       : [];
 
-    if (catIds.length > 0) {
-      return this.productService.getSubCategoryBasedRecommendations(
-        cleanCategorySlug,
-        catIds,
-      );
-    }
-
-    return this.productService.youMayAlsoLike(
-      cleanProductSlug,
-      ids,
-      cleanCategorySlug,
-      catIds,
-    );
+    const result =
+      catIds.length > 0
+        ? await this.productService.getSubCategoryBasedRecommendations(
+            cleanCategorySlug,
+            catIds,
+          )
+        : await this.productService.youMayAlsoLike(
+            cleanProductSlug,
+            ids,
+            cleanCategorySlug,
+            catIds,
+          );
+    markPublicCacheable(res);
+    return result;
   }
 
   // product.controller.ts
@@ -164,31 +221,55 @@ export class ProductController {
     );
   }
 
-  // product reviews
+  // product reviews — public: visible reviews only
   @Get('reviews')
   @UseGuards(OptionalJwtAuthGuard)
-  async getProductReviews(
-    @Query('productSlug') productSlug?: string,
-    @Query('minRating') minRating?: string,
-    @Query('maxRating') maxRating?: string,
-    @Query('isHidden') isHidden?: string,
-    @Query('isFeatured') isFeatured?: string,
-    @Query('fromDate') fromDate?: string,
-    @Query('toDate') toDate?: string,
-    @Query('customerId') customerId?: string,
-    @Req() req?: any,
-  ) {
+  async getProductReviews(@Query() query: Record<string, any>) {
+    // isHidden used to let anyone read hidden reviews. Refuse it rather than
+    // ignore it, so a stale moderation page fails visibly instead of quietly
+    // showing only the visible ones.
+    if (query.isHidden !== undefined) {
+      throw new BadRequestException(
+        'isHidden is staff-only: use GET /product/admin/reviews',
+      );
+    }
     return this.productService.getProductReviews({
-      productSlug: productSlug !== undefined ? productSlug : undefined,
+      ...this.parseReviewQuery(query),
+      isHidden: false,
+    });
+  }
+
+  // Review moderation list: hidden reviews included (isHidden=null → all)
+  @Get('admin/reviews')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.REVIEW_MANAGE)
+  async getAdminProductReviews(@Query() query: Record<string, any>) {
+    const { isHidden } = query;
+    return this.productService.getProductReviews({
+      ...this.parseReviewQuery(query),
+      isHidden: isHidden === 'true' ? true : isHidden === 'null' ? null : false,
+    });
+  }
+
+  private parseReviewQuery(query: Record<string, any>) {
+    const {
+      productSlug,
+      minRating,
+      maxRating,
+      isFeatured,
+      fromDate,
+      toDate,
+      customerId,
+    } = query;
+    return {
+      productSlug: typeof productSlug === 'string' ? productSlug : undefined,
       minRating: minRating !== undefined ? Number(minRating) : undefined,
       maxRating: maxRating !== undefined ? Number(maxRating) : undefined,
-      isHidden: isHidden === 'true' ? true : isHidden === 'null' ? null : false,
       isFeatured: isFeatured === 'true' ? true : undefined,
       fromDate: fromDate ? new Date(fromDate) : undefined,
       toDate: toDate ? new Date(toDate) : undefined,
-      adminId: req?.user?.userId,
       customerId: customerId ? parseInt(customerId) : undefined,
-    });
+    };
   }
 
   // get a random featured review
@@ -205,46 +286,90 @@ export class ProductController {
 
   // trending products
   @Get('trending')
-  getTrendingProducts(@Query('limit') limit?: string) {
+  async getTrendingProducts(
+    @Res({ passthrough: true }) res: Response,
+    @Query('limit') limit?: string,
+  ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    return this.productService.getTrendingProducts(parsedLimit);
+    const result = await this.productService.getTrendingProducts(parsedLimit);
+    markPublicCacheable(res);
+    return result;
   }
 
   // featured products (Product.isFeatured, set from the product admin form)
   @Get('featured')
-  getFeaturedProducts(@Query('limit') limit?: string) {
+  async getFeaturedProducts(
+    @Res({ passthrough: true }) res: Response,
+    @Query('limit') limit?: string,
+  ) {
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    return this.productService.getFeaturedProducts(parsedLimit);
+    const result = await this.productService.getFeaturedProducts(parsedLimit);
+    markPublicCacheable(res);
+    return result;
   }
 
   @Get('on-sale/status')
-  getSaleStatus() {
-    return this.productService.getSaleStatus();
+  async getSaleStatus(@Res({ passthrough: true }) res: Response) {
+    const result = await this.productService.getSaleStatus();
+    markPublicCacheable(res);
+    return result;
   }
 
   @Get('on-sale')
-  getOnSaleProducts(
+  async getOnSaleProducts(
+    @Res({ passthrough: true }) res: Response,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('sortBy') sortBy?: string,
     @Query('order') order: 'asc' | 'desc' = 'desc',
   ) {
-    return this.productService.getOnSaleProducts({
+    const result = await this.productService.getOnSaleProducts({
       page: Number(page) || 1,
       limit: Number(limit) || 18,
       sortBy: sortBy || 'createdAt',
       order,
     });
+    markPublicCacheable(res);
+    return result;
   }
 
   @Get(':slug/schema')
-  getProductSchema(@Param('slug') slug: string) {
-    return this.productService.generateProductSchema(slug);
+  async getProductSchema(
+    @Res({ passthrough: true }) res: Response,
+    @Param('slug') slug: string,
+  ) {
+    const result = await this.productService.generateProductSchema(slug);
+    markPublicCacheable(res);
+    return result;
+  }
+
+  // Full product for the admin edit form: includes inactive materials, tags
+  // and out-of-stock sizes, so it's staff-only and never cached.
+  @Get(':slug/admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permission(Action.PRODUCT_UPDATE)
+  getProductForAdmin(@Param('slug') slug: string) {
+    return this.productService.getProductBySlug(slug, true);
   }
 
   @Get(':slug')
-  getProductById(@Param('slug') slug: string, @Query('admin') admin?: string) {
-    return this.productService.getProductBySlug(slug, admin === 'true');
+  async getProductById(
+    @Res({ passthrough: true }) res: Response,
+    @Param('slug') slug: string,
+    @Query('admin') admin?: string,
+  ) {
+    // The admin view used to be ?admin=true on this public route. Refuse it
+    // loudly rather than quietly returning the storefront view: an edit form
+    // hydrated from storefront data (no out-of-stock sizes, no tags) and then
+    // saved would drop them.
+    if (admin === 'true') {
+      throw new BadRequestException(
+        'The admin product view moved to GET /product/:slug/admin',
+      );
+    }
+    const result = await this.productService.getProductBySlug(slug);
+    markPublicCacheable(res);
+    return result;
   }
 
   @Patch(':productId/toggle-status')

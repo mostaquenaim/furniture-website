@@ -6,6 +6,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -24,9 +25,20 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { GoogleUserDto } from './dto/google-user.dto';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
+import { checkOtpSend, claimOtp } from 'src/common/utils/otp.utils';
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_TIME_MINUTES = 15;
+
+// Customers stay signed in until they log out: their token lasts
+// CUSTOMER_SESSION_DAYS and the frontend renews it (POST /auth/refresh) while
+// they keep visiting. Staff tokens are short and never renewed.
+export const CUSTOMER_SESSION_DAYS = 90;
+const STAFF_SESSION: JwtSignOptions['expiresIn'] = '7d';
+
+export function sessionLength(role: string): JwtSignOptions['expiresIn'] {
+  return role === 'CUSTOMER' ? `${CUSTOMER_SESSION_DAYS}d` : STAFF_SESSION;
+}
 
 @Injectable()
 export class AuthService {
@@ -38,7 +50,7 @@ export class AuthService {
 
   async sendOtp(
     userId: number,
-    type: 'email' | 'phone' | '',
+    type: 'email' | 'phone',
     email?: string,
     phone?: string,
     purpose?:
@@ -50,6 +62,23 @@ export class AuthService {
       | 'VERIFY_EMAIL'
       | 'VERIFY_PHONE',
   ) {
+    const target = type === 'email' ? { email } : { phone };
+    const echoCode =
+      process.env.RENDER === 'true' || process.env.NODE_ENV === 'development';
+
+    // A code sent to the same place in the last minute is still valid: keep
+    // it instead of sending another message. Throws 429 past the hourly cap.
+    const recent = await checkOtpSend(
+      this.prisma,
+      { userId, type, ...target },
+      target,
+    );
+    if (recent) {
+      return echoCode
+        ? recent.code
+        : { message: `An OTP was sent to your ${type} less than a minute ago` };
+    }
+
     await this.prisma.oTP.updateMany({
       where: {
         userId,
@@ -85,10 +114,7 @@ export class AuthService {
       });
     }
 
-    if (
-      process.env.RENDER === 'true' ||
-      process.env.NODE_ENV === 'development'
-    ) {
+    if (echoCode) {
       return code;
     }
 
@@ -145,10 +171,10 @@ export class AuthService {
       process.env.NODE_ENV !== 'production' || process.env.RENDER === 'true';
 
     if (passwordVerified && isDevOrRenderDemo) {
-      return this.issueToken(user, '1d');
+      return this.issueToken(user, sessionLength(user.role));
     }
 
-    const otpType: 'email' | 'phone' | '' = dto.email ? 'email' : 'phone';
+    const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
 
     const otpDetails = await this.sendOtp(
       user.id,
@@ -166,13 +192,20 @@ export class AuthService {
     };
   }
 
-  async issueToken(user: any, expiresIn: JwtSignOptions['expiresIn']) {
+  // `sid` names the sign-in session: renewed tokens keep it, and logout
+  // revokes it, so every token ever issued for that sign-in stops working
+  async issueToken(
+    user: any,
+    expiresIn: JwtSignOptions['expiresIn'],
+    sid: string = crypto.randomUUID(),
+  ) {
     const jti = crypto.randomUUID();
 
     const payload = {
       userId: user.id,
       role: user.role,
       jti,
+      sid,
     };
 
     const token = await this.jwtService.signAsync(payload, {
@@ -183,11 +216,28 @@ export class AuthService {
     return { user: safeUser, token };
   }
 
+  // New token for the same session, so an active customer is never signed
+  // out. Called with a token the JwtStrategy already accepted.
+  async refreshSession(auth: { userId: number; sid?: string }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: auth.userId },
+      select: SAFE_USER_SELECT,
+    });
+    if (!user) throw new UnauthorizedException('User not found');
+    if (user.role !== 'CUSTOMER') {
+      throw new ForbiddenException('Staff sessions are not renewed');
+    }
+
+    // The old token stays valid until its own expiry: blacklisting it here
+    // would 401 requests already in flight with it. Tokens from before
+    // session ids (no sid) start a new session.
+    return this.issueToken(user, sessionLength(user.role), auth.sid);
+  }
+
   async verifyOtp(
     emailOrPhone: string,
     code: string,
     type: 'email' | 'phone',
-    keepSignedIn: boolean,
   ) {
     const user = await this.prisma.user.findFirst({
       where:
@@ -195,15 +245,17 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('User not found');
 
-    const otpData = await this.prisma.oTP.findFirst({
-      where: {
+    // Only a code sent to this email/phone counts, and each code allows
+    // OTP_MAX_ATTEMPTS checks
+    const otpData = await claimOtp(
+      this.prisma,
+      {
         userId: user.id,
-        code,
         type,
-        verified: false,
-        expiresAt: { gte: new Date() },
+        ...(type === 'email' ? { email: emailOrPhone } : { phone: emailOrPhone }),
       },
-    });
+      code,
+    );
 
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
@@ -218,10 +270,17 @@ export class AuthService {
       }),
     ]);
 
-    return this.issueToken(user, keepSignedIn ? '1d' : '30d');
+    return this.issueToken(user, sessionLength(user.role));
   }
 
-  async verifyUpdateOtp(userId: number, code: string, type: 'email' | 'phone') {
+  // `newValue` is the email/phone being switched to: only a code sent there
+  // proves the user owns it
+  async verifyUpdateOtp(
+    userId: number,
+    code: string,
+    type: 'email' | 'phone',
+    newValue: string,
+  ) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId },
       select: {
@@ -234,15 +293,15 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('User is not found');
 
-    const otpData = await this.prisma.oTP.findFirst({
-      where: {
+    const otpData = await claimOtp(
+      this.prisma,
+      {
         userId: user.id,
-        code,
         type,
-        verified: false,
-        expiresAt: { gte: new Date() },
+        ...(type === 'email' ? { email: newValue } : { phone: newValue }),
       },
-    });
+      code,
+    );
 
     if (!otpData) throw new UnauthorizedException('Invalid or expired OTP');
 
@@ -273,56 +332,54 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    // Check if email or phone already exists
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: dto.email ?? undefined }, // only check if email is provided
-          { phone: dto.phone ?? undefined }, // only check if phone is provided
-        ],
-      },
+    const phoneOwner = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
     });
+    if (phoneOwner?.isVerified) {
+      throw new ConflictException('Phone number is already registered.');
+    }
 
-    if (existingUser) {
-      if (existingUser.isVerified) {
-        throw new ConflictException('Phone number is already registered.');
+    if (dto.email) {
+      const emailOwner = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+      if (emailOwner && emailOwner.id !== phoneOwner?.id) {
+        if (emailOwner.isVerified) {
+          throw new ConflictException('Email is already registered.');
+        }
+        // An unverified sign-up can't sign in, so it has no claim on the email
+        await this.prisma.user.update({
+          where: { id: emailOwner.id },
+          data: { email: null },
+        });
       }
-      // If phone exists but not verified, allow re-registration to trigger new OTP
-      await this.prisma.oTP.deleteMany({
-        where: {
-          userId: existingUser.id,
-          type: 'phone',
-          verified: false,
-        },
-      });
-
-      await this.prisma.user.delete({
-        where: { id: existingUser.id },
-      });
     }
 
-    let hashedPassword = '';
-    if (dto.password) {
-      hashedPassword = await hashPassword(dto.password);
-    }
+    const hashedPassword = dto.password
+      ? await hashPassword(dto.password)
+      : null;
+    const data = {
+      name: dto.name,
+      email: dto.email ?? null,
+      password: hashedPassword,
+    };
 
-    const user = await this.prisma.user.create({
-      data: {
-        name: dto.name,
-        phone: dto.phone,
-        email: dto.email,
-        password: hashedPassword || null,
-        isVerified: false,
-        role: 'CUSTOMER',
-      },
-    });
+    // Re-registering an unverified phone reuses that user instead of deleting
+    // it: a delete would fail (or cascade) once the user has carts, views etc.
+    // sendOtp expires the previous unverified OTPs.
+    const user = phoneOwner
+      ? await this.prisma.user.update({ where: { id: phoneOwner.id }, data })
+      : await this.prisma.user.create({
+          data: { ...data, phone: dto.phone, isVerified: false, role: 'CUSTOMER' },
+        });
 
-    const otpType: 'email' | 'phone' = dto.email ? 'email' : 'phone';
+    // Phone is the required sign-in identity, so that's what gets verified
+    const otpType = 'phone';
 
     const otpDetails = await this.sendOtp(
       user.id,
       otpType,
-      dto.email,
+      undefined,
       dto.phone,
       'REGISTER',
     );
@@ -382,6 +439,17 @@ export class AuthService {
         expiry: expiryDate,
       },
     });
+  }
+
+  // Revokes this token and, through its session id, every renewed copy of
+  // it. Session ids share the blacklist's jti column (both are UUIDs).
+  async logout(auth: { jti: string; sid?: string; exp: number }) {
+    await this.addToBlacklist(auth.jti, auth.exp);
+    if (auth.sid) {
+      const latestPossibleExp =
+        Math.floor(Date.now() / 1000) + CUSTOMER_SESSION_DAYS * 86_400;
+      await this.addToBlacklist(auth.sid, latestPossibleExp);
+    }
   }
 
   async checkBruteForce(identifier: string) {
@@ -616,7 +684,7 @@ export class AuthService {
         };
       } else {
         if (newValue) {
-          await this.verifyUpdateOtp(userId, dto.otp, type);
+          await this.verifyUpdateOtp(userId, dto.otp, type, newValue);
         }
       }
     }

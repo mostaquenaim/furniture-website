@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { UserRole } from '@prisma/client';
+import { PublicReadCacheService } from 'src/common/cache/public-read-cache.service';
 
 interface JwtPayload {
   userId: number;
@@ -57,7 +58,10 @@ export class StockEventsGateway implements OnGatewayConnection {
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly publicCache: PublicReadCacheService,
+  ) {}
 
   handleConnection(client: Socket) {
     const token = client.handshake.auth?.token as string | undefined;
@@ -90,6 +94,12 @@ export class StockEventsGateway implements OnGatewayConnection {
   }
 
   emitStockUpdated(payload: StockUpdatedPayload) {
+    // Orders, refunds, receiving and manual adjustments report stock changes
+    // here, so a size selling out (or coming back) drops the cached storefront
+    // reads instead of waiting out the TTL. Changes that don't emit (e.g.
+    // order-status cancellations) are still bounded by the TTL.
+    this.publicCache.clear();
+
     this.server.emit('stock:updated', payload);
 
     if (payload.quantity <= payload.lowStockAt) {

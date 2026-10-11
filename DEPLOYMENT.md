@@ -37,6 +37,15 @@ project/branch you're linked to.
    `postgresql://user:pass@ep-xxxx-pooler.region.aws.neon.tech/dbname?sslmode=require`
    and the `-pooler`-less equivalent.
 3. Pooled → `DATABASE_URL`. Direct → `DATABASE_URL_UNPOOLED`.
+4. Append `&connection_limit=15` to the **pooled** `DATABASE_URL` (not the
+   direct one). Prisma's default pool is `num_cpus * 2 + 1`, i.e. 3–5 on a
+   small VPS, so concurrent requests queue up waiting for a connection.
+5. Create the Neon project in **AWS ap-southeast-1 (Singapore)**, the same
+   region as the backend host. Every Prisma query is a network round trip,
+   so a cross-region DB adds latency to every request.
+6. For production, use a paid Neon plan and turn off scale-to-zero on the
+   compute (Branches → compute → Edit). On the free plan the compute suspends
+   after ~5 min idle, and the first query after that pays a cold-start delay.
 
 **Both are required.** `prisma/schema.prisma` declares:
 ```prisma

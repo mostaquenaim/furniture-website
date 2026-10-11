@@ -156,6 +156,8 @@ export class ReviewService {
     const reviews = await this.prisma.review.findMany({
       where: {
         isFeatured: true,
+        // updateReview already keeps featured reviews unhidden; don't rely on it
+        isHidden: false,
       },
       include: {
         orderItem: {
