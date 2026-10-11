@@ -557,7 +557,11 @@ export async function seedDemoOrders(prisma: PrismaClient) {
   for (const plan of orderPlans) {
     const orderId = `DEMO-ORD-${plan.suffix}`;
     const existing = await prisma.order.findUnique({ where: { orderId } });
-    if (existing) continue;
+    if (existing) {
+      // Backfill for demo orders seeded before invoices were added here
+      await ensureDemoInvoice(prisma, existing, plan);
+      continue;
+    }
 
     const line = faker.helpers.arrayElement(productSizes);
     const quantity = faker.number.int({ min: 1, max: 2 });
@@ -611,6 +615,8 @@ export async function seedDemoOrders(prisma: PrismaClient) {
       include: { items: true },
     });
 
+    await ensureDemoInvoice(prisma, order, plan);
+
     if (plan.withReview && order.items[0]) {
       const existingReview = await prisma.review.findUnique({
         where: { orderItemId: order.items[0].id },
@@ -626,6 +632,39 @@ export async function seedDemoOrders(prisma: PrismaClient) {
       }
     }
   }
+}
+
+// Real checkout creates the invoice alongside the order; mirror that so the
+// invoice view / PDF download work on demo orders too. DEMO- prefix keeps these
+// out of the SKG-YYYY-NNNNN sequence real orders use.
+async function ensureDemoInvoice(
+  prisma: PrismaClient,
+  order: {
+    id: number;
+    total: number;
+    discount: number | null;
+    deliveryCharge: number | null;
+  },
+  plan: { suffix: string; paymentStatus: 'PAID' | 'PENDING' },
+) {
+  const discount = order.discount ?? 0;
+  const shippingCost = order.deliveryCharge ?? 0;
+
+  await prisma.invoice.upsert({
+    where: { orderId: order.id },
+    update: {},
+    create: {
+      invoiceNo: `DEMO-INV-${plan.suffix}`,
+      orderId: order.id,
+      // Pre-discount, so subtotal - discount + shipping = total.
+      subtotal: order.total - shippingCost + discount,
+      discount,
+      shippingCost,
+      tax: 0,
+      total: order.total,
+      paidAt: plan.paymentStatus === 'PAID' ? new Date() : null,
+    },
+  });
 }
 
 /** Used by the "Generate Random Category" admin button (demo/dev only). */
