@@ -19,8 +19,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   // to enforce logout (blacklisted jti) and account deactivation/suspension
   // (isActive), neither of which was previously checked anywhere.
   async validate(payload: any) {
+    // The token itself, or its whole sign-in session (sid), may be revoked
     const blacklisted = await this.prisma.blackListToken.findFirst({
-      where: { jti: payload.jti },
+      where: { jti: { in: payload.sid ? [payload.jti, payload.sid] : [payload.jti] } },
     });
     if (blacklisted) {
       throw new UnauthorizedException('Token has been revoked');
@@ -38,6 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: payload.userId,
       role: payload.role,
       jti: payload.jti,
+      sid: payload.sid,
       exp: payload.exp,
     };
   }
