@@ -34,6 +34,8 @@ export enum Action {
   PRODUCT_CREATE = 'PRODUCT_CREATE',
   PRODUCT_UPDATE = 'PRODUCT_UPDATE',
   PRODUCT_SYNC = 'PRODUCT_SYNC',
+  // Permanent (hard) delete — off for every role until a superadmin grants it
+  PRODUCT_DELETE = 'PRODUCT_DELETE',
 
   // CMS — Colors, Sizes, Variants, Materials
   CMS_VIEW = 'CMS_VIEW',
