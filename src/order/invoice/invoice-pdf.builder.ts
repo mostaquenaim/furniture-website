@@ -68,7 +68,7 @@ pdfmake.setUrlAccessPolicy(() => false);
 pdfmake.setLocalAccessPolicy(() => false);
 
 // pdfmake has no per-glyph font fallback (Chrome does). Split text into runs
-// so Bengali characters (incl. the ৳ sign) render in Noto Sans Bengali and
+// so Bengali characters render in Noto Sans Bengali and
 // everything else in the requested Latin font.
 const BENGALI_CHAR = new RegExp(
   '[\\u0980-\\u09FF\\u0964\\u0965\\u200C\\u200D]',
@@ -107,8 +107,11 @@ const STATUS_COLORS: Record<
   REFUNDED: { bg: '#f8fafc', color: '#64748b', border: '#cbd5e1' },
 };
 
+// "BDT" rather than "৳": the sign would force the Bengali font (whose shaping
+// tables cost ~70% of render CPU) to load on every invoice. Now it only loads
+// when a name or title actually contains Bengali.
 const taka = (n: number): string =>
-  `৳ ${Number(n).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`;
+  `BDT ${Number(n).toLocaleString('en-BD', { minimumFractionDigits: 2 })}`;
 
 const fmtDate = (d: Date | string): string =>
   new Date(d).toLocaleDateString('en-BD', {
@@ -200,10 +203,7 @@ function invoiceStatus(invoice: any): string {
   if (orderStatus === 'CANCELLED' || orderStatus === 'FAILED') {
     return 'CANCELLED';
   }
-  if (
-    paymentStatus === 'REFUNDED' ||
-    paymentStatus === 'PARTIALLY_REFUNDED'
-  ) {
+  if (paymentStatus === 'REFUNDED' || paymentStatus === 'PARTIALLY_REFUNDED') {
     return 'REFUNDED';
   }
   if (paymentStatus === 'PAID' || invoice.paidAt) return 'PAID';
