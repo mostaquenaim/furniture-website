@@ -144,7 +144,7 @@ function band(
 // width is exact without measuring.
 function statusPill(status: string): Content {
   const sc = STATUS_COLORS[status] ?? STATUS_COLORS.UNPAID;
-  const label = status.toUpperCase();
+  const label = status.toUpperCase().replace(/_/g, ' ');
   const fontSize = 7.5;
   const spacing = 0.75;
   const padX = 10.5;
@@ -190,6 +190,27 @@ function statusPill(status: string): Content {
   };
 }
 
+// Invoice has no status column — derive the badge from the order. A cancelled
+// order or a refund wins over the payment state; partial payment still owes
+// money, so it shares the UNPAID colours.
+function invoiceStatus(invoice: any): string {
+  const orderStatus: string | undefined = invoice.order?.status;
+  const paymentStatus: string | undefined = invoice.order?.paymentStatus;
+
+  if (orderStatus === 'CANCELLED' || orderStatus === 'FAILED') {
+    return 'CANCELLED';
+  }
+  if (
+    paymentStatus === 'REFUNDED' ||
+    paymentStatus === 'PARTIALLY_REFUNDED'
+  ) {
+    return 'REFUNDED';
+  }
+  if (paymentStatus === 'PAID' || invoice.paidAt) return 'PAID';
+  if (paymentStatus === 'PARTIALLY_PAID') return 'PARTIALLY_PAID';
+  return 'UNPAID';
+}
+
 function metaLabel(text: string, marginTop = 0): Content {
   return {
     text: text.toUpperCase(),
@@ -227,7 +248,7 @@ export async function buildInvoicePdf(invoice: any): Promise<Buffer> {
 function renderInvoicePdf(invoice: any): Promise<Buffer> {
   const user = invoice.order?.user;
   const items: any[] = invoice.order?.items ?? [];
-  const status: string = invoice.status ?? 'UNPAID';
+  const status = invoiceStatus(invoice);
 
   const subtotal = items.reduce(
     (s: number, i: any) => s + i.quantity * i.priceAtPurchase,
