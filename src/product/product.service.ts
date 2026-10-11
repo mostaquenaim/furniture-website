@@ -548,7 +548,7 @@ export class ProductService {
     limit,
     search,
     isActive,
-    orderBy,
+    sort,
     colorIds,
     materialIds,
     subCategoryIds,
@@ -559,6 +559,7 @@ export class ProductService {
   }: GetAllProductsParams) {
     // No limit => no pagination, return every product matching the filters.
     const skip = limit ? (page - 1) * limit : undefined;
+    const orderBy = buildProductOrderBy(sort);
 
     const where: any = {};
 
@@ -623,7 +624,7 @@ export class ProductService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { sortOrder: 'asc' },
+          orderBy,
           select: {
             id: true,
             title: true,
@@ -648,7 +649,7 @@ export class ProductService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { sortOrder: 'asc' },
+          orderBy,
           include: {
             material: true, // If material is a single object, no 'where' allowed here
             images: {

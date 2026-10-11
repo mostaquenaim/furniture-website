@@ -1611,6 +1611,37 @@ export class CmsService {
     return updated;
   }
 
+  // All-or-nothing: a partial failure would leave the public page in a mixed order.
+  async reorderTermsAndConditions(ids: number[], adminId: number) {
+    const found = await this.prisma.termsAndCondition.count({
+      where: { id: { in: ids } },
+    });
+    if (found !== ids.length) {
+      throw new BadRequestException(
+        'One or more sections no longer exist — reload and try again',
+      );
+    }
+
+    await this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.termsAndCondition.update({
+          where: { id },
+          data: { sortOrder: index, updatedBy: adminId },
+        }),
+      ),
+    );
+
+    await this.activityLogService.log({
+      adminId,
+      action: 'REORDER_TNC',
+      module: 'CONTENT',
+      targetLabel: 'Terms & Conditions order',
+      newValue: { ids },
+    });
+
+    return this.getAllTermsAndConditions();
+  }
+
   async deleteTermsAndCondition(id: number, adminId: number) {
     const existing = await this.getTermsAndConditionById(id);
 

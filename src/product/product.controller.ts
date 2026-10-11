@@ -27,6 +27,8 @@ import { Action } from 'src/permission/action.enum';
 import type { Response } from 'express';
 import { BarcodeService } from 'src/barcode/barcode.service';
 import { ReviewService } from 'src/review/review.service';
+import { parseSortParams } from 'src/common/utils/sort.utils';
+import { PRODUCT_SORT_FIELDS } from './product-sort';
 
 @Controller('product')
 export class ProductController {
