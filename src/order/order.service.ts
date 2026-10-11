@@ -10,7 +10,6 @@
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -43,6 +42,7 @@ import { CustomerOrderEventsGateway } from '../realtime/customer-order-events.ga
 import { PaymentMethodConfigService } from '../payment-method-config/payment-method-config.service';
 import { ReservationService } from 'src/reservation/reservation.service';
 import { BD_PHONE_REGEX } from 'src/common/utils/phone.utils';
+import { checkOtpSend, claimOtp } from 'src/common/utils/otp.utils';
 import { OrderStatusService } from 'src/order-status/order-status.service';
 import {
   computeCouponDiscount,
@@ -62,8 +62,6 @@ import { CancelledOrderRefund, RefundService } from 'src/refund/refund.service';
 // Separate from auth's 'phone' OTPs so login and order codes can't expire or
 // satisfy each other. Plain string column — no migration needed.
 const ORDER_OTP_TYPE = 'order_phone';
-const ORDER_OTP_MAX_ATTEMPTS = 5;
-const ORDER_OTP_HOURLY_LIMIT = 5;
 
 // Admin "Cancel Order" is only for orders that haven't left the warehouse;
 // anything shipped or delivered goes through the return flow instead.
@@ -133,43 +131,19 @@ export class OrderService {
   private async sendOrderOtp(userId: number | null, phone: string) {
     const now = new Date();
 
-    // Within 60s of the last unused code: don't send another SMS
-    const recent = await this.prisma.oTP.findFirst({
-      where: {
-        userId,
-        phone,
-        type: ORDER_OTP_TYPE,
-        verified: false,
-        createdAt: { gte: new Date(now.getTime() - 60_000) },
-        expiresAt: { gt: now },
-      },
-    });
+    // Within the cooldown of the last unused code: don't send another SMS.
+    // Throws 429 past the hourly cap per phone (all OTP types, guests and users).
+    const recent = await checkOtpSend(
+      this.prisma,
+      { userId, phone, type: ORDER_OTP_TYPE },
+      { phone },
+    );
     if (recent) {
       return {
         status: 'OTP_REQUIRED',
         otpSentTo: 'phone',
         message: 'An OTP was sent to this number less than a minute ago.',
       };
-    }
-
-    // Hourly SMS cap per phone, across guests and users
-    const sentLastHour = await this.prisma.oTP.count({
-      where: {
-        phone,
-        type: ORDER_OTP_TYPE,
-        createdAt: { gte: new Date(now.getTime() - 3_600_000) },
-      },
-    });
-    if (sentLastHour >= ORDER_OTP_HOURLY_LIMIT) {
-      throw new HttpException(
-        {
-          statusCode: 429,
-          code: 'OTP_LIMIT',
-          message:
-            'Too many OTP requests for this number. Please try again later.',
-        },
-        429,
-      );
     }
 
     // Expire only this phone's pending codes for this user/guest
@@ -211,34 +185,14 @@ export class OrderService {
     phone: string,
     code: string,
   ) {
-    const otp = await this.prisma.oTP.findFirst({
-      where: {
-        userId,
-        phone,
-        type: ORDER_OTP_TYPE,
-        verified: false,
-        expiresAt: { gt: new Date() },
-        attempts: { lt: ORDER_OTP_MAX_ATTEMPTS },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Must stay on this.prisma (never the order tx), or a failed order would
+    // roll the attempt back
+    const otp = await claimOtp(
+      this.prisma,
+      { userId, phone, type: ORDER_OTP_TYPE },
+      code,
+    );
     if (!otp) throw new BadRequestException('Invalid or expired OTP');
-
-    // Claim an attempt atomically first; Postgres serializes this UPDATE, so
-    // the total is capped at ORDER_OTP_MAX_ATTEMPTS however many requests
-    // race. Correct codes count too. Must stay on this.prisma (never the
-    // order tx), or a failed order would roll the attempt back.
-    const claimed = await this.prisma.oTP.updateMany({
-      where: {
-        id: otp.id,
-        verified: false,
-        attempts: { lt: ORDER_OTP_MAX_ATTEMPTS },
-      },
-      data: { attempts: { increment: 1 } },
-    });
-    if (claimed.count === 0 || otp.code !== code) {
-      throw new BadRequestException('Invalid or expired OTP');
-    }
 
     return otp;
   }
@@ -360,6 +314,7 @@ export class OrderService {
           include: {
             productSize: {
               include: {
+                size: { select: { name: true, isActive: true } },
                 color: {
                   include: {
                     product: {
@@ -392,6 +347,26 @@ export class OrderService {
       : cart.visitorId === visitorId;
     if (!ownsCart || cart.status !== 'ACTIVE') {
       throw new ForbiddenException('Invalid cart');
+    }
+
+    // A product deactivated after it went into the cart can't be ordered
+    const unavailable = cart.items.find(
+      (item) => !item.productSize.color.product.isActive,
+    );
+    if (unavailable) {
+      throw new BadRequestException(
+        `"${unavailable.productSize.color.product.title}" is no longer available. Please review your cart and try again.`,
+      );
+    }
+
+    // Same for a size deactivated after it went into the cart
+    const unavailableSize = cart.items.find(
+      (item) => !item.productSize.size.isActive,
+    );
+    if (unavailableSize) {
+      throw new BadRequestException(
+        `Size "${unavailableSize.productSize.size.name}" of "${unavailableSize.productSize.color.product.title}" is no longer available. Please review your cart and try again.`,
+      );
     }
 
     if (dto.paymentMethod === 'COD') {

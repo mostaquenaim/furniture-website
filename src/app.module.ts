@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 import { PrismaModule } from './prisma/prisma.module';
+import { PublicReadCacheModule } from './common/cache/public-read-cache.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { OrderModule } from './order/order.module';
@@ -67,6 +68,7 @@ import { DemoModule } from './demo/demo.module';
 
     AuthModule,
     PrismaModule,
+    PublicReadCacheModule,
     UserModule,
     OrderModule,
     PaymentModule,
