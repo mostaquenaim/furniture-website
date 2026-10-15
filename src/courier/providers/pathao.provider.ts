@@ -166,7 +166,7 @@ export class PathaoProvider implements CourierProviderInterface {
     try {
       const response = await firstValueFrom(
         this.httpService.post(
-          `${this.baseUrl}/cancel/${shipmentId}`,
+          `${this.baseUrl}/aladdin/api/v1/cancel/${shipmentId}`,
           {},
           {
             // headers: {
