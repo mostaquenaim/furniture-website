@@ -162,29 +162,43 @@ export class PathaoProvider implements CourierProviderInterface {
     }
   }
 
-  async cancelShipment(shipmentId: string): Promise<any> {
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(
-          `${this.baseUrl}/aladdin/api/v1/cancel/${shipmentId}`,
-          {},
-          {
-            // headers: {
-            //   'Api-Key': this.apiKey,
-            //   'Secret-Key': this.secretKey,
-            // },
-          },
-        ),
-      );
+  // async cancelShipment(shipmentId: string): Promise<any> {
+  //   try {
+  //     const response = await firstValueFrom(
+  //       this.httpService.post(
+  //         `${this.baseUrl}/aladdin/api/v1/cancel/${shipmentId}`,
+  //         {},
+  //         {
+  //           // headers: {
+  //           //   'Api-Key': this.apiKey,
+  //           //   'Secret-Key': this.secretKey,
+  //           // },
+  //         },
+  //       ),
+  //     );
 
-      return {
-        success: response.data.status === 200,
-        message: response.data.message,
-      };
-    } catch (error) {
-      this.logger.error('Pathao cancel error:', error);
-      throw new Error(`Failed to cancel shipment: ${error.message}`);
-    }
+  //     return {
+  //       success: response.data.status === 200,
+  //       message: response.data.message,
+  //     };
+  //   } catch (error) {
+  //     this.logger.error('Pathao cancel error:', error);
+  //     throw new Error(`Failed to cancel shipment: ${error.message}`);
+  //   }
+  // }
+
+  cancelShipment(consignmentId: string): any {
+    // Pathao does not provide a public API endpoint for cancelling orders.
+    this.logger.warn(
+      `Pathao does not support API cancellation for consignment ${consignmentId}. Marked as cancelled locally.`,
+    );
+
+    return {
+      success: true,
+      manualActionRequired: true,
+      message:
+        'Pathao does not support automated API cancellation. Please cancel on the Pathao Merchant Panel if necessary.',
+    };
   }
 
   // calculate shipment
