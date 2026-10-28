@@ -67,14 +67,21 @@ export class AdminNotificationsService {
   // so a badge clears once the order/return is handled rather than when
   // someone opens the bell. Same PENDING definition as the All Orders tab.
   async getBadgeCounts() {
-    const [pendingOrders, pendingReturns, pendingRefunds] = await Promise.all([
-      this.prisma.order.count({ where: { status: OrderStatus.PENDING } }),
-      this.prisma.returnRequest.count({
-        where: { status: ReturnRequestStatus.PENDING },
-      }),
-      this.countRefundsNeedingAction(),
-    ]);
-    return { pendingOrders, pendingReturns, pendingRefunds };
+    const [pendingOrders, pendingReturns, pendingRefunds, openContactMessages] =
+      await Promise.all([
+        this.prisma.order.count({ where: { status: OrderStatus.PENDING } }),
+        this.prisma.returnRequest.count({
+          where: { status: ReturnRequestStatus.PENDING },
+        }),
+        this.countRefundsNeedingAction(),
+        this.prisma.contactMessage.count({ where: { handledAt: null } }),
+      ]);
+    return {
+      pendingOrders,
+      pendingReturns,
+      pendingRefunds,
+      openContactMessages,
+    };
   }
 
   /**
