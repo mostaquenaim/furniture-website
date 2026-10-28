@@ -16,7 +16,7 @@ import {
   Version,
   VERSION_NEUTRAL,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService, sessionLength } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -58,15 +58,15 @@ export class AuthController {
       emailOrPhone: string;
       code: string;
       type: 'email' | 'phone';
-      keepSignedIn: boolean;
     },
   ) {
-    return this.authService.verifyOtp(
-      body.emailOrPhone,
-      body.code,
-      body.type,
-      body.keepSignedIn,
-    );
+    return this.authService.verifyOtp(body.emailOrPhone, body.code, body.type);
+  }
+
+  @Post('refresh')
+  @UseGuards(JwtAuthGuard)
+  refresh(@Req() req: any) {
+    return this.authService.refreshSession(req.user);
   }
 
   @Post('signin')
@@ -89,12 +89,8 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: any) {
-    const tokenJti = req?.user?.jti;
-    // Real unix-seconds expiry from the token's own `exp` claim (JwtStrategy
-    // passes it through) — addToBlacklist converts it to ms internally.
-    const exp = req?.user?.exp;
-
-    await this.authService.addToBlacklist(tokenJti, exp);
+    // jti, sid and the token's own `exp` (unix seconds), via JwtStrategy
+    await this.authService.logout(req.user);
 
     return { message: 'Logged out successfully' };
   }
@@ -132,11 +128,11 @@ export class AuthController {
 
     const user = req?.user as any;
 
-    const keepSignedIn = false; // Google users — reasonable default
-    const expiresIn = keepSignedIn ? '30d' : '1d';
-
     // Issue your own JWT (same shape as your regular login token)
-    const { token } = await this.authService.issueToken(user, expiresIn);
+    const { token } = await this.authService.issueToken(
+      user,
+      sessionLength(user.role),
+    );
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
 

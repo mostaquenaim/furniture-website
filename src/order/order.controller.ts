@@ -24,6 +24,13 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, UserRole } from '@prisma/client';
 import { RefundService } from '../refund/refund.service';
 import { CreateReturnRequestDto } from '../refund/dto/create-return-request.dto';
+import { parseSortParams } from 'src/common/utils/sort.utils';
+
+const ORDER_SORT_FIELDS = {
+  createdAt: 'createdAt',
+  total: 'total',
+  status: 'status',
+} as const;
 
 @UseGuards(JwtAuthGuard)
 @Controller('orders')
@@ -47,8 +54,8 @@ export class OrderController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('status') status?: OrderStatus,
-    @Query('sortBy') sortBy?: 'createdAt' | 'total' | 'status',
-    @Query('order') order: 'asc' | 'desc' = 'desc',
+    @Query('sortBy') sortBy?: string,
+    @Query('order') order?: string,
     @Query('thumb') thumb?: boolean,
     @Query('from') from?: string,
     @Query('to') to?: string,
@@ -67,12 +74,18 @@ export class OrderController {
       }
     }
 
+    const sort = parseSortParams(sortBy, order, ORDER_SORT_FIELDS, 'desc');
+
     return this.orderService.getAllOrders(req?.user?.userId, {
       page: Number(page) || 1,
       limit: Number(limit) || 5,
       search,
       status,
-      orderBy: sortBy ? { [sortBy]: order } : undefined,
+      // id tie-breaker keeps pages stable when many orders share a status
+      // or total; status sorts in enum (lifecycle) order, not alphabetically
+      orderBy: sort
+        ? [{ [sort.field]: sort.direction }, { id: sort.direction }]
+        : undefined,
       thumb,
       from,
       to,

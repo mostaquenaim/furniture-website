@@ -31,6 +31,9 @@ async function bootstrap() {
       'https://ondorkotha.com',
       'https://www.ondorkotha.com',
       'http://localhost:7000',
+      ...(process.env.EXTRA_FRONTEND_URL
+        ? [process.env.EXTRA_FRONTEND_URL]
+        : []),
       ...(process.env.SAKIGAI_FRONTEND_URL
         ? [process.env.SAKIGAI_FRONTEND_URL]
         : []),

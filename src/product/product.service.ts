@@ -17,7 +17,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { DiscountType } from './roles.enum';
 import { ActivityLogService } from 'src/activity-log/activity-log.service';
 import { PieceService } from 'src/piece/piece.service';
-import { Prisma, UserRole } from '@prisma/client';
+import { PieceStatus, Prisma, UserRole } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   applyDiscount,
@@ -32,6 +32,55 @@ import {
   IN_STOCK_SIZE_WHERE,
   filterAvailableColors,
 } from 'src/common/utils/product-availability.utils';
+import { PublicReadCacheService } from 'src/common/cache/public-read-cache.service';
+import { resolveProductOrderBy } from 'src/common/utils/product-sort.utils';
+import { buildProductOrderBy, ProductSortField } from './product-sort';
+
+// How long anonymous storefront reads are served from memory. Product writes
+// in this service and stock changes clear the cache straight away; this bounds
+// staleness for everything else (category/material edits, reviews, discount
+// windows opening or closing).
+const PUBLIC_CACHE_TTL_SECONDS = 60;
+
+// Cache key from positional parts. undefined and non-finite numbers are
+// tagged so they can't collide with each other or with a real value.
+function publicCacheKey(name: string, parts: unknown[]): string {
+  return `product:${name}:${JSON.stringify(parts, (_key, value) => {
+    if (value === undefined) return { $undefined: true };
+    if (typeof value === 'number' && !Number.isFinite(value)) {
+      return { $number: String(value) };
+    }
+    return value;
+  })}`;
+}
+
+interface GetAllProductsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isActive?: boolean;
+  colorIds?: number[];
+  materialIds?: number[];
+  subCategoryIds?: number[];
+  minPrice?: number;
+  maxPrice?: number;
+  orderBy?: Record<string, 'asc' | 'desc'>;
+  thumb?: boolean;
+  includeOutOfStock?: boolean;
+}
+
+type StorefrontProductsParams = Omit<
+  GetAllProductsParams,
+  'isActive' | 'includeOutOfStock'
+>;
+
+// Pieces that never physically existed in the warehouse: generated labels
+// that were never scanned in, or labels voided before use. These are the
+// only pieces a hard product delete is allowed to remove.
+const HARD_DELETABLE_PIECE_STATUSES: PieceStatus[] = [
+  PieceStatus.CREATED,
+  PieceStatus.VOID,
+];
 
 @Injectable()
 export class ProductService {
@@ -41,7 +90,16 @@ export class ProductService {
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
     private pieceService: PieceService,
+    private publicCache: PublicReadCacheService,
   ) {}
+
+  // See resolveProductOrderBy — shared with the series/subcategory listings
+  resolveOrderBy(
+    sortBy: string | undefined,
+    order: string,
+  ): Record<string, 'asc' | 'desc'> | undefined {
+    return resolveProductOrderBy(sortBy, order);
+  }
 
   // Creates one ProductSize row and, if a positive quantity was requested,
   // generates that many piece-level barcodes for it inside the same
@@ -186,7 +244,7 @@ export class ProductService {
     }
 
     // Use transaction to ensure all operations succeed or fail together
-    return await this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       // First, create the main product
       const product = await tx.product.create({
         data: {
@@ -378,12 +436,25 @@ export class ProductService {
         pieceGeneration: { generated: piecesGenerated },
       };
     });
+
+    this.publicCache.clear();
+    return created;
   }
 
   // get a product by id
   async getProductBySlug(slug: string, admin = false) {
+    if (admin) return this.loadProductBySlug(slug, true);
+    return this.publicCache.getOrLoad(
+      publicCacheKey('slug', [slug]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () => this.loadProductBySlug(slug, false),
+    );
+  }
+
+  private async loadProductBySlug(slug: string, admin: boolean) {
     const product = await this.prisma.product.findUnique({
-      where: { slug },
+      // A deactivated product is a 404 on the storefront; admins still see it
+      where: admin ? { slug } : { slug, isActive: true },
       include: {
         material: admin ? true : { where: { isActive: true } },
         images: {
@@ -432,13 +503,53 @@ export class ProductService {
     return sanitizeDiscount(product);
   }
 
-  // get all products
-  async getAllProducts({
+  // Storefront listing: always active, in-stock products only — the caller
+  // can't widen it. Cached, since it's identical for every visitor.
+  async getAllProducts(params: StorefrontProductsParams) {
+    const storefrontParams: GetAllProductsParams = {
+      ...params,
+      isActive: true,
+      includeOutOfStock: false,
+    };
+    const result = await this.publicCache.getOrLoad(
+      publicCacheKey('all', [
+        params.page,
+        params.limit,
+        params.search,
+        params.orderBy,
+        params.colorIds,
+        params.materialIds,
+        params.subCategoryIds,
+        params.minPrice,
+        params.maxPrice,
+        params.thumb,
+      ]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () => this.loadAllProducts(storefrontParams),
+    );
+
+    // Outside the cache so every search is counted, not just cache misses
+    if (params.search) {
+      this.logSearchKeyword(params.search, result.meta.total);
+    }
+
+    return result;
+  }
+
+  // Staff listing (admin product list, flash-sale product picker): can include
+  // inactive and out-of-stock products. Never cached, so an admin sees an
+  // edit the moment it's saved; staff searches aren't logged, since the
+  // "Top Searched Keywords" report is about what customers look for.
+  async getAdminProducts(params: GetAllProductsParams) {
+    return this.loadAllProducts(params);
+  }
+
+  private async loadAllProducts({
     page = 1,
     limit,
     search,
     isActive,
-    orderBy,
+    orderBy: requestedOrderBy,
     colorIds,
     materialIds,
     subCategoryIds,
@@ -446,22 +557,23 @@ export class ProductService {
     maxPrice,
     thumb = false,
     includeOutOfStock = false,
-  }: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    isActive?: boolean;
-    colorIds?: number[];
-    materialIds?: number[];
-    subCategoryIds?: number[];
-    minPrice?: number;
-    maxPrice?: number;
-    orderBy?: Record<string, 'asc' | 'desc'>;
-    thumb?: boolean;
-    includeOutOfStock?: boolean;
-  }) {
+  }: GetAllProductsParams) {
     // No limit => no pagination, return every product matching the filters.
     const skip = limit ? (page - 1) * limit : undefined;
+    // requestedOrderBy is a single { column: direction } already whitelisted
+    // by resolveProductOrderBy; buildProductOrderBy adds the id tie-breaker
+    // and keeps unpriced products last.
+    const requestedSort = requestedOrderBy
+      ? Object.entries(requestedOrderBy)[0]
+      : undefined;
+    const orderBy = buildProductOrderBy(
+      requestedSort
+        ? {
+            field: requestedSort[0] as ProductSortField,
+            direction: requestedSort[1],
+          }
+        : undefined,
+    );
 
     const where: any = {};
 
@@ -526,7 +638,7 @@ export class ProductService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { sortOrder: 'asc' },
+          orderBy,
           select: {
             id: true,
             title: true,
@@ -551,7 +663,7 @@ export class ProductService {
           where,
           skip,
           take: limit,
-          orderBy: orderBy ?? { sortOrder: 'asc' },
+          orderBy,
           include: {
             material: true, // If material is a single object, no 'where' allowed here
             images: {
@@ -599,10 +711,6 @@ export class ProductService {
       filteredData = (data as any[]).map((p) => sanitizeDiscount(p));
     }
 
-    if (search) {
-      this.logSearchKeyword(search, total);
-    }
-
     return {
       data: filteredData,
       meta: {
@@ -624,12 +732,260 @@ export class ProductService {
       throw new BadRequestException('Product not found');
     }
 
-    return await this.prisma.product.update({
+    const updated = await this.prisma.product.update({
       where: { slug },
       data: {
         isActive: !product.isActive,
       },
     });
+
+    this.publicCache.clear();
+    return updated;
+  }
+
+  // ── Permanent (hard) delete ────────────────────────────────────────────
+  // Only a product with no history can be deleted. Anything that was ordered
+  // or has physical stock is refused — deactivate those instead, so orders,
+  // refunds and warehouse records keep pointing at a real product.
+  //
+  // The blocker check is for a readable error; the FK constraints are the
+  // real guard. If an order or a received piece lands between the check and
+  // the delete, the non-cascading OrderItem / Piece rows make Postgres reject
+  // the delete and the whole transaction rolls back.
+
+  private async getProductDeleteBlockers(
+    db: Prisma.TransactionClient,
+    productId: number,
+  ): Promise<string[]> {
+    const ofProduct = { color: { productId } };
+
+    const orderItems = await db.orderItem.count({
+      where: { OR: [{ productId }, { productSize: ofProduct }] },
+    });
+    const physicalPieces = await db.piece.count({
+      where: {
+        productSize: ofProduct,
+        status: { notIn: HARD_DELETABLE_PIECE_STATUSES },
+      },
+    });
+    const sizeStock = await db.productSize.aggregate({
+      where: ofProduct,
+      _sum: { quantity: true },
+    });
+    const lotStock = await db.inventoryItem.aggregate({
+      where: { OR: [{ productId }, { productSize: ofProduct }] },
+      _sum: { quantity: true },
+    });
+
+    const blockers: string[] = [];
+    if (orderItems > 0) {
+      blockers.push(`it appears in ${orderItems} order line(s)`);
+    }
+    if (physicalPieces > 0) {
+      blockers.push(
+        `${physicalPieces} barcoded piece(s) have been received into the warehouse`,
+      );
+    }
+    if ((sizeStock._sum.quantity ?? 0) > 0) {
+      blockers.push(`it has ${sizeStock._sum.quantity} unit(s) in stock`);
+    }
+    if ((lotStock._sum.quantity ?? 0) > 0) {
+      blockers.push(
+        `inventory lots still hold ${lotStock._sum.quantity} unit(s)`,
+      );
+    }
+    return blockers;
+  }
+
+  // Read-only: tells the admin UI up front whether the delete will be
+  // refused, and what else goes with the product if it isn't.
+  async getProductDeletePreview(slug: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { slug },
+      select: { id: true, title: true, slug: true },
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with slug "${slug}" not found`);
+    }
+
+    const ofProduct = { color: { productId: product.id } };
+    const blockers = await this.getProductDeleteBlockers(
+      this.prisma,
+      product.id,
+    );
+    const [cartItems, wishlists, unusedPieces, flashSales] = await Promise.all([
+      this.prisma.cartItem.count({ where: { productSize: ofProduct } }),
+      this.prisma.wishlist.count({ where: { productId: product.id } }),
+      this.prisma.piece.count({
+        where: {
+          productSize: ofProduct,
+          status: { in: HARD_DELETABLE_PIECE_STATUSES },
+        },
+      }),
+      this.prisma.flashSaleProduct.count({
+        where: { productId: product.id },
+      }),
+    ]);
+
+    return {
+      product,
+      canDelete: blockers.length === 0,
+      blockers,
+      willRemove: { cartItems, wishlists, unusedPieces, flashSales },
+    };
+  }
+
+  async deleteProductBySlug(slug: string, adminId: number) {
+    let outcome: {
+      product: { id: number; title: string; slug: string; sku: string | null };
+      removed: {
+        cartItems: number;
+        wishlists: number;
+        unusedPieces: number;
+        flashSales: number;
+      };
+    };
+
+    try {
+      outcome = await this.prisma.$transaction(
+        async (tx) => {
+          const product = await tx.product.findUnique({
+            where: { slug },
+            select: { id: true, title: true, slug: true, sku: true },
+          });
+          if (!product) {
+            throw new NotFoundException(
+              `Product with slug "${slug}" not found`,
+            );
+          }
+
+          const blockers = await this.getProductDeleteBlockers(tx, product.id);
+          if (blockers.length > 0) {
+            throw new ConflictException(
+              `"${product.title}" can't be deleted: ${blockers.join('; ')}. Deactivate it instead.`,
+            );
+          }
+
+          const sizeIds = (
+            await tx.productSize.findMany({
+              where: { color: { productId: product.id } },
+              select: { id: true },
+            })
+          ).map((s) => s.id);
+
+          // Carts: drop the lines, then re-total every cart that had one
+          const cartIds = [
+            ...new Set(
+              (
+                await tx.cartItem.findMany({
+                  where: { productSizeId: { in: sizeIds } },
+                  select: { cartId: true },
+                })
+              ).map((c) => c.cartId),
+            ),
+          ];
+          const cartItems = await tx.cartItem.deleteMany({
+            where: { productSizeId: { in: sizeIds } },
+          });
+          for (const cartId of cartIds) {
+            const totals = await tx.cartItem.aggregate({
+              where: { cartId },
+              _sum: { subtotalAtAdd: true, baseSubtotalAtAdd: true },
+            });
+            await tx.cart.update({
+              where: { id: cartId },
+              data: {
+                subtotalAtAdd: totals._sum.subtotalAtAdd ?? 0,
+                baseSubtotalAtAdd: totals._sum.baseSubtotalAtAdd ?? 0,
+              },
+            });
+          }
+
+          // Never-received / voided labels. Any other piece is left alone,
+          // so its FK to ProductSize aborts the delete below.
+          const pieceIds = (
+            await tx.piece.findMany({
+              where: {
+                productSizeId: { in: sizeIds },
+                status: { in: HARD_DELETABLE_PIECE_STATUSES },
+              },
+              select: { id: true },
+            })
+          ).map((p) => p.id);
+          await tx.pieceStatusEvent.deleteMany({
+            where: { pieceId: { in: pieceIds } },
+          });
+          const pieces = await tx.piece.deleteMany({
+            where: { id: { in: pieceIds } },
+          });
+          await tx.generationBatch.deleteMany({
+            where: { productSizeId: { in: sizeIds } },
+          });
+
+          // Zero-quantity stock records (positive ones were blocked above)
+          const stockWhere = {
+            OR: [{ productId: product.id }, { productSizeId: { in: sizeIds } }],
+          };
+          await tx.inventoryItem.deleteMany({ where: stockWhere });
+          await tx.stockAdjustment.deleteMany({ where: stockWhere });
+
+          const wishlists = await tx.wishlist.deleteMany({
+            where: { productId: product.id },
+          });
+          await tx.productView.deleteMany({
+            where: { productId: product.id },
+          });
+          const flashSales = await tx.flashSaleProduct.count({
+            where: { productId: product.id },
+          });
+
+          // Cascades: images, colors → color images + sizes, sub-categories,
+          // tags, flash-sale entries
+          await tx.product.delete({ where: { id: product.id } });
+
+          return {
+            product,
+            removed: {
+              cartItems: cartItems.count,
+              wishlists: wishlists.count,
+              unusedPieces: pieces.count,
+              flashSales,
+            },
+          };
+        },
+        { maxWait: 10_000, timeout: 30_000 },
+      );
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        (err.code === 'P2003' || err.code === 'P2014')
+      ) {
+        throw new ConflictException(
+          'This product was ordered or received stock while it was being deleted. Nothing was deleted — refresh and try again.',
+        );
+      }
+      throw err;
+    }
+
+    this.publicCache.clear();
+
+    // After commit, so a rolled-back delete is never logged as done
+    await this.activityLogService.log({
+      adminId,
+      action: 'DELETE_PRODUCT',
+      module: 'PRODUCT',
+      severity: 'WARNING',
+      targetId: outcome.product.id,
+      targetLabel: outcome.product.title,
+      oldValue: {
+        title: outcome.product.title,
+        slug: outcome.product.slug,
+        sku: outcome.product.sku,
+      },
+      metadata: outcome.removed,
+    });
+
+    return { deleted: true, ...outcome };
   }
 
   // update product
@@ -681,7 +1037,7 @@ export class ProductService {
 
     const piecesGenerated: { productSizeId: number; quantity: number }[] = [];
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       // Update Product Core Fields
       await tx.product.update({
         where: { id: product.id },
@@ -1054,6 +1410,9 @@ export class ProductService {
         pieceGeneration: { generated: piecesGenerated },
       };
     });
+
+    this.publicCache.clear();
+    return updated;
   }
 
   // Product.price is derived (cheapest size's live price, see
@@ -1168,14 +1527,22 @@ export class ProductService {
       },
     });
 
-    for (const product of products) {
-      const price = this.derivedStoredPrice(product, now);
-      if (price !== product.price) {
-        await this.prisma.product.update({
-          where: { id: product.id },
-          data: { price },
-        });
+    let changed = false;
+    try {
+      for (const product of products) {
+        const price = this.derivedStoredPrice(product, now);
+        if (price !== product.price) {
+          await this.prisma.product.update({
+            where: { id: product.id },
+            data: { price },
+          });
+          changed = true;
+        }
       }
+    } finally {
+      // Runs every minute — only drop the cache when a price actually moved,
+      // including when a later row failed after earlier ones were written.
+      if (changed) this.publicCache.clear();
     }
 
     return { message: 'Product prices synchronized successfully' };
@@ -1208,6 +1575,8 @@ export class ProductService {
         },
       });
     }
+
+    this.publicCache.clear();
   }
 
   // add product view
@@ -1257,6 +1626,25 @@ export class ProductService {
 
   // you may also like
   async youMayAlsoLike(
+    productSlug?: string,
+    productIds?: number[],
+    categorySlug?: string,
+    catIds?: number[],
+  ) {
+    return this.publicCache.getOrLoad(
+      publicCacheKey('you-may-also-like', [
+        productSlug,
+        productIds,
+        categorySlug,
+        catIds,
+      ]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () =>
+        this.loadYouMayAlsoLike(productSlug, productIds, categorySlug, catIds),
+    );
+  }
+
+  private async loadYouMayAlsoLike(
     productSlug?: string,
     productIds?: number[],
     categorySlug?: string,
@@ -1486,6 +1874,27 @@ export class ProductService {
 
   // get recommended products by category
   async getSubCategoryBasedRecommendations(
+    subCategorySlug?: string,
+    subCategoryIds?: number[],
+    productIds?: number[],
+  ) {
+    return this.publicCache.getOrLoad(
+      publicCacheKey('subcategory-recommendations', [
+        subCategorySlug,
+        subCategoryIds,
+        productIds,
+      ]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () =>
+        this.loadSubCategoryBasedRecommendations(
+          subCategorySlug,
+          subCategoryIds,
+          productIds,
+        ),
+    );
+  }
+
+  private async loadSubCategoryBasedRecommendations(
     subCategorySlug?: string,
     subCategoryIds?: number[],
     productIds?: number[],
@@ -1794,10 +2203,20 @@ export class ProductService {
         data: { trendScore },
       });
     }
+
+    this.publicCache.clear();
   }
 
   // trending products
   async getTrendingProducts(limit: number = 10) {
+    return this.publicCache.getOrLoad(
+      publicCacheKey('trending', [limit]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () => this.loadTrendingProducts(limit),
+    );
+  }
+
+  private async loadTrendingProducts(limit: number) {
     const products = await this.prisma.product.findMany({
       where: { isActive: true, ...IN_STOCK_PRODUCT_WHERE },
       orderBy: [{ trendScore: 'desc' }, { soldCount: 'desc' }],
@@ -1812,6 +2231,14 @@ export class ProductService {
   }
 
   async getFeaturedProducts(limit: number = 10) {
+    return this.publicCache.getOrLoad(
+      publicCacheKey('featured', [limit]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () => this.loadFeaturedProducts(limit),
+    );
+  }
+
+  private async loadFeaturedProducts(limit: number) {
     const products = await this.prisma.product.findMany({
       where: { isActive: true, isFeatured: true, ...IN_STOCK_PRODUCT_WHERE },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
@@ -1835,6 +2262,19 @@ export class ProductService {
     sortBy?: string;
     order?: 'asc' | 'desc';
   }) {
+    const orderBy = this.resolveOrderBy(sortBy, order)!;
+    return this.publicCache.getOrLoad(
+      publicCacheKey('on-sale', [page, limit, orderBy]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () => this.loadOnSaleProducts(page, limit, orderBy),
+    );
+  }
+
+  private async loadOnSaleProducts(
+    page: number,
+    limit: number,
+    orderBy: Record<string, 'asc' | 'desc'>,
+  ) {
     const where = this.onSaleWhere(new Date());
 
     const [data, total] = await Promise.all([
@@ -1842,7 +2282,7 @@ export class ProductService {
         where,
         skip: (page - 1) * limit,
         take: +limit,
-        orderBy: { [sortBy]: order },
+        orderBy,
         include: {
           images: true,
           colors: {
@@ -1911,6 +2351,14 @@ export class ProductService {
   }
 
   async getSaleStatus() {
+    return this.publicCache.getOrLoad(
+      publicCacheKey('sale-status', []),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () => this.loadSaleStatus(),
+    );
+  }
+
+  private async loadSaleStatus() {
     const count = await this.prisma.product.count({
       where: this.onSaleWhere(new Date()),
     });
@@ -2048,8 +2496,17 @@ export class ProductService {
   }
 
   async generateProductSchema(slug: string) {
+    return this.publicCache.getOrLoad(
+      publicCacheKey('schema', [slug]),
+      PUBLIC_CACHE_TTL_SECONDS,
+      () => this.loadProductSchema(slug),
+    );
+  }
+
+  private async loadProductSchema(slug: string) {
     const product = await this.prisma.product.findUnique({
-      where: { slug },
+      // No structured data for a deactivated product (same 404 as its page)
+      where: { slug, isActive: true },
       include: {
         images: { orderBy: { serialNo: 'asc' } },
         colors: { select: { sizes: DISPLAY_SIZES } },

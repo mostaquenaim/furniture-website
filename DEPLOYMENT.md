@@ -37,6 +37,15 @@ project/branch you're linked to.
    `postgresql://user:pass@ep-xxxx-pooler.region.aws.neon.tech/dbname?sslmode=require`
    and the `-pooler`-less equivalent.
 3. Pooled → `DATABASE_URL`. Direct → `DATABASE_URL_UNPOOLED`.
+4. Append `&connection_limit=15` to the **pooled** `DATABASE_URL` (not the
+   direct one). Prisma's default pool is `num_cpus * 2 + 1`, i.e. 3–5 on a
+   small VPS, so concurrent requests queue up waiting for a connection.
+5. Create the Neon project in **AWS ap-southeast-1 (Singapore)**, the same
+   region as the backend host. Every Prisma query is a network round trip,
+   so a cross-region DB adds latency to every request.
+6. For production, use a paid Neon plan and turn off scale-to-zero on the
+   compute (Branches → compute → Edit). On the free plan the compute suspends
+   after ~5 min idle, and the first query after that pays a cold-start delay.
 
 **Both are required.** `prisma/schema.prisma` declares:
 ```prisma
@@ -168,11 +177,10 @@ status by hand for the demo.
   paid always-on plan (~$7/mo) or add a scheduled uptime ping (e.g. a free
   cron-job.org hit every 10 min) — the latter is a workaround, not a real
   fix, and burns your free monthly hours faster.
-- **PDF invoice generation uses Puppeteer** (`order.service.ts` →
-  `renderPdf`), which launches a full headless Chromium. That's fine
-  occasionally but is memory-heavy against Render free's 512MB RAM cap — if
-  invoice download looks slow or times out under any concurrent load, that's
-  why. Not worth re-architecting for a portfolio demo; just know it's there.
+- **PDF invoice generation uses pdfmake** (`src/order/invoice/invoice-pdf.builder.ts`),
+  pure JS with no headless browser — roughly 10MB and under 100ms per
+  invoice, capped at 2 concurrent renders. Fonts ship in
+  `src/order/invoice/fonts` and are copied to `dist` by `nest-cli.json`.
 - **Realtime features** (`StockEventsGateway`, `CustomerOrderEventsGateway`
   over Socket.IO) work fine on a single free instance — just don't scale to
   multiple instances without sticky sessions or a Redis adapter, which the
@@ -216,7 +224,7 @@ branding rather than defaults.
 - [ ] Can register/log in a customer account
 - [ ] Can add to cart and place a test order (COD, since SSLCommerz is sandboxed)
 - [ ] Admin can log in and see the order, and manually advance its status
-- [ ] Invoice PDF download works (tests the Puppeteer path)
+- [ ] Invoice PDF download works (tests the pdfmake path and bundled fonts)
 - [ ] CORS is happy — no console errors calling the Render API from the
       Vercel origin (`SAKIGAI_FRONTEND_URL` must match the Vercel URL exactly
       — see the CORS gotcha above, it's not `FRONTEND_URL`)

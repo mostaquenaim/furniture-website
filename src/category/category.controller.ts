@@ -1,5 +1,6 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { CategoryService } from './category.service';
+import { resolveProductOrderBy } from 'src/common/utils/product-sort.utils';
 
 @Controller('')
 export class CategoryController {
@@ -38,8 +39,6 @@ export class CategoryController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
-    @Query('isActive') isActive?: string,
-    @Query('admin') admin?: string,
 
     @Query('colorIds') colorIds?: string,
     @Query('materialIds') materialIds?: string,
@@ -50,13 +49,16 @@ export class CategoryController {
     @Query('sortBy') sortBy?: string,
     @Query('order') order: 'asc' | 'desc' = 'asc',
   ) {
+    // Public storefront listing: always active, in-stock products in active
+    // categories. isActive / admin query params are deliberately not read —
+    // they let anyone list deactivated or out-of-stock products.
     return this.categoryService.getSeriesWiseProducts({
       slug,
       page: Number(page) || 1,
       limit: Number(limit) || 10,
       search,
-      isActive: isActive !== undefined ? isActive === 'true' : undefined,
-      admin: admin === 'true',
+      isActive: true,
+      admin: false,
 
       colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
       materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
@@ -66,7 +68,7 @@ export class CategoryController {
 
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      orderBy: sortBy ? { [sortBy]: order } : undefined,
+      orderBy: resolveProductOrderBy(sortBy, order),
     });
   }
 
@@ -166,8 +168,6 @@ export class CategoryController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
-    @Query('isActive') isActive?: string,
-    @Query('admin') admin?: string,
 
     @Query('colorIds') colorIds?: string,
     @Query('materialIds') materialIds?: string,
@@ -177,18 +177,19 @@ export class CategoryController {
     @Query('sortBy') sortBy?: string,
     @Query('order') order: 'asc' | 'desc' = 'asc',
   ) {
+    // Public storefront listing — see getSeriesWiseProducts above
     return this.categoryService.getSubCategoryWiseProducts({
       page: Number(page) || 1,
       limit: Number(limit) || 10,
       search,
-      isActive: isActive !== undefined ? isActive === 'true' : undefined,
-      admin: admin === 'true',
+      isActive: true,
+      admin: false,
       slug,
       colorIds: colorIds ? colorIds.split(',').map(Number) : undefined,
       materialIds: materialIds ? materialIds.split(',').map(Number) : undefined,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      orderBy: sortBy ? { [sortBy]: order } : undefined,
+      orderBy: resolveProductOrderBy(sortBy, order),
     });
   }
 }

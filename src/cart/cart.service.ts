@@ -28,7 +28,9 @@ export class CartService {
 
   /**
    * Brings a cart in line with live data before it's read: drops items whose
-   * size is out of stock, clamps quantities to stock, re-prices every item to
+   * size is out of stock or deactivated, or whose product was deactivated,
+   * clamps quantities
+   * to stock, re-prices every item to
    * its size's current effective price (honouring the product's discount
    * window, either direction), and recomputes the cart totals. Writes only
    * what changed. Returns the fresh totals.
@@ -51,10 +53,15 @@ export class CartService {
             quantity: true,
             price: true,
             basePrice: true,
+            size: { select: { isActive: true } },
             color: {
               select: {
                 product: {
-                  select: { discountStart: true, discountEnd: true },
+                  select: {
+                    discountStart: true,
+                    discountEnd: true,
+                    isActive: true,
+                  },
                 },
               },
             },
@@ -68,7 +75,11 @@ export class CartService {
 
     for (const item of items) {
       const stock = item.productSize.quantity;
-      if (stock <= 0) {
+      if (
+        stock <= 0 ||
+        !item.productSize.size.isActive ||
+        !item.productSize.color.product.isActive
+      ) {
         await this.prisma.cartItem.delete({ where: { id: item.id } });
         continue;
       }
@@ -520,6 +531,15 @@ export class CartService {
       throw new NotFoundException('Product variant not found');
     }
 
+    if (!productSize.color.product.isActive) {
+      throw new BadRequestException('This product is no longer available');
+    }
+
+    // Same rule the storefront uses to list a size (IN_STOCK_SIZE_WHERE)
+    if (!productSize.size.isActive) {
+      throw new BadRequestException('This size is no longer available');
+    }
+
     const quantityToAdd = dto.quantity ?? 1;
 
     if (quantityToAdd <= 0) {
@@ -624,6 +644,15 @@ export class CartService {
 
     if (!productSize) {
       throw new NotFoundException('Product variant not found');
+    }
+
+    if (!productSize.color.product.isActive) {
+      throw new BadRequestException('This product is no longer available');
+    }
+
+    // Same rule the storefront uses to list a size (IN_STOCK_SIZE_WHERE)
+    if (!productSize.size.isActive) {
+      throw new BadRequestException('This size is no longer available');
     }
 
     const quantityToAdd = dto.quantity ?? 1;
@@ -743,8 +772,18 @@ export class CartService {
 
     if (!cart) return 0;
 
+    // Count only what the cart page will show — refreshCart drops
+    // out-of-stock / deactivated sizes and deactivated products when the
+    // cart is read
     return this.prisma.cartItem.count({
-      where: { cartId: cart.id },
+      where: {
+        cartId: cart.id,
+        productSize: {
+          quantity: { gt: 0 },
+          size: { isActive: true },
+          color: { product: { isActive: true } },
+        },
+      },
     });
   }
 
@@ -775,10 +814,15 @@ export class CartService {
       include: {
         productSize: {
           include: {
+            size: { select: { isActive: true } },
             color: {
               select: {
                 product: {
-                  select: { discountStart: true, discountEnd: true },
+                  select: {
+                    discountStart: true,
+                    discountEnd: true,
+                    isActive: true,
+                  },
                 },
               },
             },
@@ -789,6 +833,14 @@ export class CartService {
 
     if (!cartItem) {
       throw new NotFoundException('Cart item not found');
+    }
+
+    if (!cartItem.productSize.color.product.isActive) {
+      throw new BadRequestException('This product is no longer available');
+    }
+
+    if (!cartItem.productSize.size.isActive) {
+      throw new BadRequestException('This size is no longer available');
     }
 
     if (quantity > cartItem.productSize.quantity) {

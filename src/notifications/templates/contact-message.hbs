@@ -1,0 +1,28 @@
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eaeaea; padding: 24px; background-color: #ffffff;">
+
+  <!-- Brand Header -->
+  <div style="text-align:center; margin-bottom: 20px;">
+    <h1 style="margin:0; color:#222;">Ondorkotha</h1>
+    <p style="margin:0; font-size:14px; color:#777;">New Contact Form Message</p>
+  </div>
+
+  <p style="margin:0 0 6px; font-size:15px;"><strong>From:</strong> {{name}} &lt;{{email}}&gt;</p>
+  {{#if orderNumber}}
+  <p style="margin:0 0 6px; font-size:15px;"><strong>Order:</strong> {{orderNumber}}</p>
+  {{/if}}
+  <p style="margin:0 0 6px; font-size:15px;"><strong>Subject:</strong> {{subject}}</p>
+
+  <div style="
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f7f7f7;
+    border-left: 5px solid #e67e22;
+  ">
+    <p style="margin:0; font-size:15px; white-space: pre-wrap;">{{message}}</p>
+  </div>
+
+  <p style="font-size:13px; color:#777;">
+    Reply to this email to answer the customer directly.
+  </p>
+
+</div>

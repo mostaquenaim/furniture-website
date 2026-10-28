@@ -312,6 +312,29 @@ export class NotificationsService {
     return recipients.length;
   }
 
+  /**
+   * Queues a contact-form message to the company inbox. Reply-To is the
+   * customer, so staff can answer by replying to the email.
+   */
+  async sendContactMessage(
+    inbox: string,
+    data: {
+      name: string;
+      email: string;
+      orderNumber: string | null;
+      subject: string;
+      message: string;
+    },
+  ) {
+    await this.notificationQueue.add('sendEmail', {
+      email: inbox,
+      replyTo: data.email,
+      subject: `Contact form: ${data.subject}`,
+      template: 'contact-message',
+      context: data,
+    });
+  }
+
   /** Queues a single digest email to every admin who currently has inventory access. */
   async sendLowStockAlert(
     adminEmails: string[],
@@ -369,7 +392,7 @@ export class NotificationsService {
   }
 
   async processEmailJob(job: any) {
-    const { email, subject, template, context } = job.data;
+    const { email, subject, template, context, replyTo } = job.data;
 
     // OTP keeps its existing Resend + hand-built-HTML path untouched.
     if (template === 'otp') {
@@ -423,12 +446,14 @@ export class NotificationsService {
       if (renderedHtml) {
         await this.mailerService.sendMail({
           to: email,
+          replyTo,
           subject: renderedSubject,
           html: renderedHtml,
         });
       } else {
         await this.mailerService.sendMail({
           to: email,
+          replyTo,
           subject: renderedSubject,
           template,
           context,
