@@ -31,6 +31,7 @@ async function bootstrap() {
       'https://ondorkotha.com',
       'https://www.ondorkotha.com',
       'http://localhost:7000',
+      'https://furniture-2.samm-tech.com',
       ...(process.env.SAKIGAI_FRONTEND_URL
         ? [process.env.SAKIGAI_FRONTEND_URL]
         : []),
