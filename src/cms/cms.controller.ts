@@ -6,8 +6,6 @@ import {
   Controller,
   Get,
   Post,
-  Put,
-  Delete,
   Body,
   Param,
   UseGuards,
@@ -71,16 +69,19 @@ export class CmsController {
   }
 
   // Banners
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('homepage-banners')
   getHomepageBanners(
+    @Req() req: any,
     @Query('isActive') isActive?: string,
     @Query('device') device?: string,
   ) {
+    const isStaff = !!req?.user?.role && req.user.role !== UserRole.CUSTOMER;
     let parsed: boolean | undefined;
 
     if (isActive === 'true') parsed = true;
-    else if (isActive === 'false') parsed = false;
-    else parsed = true; // default to active-only for public storefront
+    else if (isActive === 'false' && isStaff) parsed = false;
+    else parsed = isStaff ? undefined : true;
 
     let parsedDevice: 'DESKTOP' | 'MOBILE' | undefined;
     if (device === 'DESKTOP' || device === 'MOBILE') parsedDevice = device;
@@ -155,7 +156,6 @@ export class CmsController {
   async getDistricts() {
     return this.cmsService.getDistricts();
   }
-
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get('zones')
