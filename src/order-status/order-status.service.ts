@@ -3,6 +3,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   Order,
   OrderStatus,
+  PaymentStatus,
   Prisma,
   ProductTrackingMode,
   StockAdjustReason,
@@ -143,11 +144,55 @@ export class OrderStatusService {
       }
     }
 
+    // Check if this is a COD order being delivered
+    const isCod = order.deliveryMethod === 'COD';
+    const shouldMarkPaidOnDelivery =
+      newStatus === OrderStatus.DELIVERED &&
+      isCod &&
+      (order.paymentStatus === PaymentStatus.PENDING ||
+        order.paymentStatus === PaymentStatus.PARTIALLY_PAID);
+
+    if (shouldMarkPaidOnDelivery) {
+      const amountToCollect = order.advanceRequired
+        ? order.remainingAmount
+        : order.total;
+
+      if (amountToCollect > 0) {
+        await tx.payment.create({
+          data: {
+            orderId: order.id,
+            method: 'COD',
+            phase: order.advanceRequired ? 'REMAINDER' : 'FULL',
+            amount: amountToCollect,
+            paidAmount: amountToCollect,
+            dueAmount: 0,
+            status: PaymentStatus.PAID,
+            verificationStatus: 'VERIFIED',
+            transactionId: `COD-${order.id}-${Date.now()}`,
+            collectedBy: 'Courier',
+            collectedAt: new Date(),
+            completedAt: new Date(),
+          },
+        });
+      }
+
+      // Stamp invoice paid date
+      await tx.invoice.updateMany({
+        where: { orderId: order.id, paidAt: null },
+        data: { paidAt: new Date() },
+      });
+    }
+
     const updatedOrder = await tx.order.update({
       where: { id: order.id },
       data: {
         status: newStatus,
         ...(shouldRestoreStock && { stockRestored: true }),
+        ...(shouldMarkPaidOnDelivery && {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          paymentStatus: PaymentStatus.PAID,
+          remainingAmount: 0,
+        }),
         ...extraOrderData,
       },
     });

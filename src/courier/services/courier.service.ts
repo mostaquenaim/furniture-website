@@ -181,10 +181,7 @@ export class CourierService {
   // paymentMethod, which doesn't exist on the model) tells us if it's COD,
   // and remainingAmount (rather than the full total) is what's left to
   // collect on delivery when an advance was already paid online.
-  private resolveCodAmount(
-    dto: CreateCourierShipmentDto,
-    order: any,
-  ): number {
+  private resolveCodAmount(dto: CreateCourierShipmentDto, order: any): number {
     if (dto.codAmount !== undefined && dto.codAmount !== null) {
       return dto.codAmount;
     }
@@ -740,34 +737,44 @@ export class CourierService {
     return shipment;
   }
 
+  // cancel shipment
   async cancelShipment(shipmentId: number, adminId: number) {
+    // find the shipment
     const shipment = await this.prisma.courierShipment.findUnique({
       where: { id: shipmentId },
       include: { provider: true },
     });
     if (!shipment) throw new NotFoundException('Shipment not found');
 
-    const providerImpl = this.providers.get(
-      shipment.provider.name.toLowerCase(),
-    );
+    if (shipment.status === CourierStatus.CANCELLED) {
+      throw new BadRequestException('Shipment is already cancelled');
+    }
 
-    if (providerImpl) {
+    const providerName = shipment.provider.name.toLowerCase();
+    const providerImpl = this.providers.get(providerName);
+    const trackingId = shipment.consignmentId || shipment.trackingNumber;
+
+    let providerResult: any = null;
+
+    // 1. Attempt courier API cancel
+    if (providerImpl && trackingId) {
       try {
-        await providerImpl.cancelShipment(
-          shipment.consignmentId || shipment.trackingNumber || '',
+        providerResult = await providerImpl.cancelShipment(trackingId);
+      } catch (error: any) {
+        this.logger.warn(
+          `Courier API cancellation failed for ${providerName} (${shipmentId}): ${error.message}`,
         );
-      } catch (error) {
-        this.logger.error(`Failed to cancel shipment ${shipmentId}:`, error);
-        throw new BadRequestException('Failed to cancel shipment with courier');
       }
     }
 
+    // 2. Always update local database status
     const updated = await this.prisma.courierShipment.update({
       where: { id: shipmentId },
       data: { status: CourierStatus.CANCELLED },
       include: { provider: true },
     });
 
+    // 3. Sync order & log activity
     await this.syncOrderStatusFromShipment(shipmentId);
 
     await this.activityLogService.log({
@@ -781,7 +788,14 @@ export class CourierService {
         String(shipment.id),
     });
 
-    return updated;
+    // 4. Return helpful UX message to the frontend
+    return {
+      ...updated,
+      notice:
+        providerName === 'pathao'
+          ? 'Shipment cancelled locally. Please make sure to cancel on the Pathao Merchant Dashboard if the parcel was already picked up.'
+          : 'Shipment cancelled successfully.',
+    };
   }
 
   private calculateTotalWeight(items: any[]): number {
@@ -793,7 +807,10 @@ export class CourierService {
     const totalWeight = computeItemsWeightKg(
       items.map((item) => ({
         quantity: item.quantity || 1,
-        weight: resolveUnitWeight(item.productSize?.weight, item.product?.weight),
+        weight: resolveUnitWeight(
+          item.productSize?.weight,
+          item.product?.weight,
+        ),
       })),
     );
 
