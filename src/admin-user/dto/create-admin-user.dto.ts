@@ -29,6 +29,7 @@ export class CreateAdminUserDto {
     UserRole.PRODUCTMANAGER,
     UserRole.ORDERMANAGER,
     UserRole.SUPPORT,
+    UserRole.INVENTORYMANAGER,
     UserRole.SUPERADMIN,
   ])
   role!: UserRole;
