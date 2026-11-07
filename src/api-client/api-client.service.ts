@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -75,6 +76,12 @@ export class ApiClientService {
   // Returns the plaintext key exactly once — nowhere else in this service
   // (or anywhere downstream) is the raw key ever readable again.
   async create(dto: CreateApiClientDto, adminId: number) {
+    // A past expiry would issue a key that's dead on arrival — the admin
+    // copies it, hands it over, and the partner's first call gets a 403.
+    if (dto.expiresAt && new Date(dto.expiresAt).getTime() <= Date.now()) {
+      throw new BadRequestException('expiresAt must be in the future');
+    }
+
     for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
       const { fullKey, keyPrefix } = this.generateKey();
       const hashedSecret = await hashPassword(fullKey);

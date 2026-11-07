@@ -101,6 +101,20 @@ describe('ApiClientService', () => {
       expect(result.apiKey).toMatch(/^sk_live_/);
     });
 
+    it('rejects an expiry that is already in the past', async () => {
+      await expect(
+        service.create(
+          {
+            name: 'Acme',
+            scopes: ['inventory:read'] as any,
+            expiresAt: new Date(Date.now() - 60_000).toISOString(),
+          },
+          7,
+        ),
+      ).rejects.toThrow('expiresAt must be in the future');
+      expect(prisma.apiClient.create).not.toHaveBeenCalled();
+    });
+
     it('does not swallow unrelated database errors', async () => {
       prisma.apiClient.create.mockRejectedValue(new Error('connection lost'));
       await expect(
