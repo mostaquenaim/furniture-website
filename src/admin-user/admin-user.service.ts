@@ -18,13 +18,24 @@ const ADMIN_ROLES: UserRole[] = [
   UserRole.PRODUCTMANAGER,
   UserRole.ORDERMANAGER,
   UserRole.SUPPORT,
+  UserRole.INVENTORYMANAGER,
 ];
 
 const MANAGEABLE_ROLES: UserRole[] = [
   UserRole.PRODUCTMANAGER,
   UserRole.ORDERMANAGER,
   UserRole.SUPPORT,
+  UserRole.INVENTORYMANAGER,
 ];
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  SUPERADMIN: 'Super Admin',
+  PRODUCTMANAGER: 'Product Manager',
+  ORDERMANAGER: 'Order Manager',
+  SUPPORT: 'Support',
+  INVENTORYMANAGER: 'Inventory Manager',
+  CUSTOMER: 'Customer',
+};
 
 @Injectable()
 export class AdminUsersService {
@@ -54,24 +65,67 @@ export class AdminUsersService {
       );
     }
 
-    // Check uniqueness
-    if (dto.email) {
-      const existing = await this.prisma.user.findUnique({
-        where: { email: dto.email },
-      });
-      if (existing) throw new BadRequestException('Email already in use.');
+    // Check uniqueness. The admin list only shows staff roles, so an email or
+    // phone that belongs to a customer account is invisible there — report
+    // that case explicitly, and promote the customer instead of failing.
+    const byEmail = dto.email
+      ? await this.prisma.user.findUnique({ where: { email: dto.email } })
+      : null;
+    const byPhone = dto.phone
+      ? await this.prisma.user.findUnique({ where: { phone: dto.phone } })
+      : null;
+
+    if (byEmail && byPhone && byEmail.id !== byPhone.id) {
+      throw new BadRequestException(
+        'This email and phone belong to two different existing accounts.',
+      );
     }
 
-    if (dto.phone) {
-      const existing = await this.prisma.user.findUnique({
-        where: { phone: dto.phone },
-      });
-      if (existing) throw new BadRequestException('Phone already in use.');
+    const existing = byEmail ?? byPhone;
+    if (existing && existing.role !== UserRole.CUSTOMER) {
+      const field = byEmail ? 'Email' : 'Phone';
+      throw new BadRequestException(
+        `${field} already in use by an admin user (${ROLE_LABELS[existing.role]}).`,
+      );
     }
 
     let hashed = '';
     if (dto.password) {
       hashed = await hashPassword(dto.password);
+    }
+
+    if (existing) {
+      // Existing customer account → promote it to the requested staff role.
+      const user = await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          role: dto.role,
+          name: existing.name ?? dto.name,
+          email: existing.email ?? dto.email,
+          phone: existing.phone ?? dto.phone,
+          ...(hashed ? { password: hashed } : {}),
+          isVerified: true,
+          isActive: true,
+        },
+        select: SAFE_USER_SELECT,
+      });
+
+      await this.activityLogService.log({
+        adminId,
+        action: 'PROMOTE_CUSTOMER_TO_ADMIN',
+        module: 'USER',
+        targetId: user.id,
+        targetLabel: user.name ?? user.email ?? user.phone ?? String(user.id),
+        oldValue: { role: existing.role, isActive: existing.isActive },
+        newValue: { role: user.role, isActive: user.isActive },
+        severity: 'WARNING',
+      });
+
+      return {
+        message:
+          'An existing customer account with this email/phone was promoted to an admin user.',
+        data: user,
+      };
     }
 
     const user = await this.prisma.user.create({
