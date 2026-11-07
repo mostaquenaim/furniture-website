@@ -4,10 +4,21 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { PartnerInventoryModule } from './partner-inventory/partner-inventory.module';
+
+// @nestjs/bull calls queue.process() without handling the promise it returns,
+// so a Redis failure at startup (e.g. Upstash refusing AUTH once its request
+// quota is exhausted) becomes an unhandled rejection — which Node 15+ turns
+// into a process exit, taking the whole API down with it. Log instead: the
+// API keeps serving and only queue-backed features (emails/SMS) degrade.
+process.on('unhandledRejection', (reason) => {
+  new Logger('UnhandledRejection').error(
+    reason instanceof Error ? (reason.stack ?? reason.message) : String(reason),
+  );
+});
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

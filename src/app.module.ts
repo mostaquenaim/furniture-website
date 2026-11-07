@@ -64,6 +64,15 @@ import { DemoModule } from './demo/demo.module';
 
     BullModule.forRoot({
       redis: getRedisConnection(),
+      // Upstash bills per command, and Bull's defaults poll an idle queue
+      // constantly: a 5s BRPOPLPUSH timeout alone is ~518k commands/month,
+      // over the free tier's 500k. Idle waits don't delay new jobs (the
+      // blocking pop returns as soon as one is pushed), so lengthen them.
+      settings: {
+        drainDelay: 60, // seconds a blocking pop waits on an empty queue
+        guardInterval: 60_000, // ms between delayed-job checks
+        stalledInterval: 300_000, // ms between stalled-job sweeps
+      },
     }),
 
     AuthModule,
